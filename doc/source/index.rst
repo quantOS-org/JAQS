@@ -14,7 +14,7 @@ Contents
 
    install
    user_guide
-   jaqs
+   api_reference
 
 
 .. Indices and tables
