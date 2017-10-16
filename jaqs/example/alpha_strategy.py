@@ -25,7 +25,7 @@ from jaqs.example.demoalphastrategy import DemoAlphaStrategy
 from jaqs.util import fileio
 
 from jaqs.util import fileio
-from jaqs.trade.backtest import AlphaBacktestInstance_dv
+from jaqs.trade.backtest import AlphaBacktestInstance
 from jaqs.trade.gateway import DailyStockSimGateway
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
@@ -107,7 +107,6 @@ def test_alpha_strategy():
     context = model.Context()
     context.register_data_api(remote_data_service)
     context.register_gateway(gateway)
-    context.register_trade_api(gateway)
     
     risk_model = model.FactorRiskModel()
     signal_model = model.FactorRevenueModel()
@@ -188,11 +187,10 @@ def test_alpha_strategy_dataview():
 
     context = model.Context()
     context.register_gateway(gateway)
-    context.register_trade_api(gateway)
     context.register_dataview(dv)
     
     risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel_dv()
+    signal_model = model.FactorRevenueModel()
     cost_model = model.SimpleCostModel()
     
     risk_model.register_context(context)
@@ -209,7 +207,7 @@ def test_alpha_strategy_dataview():
     # strategy.active_pc_method = 'mc'
     strategy.active_pc_method = 'factor_value_weight'
     
-    bt = AlphaBacktestInstance_dv()
+    bt = AlphaBacktestInstance()
     bt.init_from_config(props, strategy, context=context)
     
     bt.run_alpha()

@@ -20,11 +20,11 @@ suspensions and limit reachers:
 import time
 
 from jaqs.data.dataservice import RemoteDataService
-from jaqs.example.demoalphastrategy import DemoAlphaStrategy
+from jaqs.trade.strategy import AlphaStrategy
 
 from jaqs.util import fileio
 import jaqs.trade.analyze.analyze as ana
-from jaqs.trade.backtest import AlphaBacktestInstance_dv
+from jaqs.trade.backtest import AlphaBacktestInstance
 from jaqs.trade.gateway import DailyStockSimGateway
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
@@ -54,16 +54,30 @@ def save_dataview(sub_folder='test_dataview'):
     dv.init_from_config(props, ds)
     dv.prepare_data()
     
-    factor_formula = 'close > Ts_Max(close, 20)'  # 20 days new high
+    factor_formula = 'close >= Delay(Ts_Max(close, 20), 1)'  # 20 days new high
     factor_name = 'new_high'
     dv.add_formula(factor_name, factor_formula, is_quarterly=False)
+    
+    dv.add_formula('total_profit_growth', formula='Return(tot_profit, 4)', is_quarterly=True)
     
     dv.save_dataview(folder_path=fileio.join_relative_path('../output/prepared'), sub_folder=sub_folder)
 
 
-def my_factor(context=None, user_options=None):
+def my_selector(context, user_options=None):
     dv = context.dataview
-    res = dv.get_snapshot(context.trade_date, fields='close')
+    growth_rate = dv.get_snapshot(context.trade_date, fields='total_profit_growth')
+    return growth_rate > 0.05
+
+
+def my_selector2(context, user_options=None):
+    dv = context.dataview
+    growth_rate = dv.get_snapshot(context.trade_date, fields='total_profit_growth')
+    return growth_rate > 0.07
+
+
+def my_factor(context, user_options=None):
+    dv = context.dataview
+    res = dv.get_snapshot(context.trade_date, fields='new_high')
     return res
 
 
@@ -76,7 +90,6 @@ def test_alpha_strategy_dataview():
     save_dataview(sub_folder=dv_subfolder_name)
     
     dv = DataView()
-
     fullpath = fileio.join_relative_path('../output/prepared', dv_subfolder_name)
     dv.load_dataview(folder=fullpath)
     
@@ -96,32 +109,31 @@ def test_alpha_strategy_dataview():
         }
 
     gateway = DailyStockSimGateway()
-    gateway.init_from_config(props)
 
-    context = model.Context()
-    context.register_gateway(gateway)
-    context.register_trade_api(gateway)
-    context.register_dataview(dv)
+    context = model.Context(dataview=dv, gateway=gateway)
     
     risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel_dv()
+    signal_model = model.FactorRevenueModel()
     cost_model = model.SimpleCostModel()
+    stock_selector = model.StockSelector()
     
     risk_model.register_context(context)
     signal_model.register_context(context)
     cost_model.register_context(context)
+    stock_selector.register_context(context)
     
-    signal_model.register_func('my_factor', my_factor)
-    signal_model.activate_func({'my_factor': {}})
-    cost_model.register_func('my_commission', my_commission)
-    cost_model.activate_func({'my_commission': {'myrate': 1e-2}})
+    signal_model.register_func(name='my_factor', func=my_factor)
+    cost_model.register_func(name='my_commission', func=my_commission, options={'myrate': 1e-2})
+    stock_selector.register_func(name='total_profit_growth', func=my_selector)
+    stock_selector.register_func(name='total_profit_growth2', func=my_selector2)
     
-    strategy = DemoAlphaStrategy(risk_model, signal_model, cost_model)
+    strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
+                             cost_model=cost_model, risk_model=risk_model)
     # strategy.active_pc_method = 'equal_weight'
     # strategy.active_pc_method = 'mc'
     strategy.active_pc_method = 'factor_value_weight'
     
-    bt = AlphaBacktestInstance_dv()
+    bt = AlphaBacktestInstance()
     bt.init_from_config(props, strategy, context=context)
     
     bt.run_alpha()

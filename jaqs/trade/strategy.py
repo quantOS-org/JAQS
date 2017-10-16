@@ -12,6 +12,7 @@ from jaqs.data.basic.order import *
 from jaqs.data.basic.position import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
 
+from jaqs.trade import model
 from jaqs.trade import common
 from jaqs.trade.event import EventEngine
 from jaqs.trade.pubsub import Subscriber
@@ -39,6 +40,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
     """
     
     def __init__(self):
+        super(Strategy, self).__init__()
         self.context = None
         self.run_mode = common.RUN_MODE.BACKTEST
         
@@ -296,7 +298,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         self.pm.on_order_status(ind)
 
 
-class AlphaStrategy(Strategy):
+class AlphaStrategy(Strategy, model.FuncRegisterable):
     """
     Alpha strategy class.
 
@@ -318,8 +320,8 @@ class AlphaStrategy(Strategy):
 
     """
     # TODO register context
-    def __init__(self, risk_model, revenue_model, cost_model):
-        Strategy.__init__(self)
+    def __init__(self, revenue_model, cost_model=None, risk_model=None, stock_selector=None):
+        super(AlphaStrategy, self).__init__()
         
         self.period = ""
         self.days_delay = 0
@@ -329,6 +331,7 @@ class AlphaStrategy(Strategy):
         self.risk_model = risk_model
         self.revenue_model = revenue_model
         self.cost_model = cost_model
+        self.stock_selector = stock_selector
         
         self.weights = None
         
@@ -336,7 +339,6 @@ class AlphaStrategy(Strategy):
         
         self.goal_positions = None
         
-        self.pc_methods = dict()
         self.active_pc_method = ""
         
         self.market_value_list = []
@@ -349,10 +351,13 @@ class AlphaStrategy(Strategy):
         self.days_delay = props['days_delay']
         self.position_ratio = props['position_ratio']
 
-        self.register_pc_method('equal_weight', self.equal_weight)
-        self.register_pc_method('mc', self.optimize_mc, options={'util_func': self.util_net_revenue,
-                                                                 'constraints': None, 'initial_value': None})
-        self.register_pc_method('factor_value_weight', self.factor_value_weight)
+        self.register_pc_method(name='equal_weight', func=self.equal_weight, options=None)
+        self.register_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_revenue,
+                                                                           'constraints': None,
+                                                                           'initial_value': None})
+        self.register_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
+        
+        print "AlphaStrategy Initialized."
 
     def on_trade_ind(self, ind):
         """
@@ -369,9 +374,7 @@ class AlphaStrategy(Strategy):
         # print str(ind)
         
     def register_pc_method(self, name, func, options=None):
-        if options is None:
-            options = {}
-        self.pc_methods[name] = func, options
+        self.register_func(name, func, options)
     
     def _get_weights_last(self):
         current_positions = self.query_portfolio()
@@ -405,6 +408,7 @@ class AlphaStrategy(Strategy):
     def portfolio_construction(self):
         """
         Calculate target weights of each symbol in the strategy universe.
+        User should not modify this function arbitrarily.
 
         Returns
         -------
@@ -412,36 +416,64 @@ class AlphaStrategy(Strategy):
             Weights of each symbol.
 
         """
-        func, options = self.pc_methods[self.active_pc_method]
+        # pick the registered portfolio construction method
+        rf = self.func_table[self.active_pc_method]
+        func, options = rf.func, rf.options
 
+        # use the registered method to calculate weights
         weights, msg = func(**options)
         if msg:
             print msg
 
-        w_min = np.min(weights.values())
-        delta = 2 * abs(w_min)
-
-        weights = {k: 0.0 if np.isnan(v) else v + delta for k, v in weights.items()}
+        # if nan assign zero
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in weights.items()}
         
+        # step.2 set weights of those not selected to zero
+        if self.stock_selector is not None:
+            selected_list = self.stock_selector.get_selection()
+            weights = {k: v if k in selected_list else 0.0 for k, v in weights.viewitems()}
+
+        # normalize
         w_sum = np.sum(np.abs(weights.values()))
-        if w_sum > 1e-8:
+        if w_sum > 1e-8:  # else all zeros weights
             weights = {k: v / w_sum for k, v in weights.items()}
 
         self.weights = weights
 
-    def equal_weight(self, util_func=None, constrains=None, initial_value=None):
-        n = len(self.context.universe)
-        weights_arr = np.ones(n, dtype=float) / n
-        weights = dict(zip(self.context.universe, weights_arr))
+    def equal_weight(self):
+        raw_weights_dic = self.revenue_model.make_forecast()
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.items()}
+        # discrete
+        weights = {k: 1.0 if v > 0 else 0.0 for k, v in weights.items()}
         return weights, ''
     
-    def factor_value_weight(self, util_func=None, constrains=None, initial_value=None):
-        self.revenue_model.make_forecast()
-        weights_raw = self.revenue_model.forecast_dic
+    def factor_value_weight(self):
+        def long_only_weight_adjust(w):
+            """
+            Adjust weights for long only constraints.
+            
+            Parameters
+            ----------
+            w : dict
+    
+            Returns
+            -------
+            res : dict
+    
+            """
+            # TODO: we should not add a const
+            w_min = np.min(w.values())
+            delta = 2 * abs(w_min)
+            # if nan assign zero; else add const
+            w = {k: v + delta for k, v in w.items()}
+            return w
         
-        return weights_raw, ""
+        raw_weights_dic = self.revenue_model.make_forecast()
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.items()}
+        weights = long_only_weight_adjust(weights)
+        return weights, ""
         
-    def optimize_mc(self, util_func, constraints=None, initial_value=None):
+    def optimize_mc(self, util_func):
         """
         Use naive search (Monte Carol) to find variable that maximize util_func.
         
@@ -449,9 +481,6 @@ class AlphaStrategy(Strategy):
         ----------
         util_func : callable
             Input variables, output the value of util function.
-        constraints : dict or None
-        initial_value : dict or None
-            Initial value of variables.
 
         Returns
         -------
@@ -480,7 +509,6 @@ class AlphaStrategy(Strategy):
             msg = "No weights can make f > {:.2e} found in this search".format(min_f)
         else:
             msg = ""
-        # self.weights = min_weights
         return min_weights, msg
 
     def re_weight_suspension(self, suspensions=None):
@@ -510,7 +538,6 @@ class AlphaStrategy(Strategy):
     def get_univ_prices(self):
         ds = self.context.data_api
         
-        # univ_str = ','.join(self.context.universe)
         df_dic = dict()
         for sec in self.context.universe:
             df, msg = ds.daily(sec, self.trade_date, self.trade_date, fields="")
@@ -519,95 +546,8 @@ class AlphaStrategy(Strategy):
             df_dic[sec] = df
         return df_dic
     
-    def re_balance_plan_before_open(self):
-        """
-        Do portfolio re-balance before market open (not knowing suspensions) only calculate weights.
-        For now, we stick to the same close price when calculate market value and do re-balance.
-        
-        Parameters
-        ----------
-        univ_price_dic : dict of {str: float}
-            {sec: close_price}
-
-        """
-        self.portfolio_construction()
-        
-        '''
-        # DEBUG
-        print "weights sum = {:.2f}".format(np.sum(self.weights.values()))
-        import pandas as pd
-        dfw = pd.Series(self.weights)
-        dfw.sort_values(inplace=True)
-        print dfw.tail()
-        # DEBUG
-        '''
-
-    def re_balance_plan_after_open(self, univ_price_dic, suspensions=None):
-        """
-        Do portfolio re-balance after market open.
-        With suspensions known, we re-calculate weights and generate orders.
-        
-        Parameters
-        ----------
-        univ_price_dic : dict of {str: float}
-            {sec: close_price}
-        suspensions: list of str
-        
-        Notes
-        -----
-        price here must not be adjusted.
-
-        """
-        prices = {k: v.loc[:, 'close'].values[0] for k, v in univ_price_dic.viewitems()}
-    
-        # TODO why this two do not equal? (suspended stocks still have prices)
-        nan_symbols = [k for k, v in prices.viewitems() if np.isnan(v)]
-        set_diff = set.difference(set(nan_symbols), set(suspensions))
-        if len(set_diff) > 0:
-            print Warning("there are NaN values but not suspended.")
-            # print "Symbols with NaN price but not suspended: {}".format(set_diff)
-    
-        # weights of those suspended will be remove, and weights of others will be re-normalized
-        self.re_weight_suspension(suspensions)
-        
-        # market value does not include those suspended
-        market_value = self.pm.market_value(self.trade_date, prices, suspensions)
-        self.market_value_list.append((self.trade_date, market_value))
-        cash_available = self.cash + market_value
-    
-        cash_use = cash_available * self.position_ratio
-        cash_unuse = cash_available - cash_use
-    
-        # position of those suspended will remain the same (will not be traded)
-        goals, cash_remain = self.generate_weights_order(self.weights, cash_use, prices,
-                                                         algo='close', suspensions=suspensions)
-        self.goal_positions = goals
-        self.cash = cash_remain + cash_unuse
-        # self.liquidate_all()
-        # self.place_batch_order(orders)
-        '''
-        # ----------------------------------------
-        #  DEBUG validation
-        import pandas as pd
-        ret1 = self.context.dataview.data_d.loc[:, pd.IndexSlice[:, 'ret20']]
-        ret1.columns = ret1.columns.droplevel(level=1)
-        td = self.trade_date
-        ret1 = ret1.loc[td, :]
-        ret1 = ret1.sort_values().dropna()
-        
-        ser_weights = pd.Series(self.weights).sort_values()
-        rank_ret = set(ret1.index.values[-50:])
-        rank_weights = set(ser_weights.index.values[-50:])
-        print len(set(rank_ret) - set(rank_weights)) / 50.
-        # assert rank_dv == rank_weights
-        #  DEBUG validation
-        # ----------------------------------------
-        '''
-    
-        self.on_after_rebalance(cash_available)
-        
-    @abstractmethod
     def on_after_rebalance(self, total):
+        print "\n\n{}, cash all = {:9.4e}".format(self.trade_date, total)  # DEBUG
         pass
     
     def send_bullets(self):

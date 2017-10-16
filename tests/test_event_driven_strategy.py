@@ -31,7 +31,6 @@ def test_double_ma():
     context = model.Context()
     context.register_data_api(data_service)
     context.register_gateway(gateway)
-    context.register_trade_api(gateway)
     
     backtest = EventBacktestInstance()
     backtest.init_from_config(props, strategy, context=context)

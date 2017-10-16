@@ -57,3 +57,9 @@
 
 # Analyze
 -[] jinja2 search path does not work on Windows
+
+# on branch alphabacktest
+-[x] register signal function, no activation needed
+-[x] limit reachers: in re_balance_plan_after_open, set weights to zero
+-[x] index members: in re_balance_plan_before_open, set weights to zero
+-[x] stock selection: use StockSelector class.

@@ -1,5 +1,8 @@
 # encoding: utf-8
 
+import numpy as np
+import pandas as pd
+
 from jaqs.data.calendar import Calendar
 from jaqs.trade import common
 from jaqs.trade.analyze.pnlreport import PnlManager
@@ -163,9 +166,16 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
 '''
 
 
-class AlphaBacktestInstance_dv(BacktestInstance):
+class AlphaBacktestInstance(BacktestInstance):
     """
     Backtest alpha strategy using DataView.
+    
+    Attributes
+    ----------
+    last_rebalance_date : int
+    current_rebalance_date : int
+    univ_price_dic : dict
+        Prices of symbols at current_date
 
     """
     def __init__(self):
@@ -173,7 +183,8 @@ class AlphaBacktestInstance_dv(BacktestInstance):
     
         self.last_rebalance_date = 0
         self.current_rebalance_date = 0
-        self.trade_days = None
+        
+        self.univ_price_dic = {}
 
     def position_adjust(self):
         """
@@ -214,8 +225,106 @@ class AlphaBacktestInstance_dv(BacktestInstance):
                 self.strategy.on_trade_ind(trade_ind)
 
     def delist_adjust(self):
+        # TODO
         pass
+
+    def re_balance_plan_before_open(self):
+        """
+        Do portfolio re-balance before market open (not knowing suspensions) only calculate weights.
+        For now, we stick to the same close price when calculate market value and do re-balance.
+        
+        Parameters
+        ----------
+
+        """
+        # step.1 construct portfolio using models
+        self.strategy.portfolio_construction()
+        
+        '''
+        # DEBUG get highest weights
+        print "weights sum = {:.2f}".format(np.sum(self.weights.values()))
+        import pandas as pd
+        dfw = pd.Series(self.weights)
+        dfw.sort_values(inplace=True)
+        print dfw.tail()
+        # DEBUG
+        '''
     
+        # step.2 set weights of those non-index-members to zero
+        col = 'index_member'
+        df_is_member = self.ctx.dataview.get_snapshot(self.current_date, fields=col)
+        dic = df_is_member.loc[:, col].to_dict()
+        # print len(self.ctx.dataview.symbol) - sum(dic.values())  # DEBUG
+        self.strategy.weights = {k: v if dic[k] else 0.0 for k, v in self.strategy.weights.viewitems()}
+        
+    def re_balance_plan_after_open(self):
+        """
+        Do portfolio re-balance after market open.
+        With suspensions known, we re-calculate weights and generate orders.
+        
+        Notes
+        -----
+        Price here must not be adjusted.
+
+        """
+        # univ_price_dic : dict of {str: float} i.e. {sec: close_price}
+        prices = {k: v.loc[:, 'close'].values[0] for k, v in self.univ_price_dic.viewitems()}
+        # suspensions & limit_reaches: list of str
+        suspensions = self.get_suspensions()
+        limit_reaches = self.get_limit_reaches()
+        all_list = reduce(lambda s1, s2: s1.union(s2), [set(suspensions), set(limit_reaches)])
+    
+        '''
+        # DEBUG ----------------------------------------
+        # TODO why this two do not equal? (suspended stocks still have prices)
+        nan_symbols = [k for k, v in prices.viewitems() if np.isnan(v)]
+        set_diff = set.difference(set(nan_symbols), set(suspensions))
+        if len(set_diff) > 0:
+            print Warning("there are NaN values but not suspended.")
+            # print "Symbols with NaN price but not suspended: {}".format(set_diff)
+        # DEBUG ----------------------------------------
+        '''
+    
+        # step1. weights of those suspended and limit will be remove, and weights of others will be re-normalized
+        self.strategy.re_weight_suspension(all_list)
+    
+        # step2. calculate market value and cash
+        # market value does not include those suspended
+        market_value = self.strategy.pm.market_value(self.current_date, prices, all_list)
+        # self.market_value_list.append((self.trade_date, market_value))  # DEBUG
+        cash_available = self.strategy.cash + market_value
+    
+        cash_use = cash_available * self.strategy.position_ratio
+        cash_unuse = cash_available - cash_use
+    
+        # step3. generate target positions
+        # position of those suspended will remain the same (will not be traded)
+        goals, cash_remain = self.strategy.generate_weights_order(self.strategy.weights, cash_use, prices,
+                                                                  algo='close', suspensions=suspensions)
+        self.strategy.goal_positions = goals
+        self.strategy.cash = cash_remain + cash_unuse
+        # self.liquidate_all()
+        '''
+        # ----------------------------------------
+        #  DEBUG validation
+        import pandas as pd
+        ret1 = self.context.dataview.data_d.loc[:, pd.IndexSlice[:, 'ret20']]
+        ret1.columns = ret1.columns.droplevel(level=1)
+        td = self.trade_date
+        ret1 = ret1.loc[td, :]
+        ret1 = ret1.sort_values().dropna()
+        
+        ser_weights = pd.Series(self.weights).sort_values()
+        rank_ret = set(ret1.index.values[-50:])
+        rank_weights = set(ser_weights.index.values[-50:])
+        print len(set(rank_ret) - set(rank_weights)) / 50.
+        # assert rank_dv == rank_weights
+        #  DEBUG validation
+        # ----------------------------------------
+        '''
+    
+        self.strategy.on_after_rebalance(cash_available)
+
     def run_alpha(self):
         gateway = self.ctx.gateway
         
@@ -223,35 +332,34 @@ class AlphaBacktestInstance_dv(BacktestInstance):
         while True:
             # switch trade date
             self.go_next_date()
-            
             if self.current_date > self.end_date:
                 break
 
-            # match orders or re-balance
+            # match uncome orders or re-balance
             if gateway.match_finished:
+                # Step1.
                 # position adjust according to dividend, cash paid, de-list actions during the last period
                 # two adjust must in order
                 self.position_adjust()
                 self.delist_adjust()
-    
-                # plan re-balance before new day
+
+                # Step2.
+                # plan re-balance before the re-balance day
                 self.on_new_day(self.last_date)
-                # univ_price_dic = self.get_univ_prices(field_name="close_adj,open_adj,high_adj,low_adj")  # access data
-                self.strategy.re_balance_plan_before_open()
-                
-                # do re-balance on new day
+                # get index memebers, get signals, generate weights
+                self.re_balance_plan_before_open()
+
+                # Step3.
+                # do re-balance on the re-balance day
                 self.on_new_day(self.current_date)
-                
-                univ_price_dic = self.get_univ_prices(field_name="close,vwap,open,high,low")  # access data
-                suspensions = self.get_suspensions()
-                self.strategy.re_balance_plan_after_open(univ_price_dic, suspensions)
+                # get suspensions, get up/down limits, generate goal positions and send orders.
+                self.re_balance_plan_after_open()
                 self.strategy.send_bullets()
             else:
                 self.on_new_day(self.current_date)
-                univ_price_dic = self.get_univ_prices(field_name="close,vwap,open,high,low")  # access data
             
             # return trade indications
-            trade_indications = gateway.match(univ_price_dic, self.current_date)
+            trade_indications = gateway.match(self.univ_price_dic, self.current_date)
             for trade_ind in trade_indications:
                 self.strategy.on_trade_ind(trade_ind)
         
@@ -283,7 +391,7 @@ class AlphaBacktestInstance_dv(BacktestInstance):
             if self.current_rebalance_date > 0:
                 self.last_rebalance_date = self.current_rebalance_date
             else:
-                self.last_rebalance_date = self.start_date
+                self.last_rebalance_date = self.current_date
             self.current_rebalance_date = self.current_date
         else:
             # TODO here we must make sure the matching will not last to next period
@@ -297,10 +405,19 @@ class AlphaBacktestInstance_dv(BacktestInstance):
         mask_sus = trade_status != u'交易'.encode('utf-8')
         return list(trade_status.loc[mask_sus].index.values)
 
+    def get_limit_reaches(self):
+        # TODO: 10% is not the absolute value to check limit reach
+        df_open = self.ctx.dataview.get_snapshot(self.current_date, fields='open')
+        df_close = self.ctx.dataview.get_snapshot(self.last_date, fields='close')
+        merge = pd.concat([df_close, df_open], axis=1)
+        merge.loc[:, 'limit'] = np.abs((merge['open'] - merge['close']) / merge['close']) > 9.5E-2
+        return list(merge.loc[merge.loc[:, 'limit'], :].index.values)
+    
     def on_new_day(self, date):
         self.ctx.trade_date = date
         self.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
+        self.univ_price_dic = self.get_univ_prices(field_name="close,vwap,open,high,low")  # access data
 
     def save_results(self, folder='../output/'):
         import pandas as pd

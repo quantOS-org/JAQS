@@ -8,7 +8,7 @@ from jaqs.data.calendar import Calendar
 class RegisteredFunction(object):
     def __init__(self, func, name="", options=None):
         self.func = func
-        self.name = ""
+        self.name = name
         if not options:
             options = dict()
         self.options = options
@@ -20,13 +20,14 @@ class Context(object):
 
     Attributes
     ----------
-    data_api : trade.DataServer object
+    data_api : DataService
         Data provider for the strategy.
+    dataview : DataView
     gateway : gateway.Gateway object
         Broker of the strategy.
     universe : list of str
         Securities that the strategy cares about.
-    calendar : trade.Calendar object
+    calendar : Calendar
         A certain calendar that the strategy refers to.
 
     Methods
@@ -35,19 +36,17 @@ class Context(object):
         Add new securities.
 
     """
-    def __init__(self):
-        # TODO: hard-code
-        self.calendar = Calendar()
-        
+    def __init__(self, calendar=None, data_api=None, dataview=None, gateway=None):
+        if calendar is None:
+            # TODO: hard-code
+            calendar = Calendar()
+        self.calendar = calendar
+        self.data_api = data_api
+        self.dataview = dataview
+        self.gateway = gateway
+
         self.pm = None
-        
-        self.data_api = None
-        self.dataview = None
-        
-        self.gateway = None
-        
-        self.trade_api = None
-        
+
         self.universe = []
         
         self.trade_date = 0
@@ -60,9 +59,6 @@ class Context(object):
         
     def register_data_api(self, data_api):
         self.data_api = data_api
-    
-    def register_trade_api(self, trade_api):
-        self.trade_api = trade_api
         
     def register_gateway(self, gateway):
         self.gateway = gateway
@@ -89,7 +85,7 @@ class Context(object):
             raise NotImplementedError("type of univ is {}".format(type(univ)))
 
 
-class BaseModel(object):
+class FuncRegisterable(object):
     """
     A base class for all models. Support function register and context.
     
@@ -100,14 +96,23 @@ class BaseModel(object):
     
     """
     def __init__(self):
+        super(FuncRegisterable, self).__init__()
         self.context = None
         self.func_table = dict()
         self.active_funcs = []
     
     def register_func(self, name, func, options=None):
+        if options is None:
+            options = dict()
+        
         rf = RegisteredFunction(func, name, options)
         self.func_table[name] = rf
-
+        
+        self.active_funcs.append(name)
+    
+    def register_context(self, context):
+        self.context = context
+    '''
     def activate_func(self, f_dict):
         """
         Activate key in self.func_table using kwargs in value.
@@ -123,11 +128,38 @@ class BaseModel(object):
             self.func_table[f_name].options = options
             self.active_funcs.append(f_name)
     
-    def register_context(self, context):
-        self.context = context
+    '''
 
 
-class BaseRevenueModel(BaseModel):
+class StockSelector(FuncRegisterable):
+    def __init__(self):
+        super(StockSelector, self).__init__()
+        pass
+    
+    def get_selection(self):
+        """
+        Return a list of stocks that are not selected.
+        
+        Returns
+        -------
+        selected : list
+
+        """
+        mask_selected = dict()
+        for factor in self.active_funcs:
+            rf = self.func_table[factor]
+            res = rf.func(context=self.context, user_options=rf.options)
+            res = convert_to_df(res)
+            mask_selected[factor] = res
+        
+        merge = pd.concat(mask_selected.values(), axis=1)
+        symbol_arr = merge.index.values
+        mask_arr = np.all(merge.values, axis=1).astype(bool)
+        selected = symbol_arr[mask_arr].tolist()
+        return selected
+
+
+class BaseRevenueModel(FuncRegisterable):
     def __init__(self):
         super(BaseRevenueModel, self).__init__()
         pass
@@ -136,6 +168,7 @@ class BaseRevenueModel(BaseModel):
         pass
 
 
+'''
 class FactorRevenueModel(BaseRevenueModel):
     """
     Forecast profit of target weight (portfolio), where:
@@ -149,7 +182,6 @@ class FactorRevenueModel(BaseRevenueModel):
     def __init__(self):
         super(FactorRevenueModel, self).__init__()
         
-        self.forecast_dic = None
         self.total_forecast = None
     
     @staticmethod
@@ -217,8 +249,10 @@ class FactorRevenueModel(BaseRevenueModel):
         
         return total_revenue
 
+'''
 
-class FactorRevenueModel_dv(FactorRevenueModel):
+
+class FactorRevenueModel(BaseRevenueModel):
     """
     Forecast profit of target weight (portfolio), where:
     
@@ -228,6 +262,43 @@ class FactorRevenueModel_dv(FactorRevenueModel):
     output: dict
     
     """
+    def __init__(self):
+        super(FactorRevenueModel, self).__init__()
+    
+        self.total_forecast = None
+
+    @staticmethod
+    def order2z(order_arr):
+        """Transform an array with order to z_score"""
+        mean, std = np.mean(order_arr), np.std(order_arr)
+        res = (np.asarray(order_arr, dtype=float) - mean) / std
+        return res
+
+    def combine_using_corr(self, forecasts):
+        """
+        Combine forecasts into one single forecast.
+        
+        Parameters
+        ----------
+        forecasts : dict
+
+        Returns
+        -------
+        res : float
+
+        """
+        n = len(forecasts)
+        forecast_corr = np.random.randn(n, n)
+        forecasts_arr = np.asarray(forecasts.values(), dtype=float).reshape(-1, 1)
+        return np.dot(forecast_corr, forecasts_arr).sum()
+
+    def combine_custom_weight(self, forecasts, forecast_weights):
+        res = 0.0
+        for factor, f in forecasts.viewitems():
+            w = forecast_weights[factor]
+            res += f * w
+        return res
+    
     def get_forecasts(self):
         """
         
@@ -241,7 +312,9 @@ class FactorRevenueModel_dv(FactorRevenueModel):
         forecasts = dict()
         for factor in self.active_funcs:
             rf = self.func_table[factor]
-            forecasts[factor] = rf.func(context=self.context, user_options=rf.options)
+            res = rf.func(context=self.context, user_options=rf.options)
+            res = convert_to_df(res)
+            forecasts[factor] = res
         return forecasts
     
     def combine_sum(self, forecasts):
@@ -264,11 +337,20 @@ class FactorRevenueModel_dv(FactorRevenueModel):
         return res
     
     def make_forecast(self):
-        forecasts = self.get_forecasts()
+        """
+        Get and combine signals (forecasts). Return the combined signal.
+        
+        Returns
+        -------
+        forecast : dict of {str: float}
+            {symbol_name: forecast_value}
+        
+        """
+        forecasts = self.get_forecasts()  # {str: pd.DataFrame}
         # TODO NaN
         forecasts = {key: value.fillna(0) for key, value in forecasts.items()}
         forecast = self.combine_sum(forecasts)
-        self.forecast_dic = forecast
+        return forecast
         
     def forecast_revenue(self, weights):
         """
@@ -284,15 +366,15 @@ class FactorRevenueModel_dv(FactorRevenueModel):
 
         """
         total_revenue = 0.0
-        self.make_forecast()
+        forecast_dic = self.make_forecast()
         
-        weighted_revenue = {key: value * self.forecast_dic[key] for key, value in weights.viewitems()}
+        weighted_revenue = {key: value * forecast_dic[key] for key, value in weights.viewitems()}
         total_revenue = np.sum(weighted_revenue.values())
         
         return total_revenue
 
 
-class BaseCostModel(BaseModel):
+class BaseCostModel(FuncRegisterable):
     """Transaction Cost = commission + spread + execution"""
     def __init__(self):
         super(BaseCostModel, self).__init__()
@@ -391,7 +473,7 @@ class SimpleCostModel(BaseRevenueModel):
         return total_cost
 
 
-class BaseRiskModel(BaseModel):
+class BaseRiskModel(FuncRegisterable):
     def __init__(self):
         super(BaseRiskModel, self).__init__()
         pass
@@ -468,6 +550,18 @@ def test_models():
     s.t.: g1(x) = abs(risk_factors[3]) < 100000.0
     g2(x) = var(risk_factors) <= 0.0
     """
+
+
+def convert_to_df(res):
+    if isinstance(res, pd.DataFrame):
+        pass
+    elif isinstance(res, pd.Series):
+        res = pd.DataFrame(index=res.index, data=res.values)
+    elif isinstance(res, dict):
+        res = pd.DataFrame(columns=[factor], data=pd.Series(data=res))
+    else:
+        raise ValueError("return type of signal function must be DataFrame or Series or dict!")
+    return res
 
     
 if __name__ == "__main__":
