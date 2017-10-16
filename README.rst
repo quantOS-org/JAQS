@@ -12,8 +12,16 @@ Welcome
 Dependencies
 ============
 
-pytest Jinja2 matplotlib msgpack\_python nose\_parameterized seaborn six
-xarray pyzmq python-snappy
+- pytest
+- Jinja2
+- matplotlib
+- msgpack\_python
+- nose\_parameterized
+- seaborn
+- six
+- xarray
+- pyzmq
+- python-snappy
 
 Installation
 ============
