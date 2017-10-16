@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+
+<meta charset="UTF-8">
+
+<style>
+{% include 'github.css' %}
+{% include 'additional.css' %}
+</style>
+
+<title>{{ html_title }}</title>
+
+</head>
+
+<body>
+
+<h2>Backtest Configs</h2>
+
+<table border="1">
+<caption></caption>
+{% for key, value in props.items() %}
+<tr>
+  <td>{{key}}</td>
+  <td>{{value}}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>PnL Curve & Performance Metrics</h2>
+
+<img src="pnl_img.png">
+
+<table border="1">
+<caption></caption>
+{% for key, value in metrics.items() %}
+<tr>
+  <td>{{key}}</td>
+  <td>{{value | round_if_float(2) }}</td>
+</tr>
+{% endfor %}
+</table>
+
+{% if position_change is not none %}
+<h2>Position Changes</h2>
+{% for date, df in position_change.items() %}
+
+<span>{{ date }}</span>
+<br>
+market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k, 
+cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k, 
+<br>
+{{ df.to_html() }}
+
+{% endfor %}
+{% endif %}
+
+{% if selected_securities|length > 0 %}
+<h2>Selected Security Visualization</h2>
+{% for symbol in selected_securities %}
+  <img src="{{symbol}}.png">
+{% endfor %}
+
+{% if df_daily is not none %}
+<h2>Daily PnL for Each Security</h2>
+{% for symbol in selected_securities %}
+
+<span> {{ symbol }} </span>
+<br>
+{{ df_daily[symbol].to_html() }}
+<br>
+
+{% endfor %}
+{% endif %}
+
+{% endif %}
+
+</body>
+</html>

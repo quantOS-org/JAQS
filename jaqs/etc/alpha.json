@@ -1,0 +1,15 @@
+{
+"benchmark": "000300.SH",
+"universe": "600026.SH,600027.SH,600028.SH,600029.SH,600030.SH,600031.SH",
+
+"period": "month",
+"days_delay": 1,
+
+"init_balance": 1e7,
+"position_ratio": 0.7,
+
+"start_date": 20120101,
+"end_date": 20170601,
+
+"instanceid": "alpha001"
+}

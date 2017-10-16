@@ -1,0 +1,10 @@
+pytest
+Jinja2
+matplotlib
+msgpack_python
+nose_parameterized
+seaborn
+six
+xarray
+pyzmq
+python-snappy
