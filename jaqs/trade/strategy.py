@@ -320,7 +320,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
     """
     # TODO register context
-    def __init__(self, revenue_model, cost_model=None, risk_model=None, stock_selector=None):
+    def __init__(self, revenue_model=None, stock_selector=None,
+                 cost_model=None, risk_model=None,
+                 pc_method="equal_weight"):
         super(AlphaStrategy, self).__init__()
         
         self.period = ""
@@ -339,7 +341,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         
         self.goal_positions = None
         
-        self.active_pc_method = ""
+        self.pc_method = pc_method
         
         self.market_value_list = []
 
@@ -357,8 +359,21 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                                                            'initial_value': None})
         self.register_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
         
+        self._validate_parameters()
         print "AlphaStrategy Initialized."
-
+    
+    def _validate_parameters(self):
+        if self.pc_method in ['mc', 'quad_opt']:
+            if self.revenue_model is None and self.cost_model is None and self.risk_model is None:
+                raise ValueError("At least one model of revenue, cost and risk must be provided.")
+        elif self.pc_method in ['factor_value_weight']:
+            if self.revenue_model is None:
+                raise ValueError("revenue_model must be provided when pc_method = 'factor_value_weight'")
+        elif self.pc_method in ['equal_weight']:
+            pass
+        else:
+            raise NotImplementedError("pc_method = {:s}".format(self.pc_method))
+    
     def on_trade_ind(self, ind):
         """
 
@@ -417,7 +432,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
         """
         # pick the registered portfolio construction method
-        rf = self.func_table[self.active_pc_method]
+        rf = self.func_table[self.pc_method]
         func, options = rf.func, rf.options
 
         # use the registered method to calculate weights

@@ -123,8 +123,8 @@ def test_alpha_strategy():
     
     strategy = DemoAlphaStrategy(risk_model, signal_model, cost_model)
     # strategy.register_context(context)
-    # strategy.active_pc_method = 'equal_weight'
-    strategy.active_pc_method = 'mc'
+    # strategy.pc_method = 'equal_weight'
+    strategy.pc_method = 'mc'
     
     trade = AlphaBacktestInstance_OLD_dataservice()
     trade.init_from_config(props, strategy, context=context)
@@ -203,9 +203,9 @@ def test_alpha_strategy_dataview():
     cost_model.activate_func({'my_commission': {'myrate': 1e-2}})
     
     strategy = DemoAlphaStrategy(risk_model, signal_model, cost_model)
-    # strategy.active_pc_method = 'equal_weight'
-    # strategy.active_pc_method = 'mc'
-    strategy.active_pc_method = 'factor_value_weight'
+    # strategy.pc_method = 'equal_weight'
+    # strategy.pc_method = 'mc'
+    strategy.pc_method = 'factor_value_weight'
     
     bt = AlphaBacktestInstance()
     bt.init_from_config(props, strategy, context=context)
