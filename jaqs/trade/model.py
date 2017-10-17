@@ -557,11 +557,14 @@ def convert_to_df(res):
         pass
     elif isinstance(res, pd.Series):
         res = pd.DataFrame(index=res.index, data=res.values)
+    else:
+        raise ValueError("Return type of signal function must be DataFrame or Series or dict!"
+                         + "\nWe got [{}] instead.".format(type(res)))
+    return res
+    '''
     elif isinstance(res, dict):
         res = pd.DataFrame(columns=[factor], data=pd.Series(data=res))
-    else:
-        raise ValueError("return type of signal function must be DataFrame or Series or dict!")
-    return res
+    '''
 
     
 if __name__ == "__main__":
