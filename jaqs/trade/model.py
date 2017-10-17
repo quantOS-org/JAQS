@@ -95,9 +95,9 @@ class FuncRegisterable(object):
     context : Context
     
     """
-    def __init__(self):
+    def __init__(self, context=None):
         super(FuncRegisterable, self).__init__()
-        self.context = None
+        self.context = context
         self.func_table = dict()
         self.active_funcs = []
     
@@ -132,8 +132,8 @@ class FuncRegisterable(object):
 
 
 class StockSelector(FuncRegisterable):
-    def __init__(self):
-        super(StockSelector, self).__init__()
+    def __init__(self, context=None):
+        super(StockSelector, self).__init__(context=context)
         pass
     
     def get_selection(self):
@@ -160,8 +160,8 @@ class StockSelector(FuncRegisterable):
 
 
 class BaseRevenueModel(FuncRegisterable):
-    def __init__(self):
-        super(BaseRevenueModel, self).__init__()
+    def __init__(self, context=None):
+        super(BaseRevenueModel, self).__init__(context=context)
         pass
     
     def forecast_revenue(self, weights):
@@ -262,8 +262,8 @@ class FactorRevenueModel(BaseRevenueModel):
     output: dict
     
     """
-    def __init__(self):
-        super(FactorRevenueModel, self).__init__()
+    def __init__(self, context=None):
+        super(FactorRevenueModel, self).__init__(context=context)
     
         self.total_forecast = None
 
@@ -376,8 +376,8 @@ class FactorRevenueModel(BaseRevenueModel):
 
 class BaseCostModel(FuncRegisterable):
     """Transaction Cost = commission + spread + execution"""
-    def __init__(self):
-        super(BaseCostModel, self).__init__()
+    def __init__(self, context=None):
+        super(BaseCostModel, self).__init__(context=context)
         pass
     
     def calc_cost(self, symbol, size):
@@ -474,14 +474,14 @@ class SimpleCostModel(BaseRevenueModel):
 
 
 class BaseRiskModel(FuncRegisterable):
-    def __init__(self):
-        super(BaseRiskModel, self).__init__()
+    def __init__(self, context=None):
+        super(BaseRiskModel, self).__init__(context=context)
         pass
 
 
 class FactorRiskModel(BaseRiskModel):
-    def __init__(self):
-        super(FactorRiskModel, self).__init__()
+    def __init__(self, context=None):
+        super(FactorRiskModel, self).__init__(context=context)
         
         self.benchmark = ""
     
