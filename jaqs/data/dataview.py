@@ -74,7 +74,7 @@ class DataView(object):
         # fields map
         self.market_daily_fields = \
             {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi', 'trade_status',
-             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'index_member'}
+             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'index_member', 'group'}
         self.reference_daily_fields = \
             {'currency', 'total_market_value', 'float_market_value',
              'high_52w', 'low_52w', 'high_52w_adj', 'low_52w_adj', 'close_price',
@@ -223,6 +223,15 @@ class DataView(object):
 
     @property
     def data_group(self):
+        """
+        
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        if self._data_group is None:
+            self._data_group = self.get_ts('group')
         return self._data_group
     
     @data_benchmark.setter
@@ -753,8 +762,9 @@ class DataView(object):
         self._prepare_adj_factor()
 
         if self.universe:
-            print "Query industry..."
-            self._data_group = self._prepare_group()
+            if 'group' in self.fields:
+                print "Query groups (industry)..."
+                self._prepare_group()
             print "Query benchmark..."
             self._data_benchmark = self._prepare_benchmark()
             print "Query benchmar member info..."
@@ -818,6 +828,7 @@ class DataView(object):
     def _prepare_group(self):
         df = self.data_api.get_industry_daily(symbol=','.join(self.symbol),
                                               start_date=self.extended_start_date_q, end_date=self.end_date)
+        self.append_df(df, 'group', is_quarterly=False)
         return df
     
     def _add_field(self, field_name, is_quarterly=None):
@@ -970,7 +981,6 @@ class DataView(object):
         self.data_d = dic.get('/data_d', None)
         self.data_q = dic.get('/data_q', None)
         self._data_benchmark = dic.get('/data_benchmark', None)
-        self._data_group = dic.get('/data_group', None)
         self.__dict__.update(meta_data)
         
         print "Dataview loaded successfully."
@@ -1186,8 +1196,7 @@ class DataView(object):
         data_path = os.path.join(folder_path, 'data.hd5')
         
         data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
-                         'data_benchmark': self._data_benchmark,
-                         'data_group': self._data_group}
+                         'data_benchmark': self._data_benchmark}
         data_to_store = {k: v for k, v in data_to_store.viewitems() if v is not None}
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
 
