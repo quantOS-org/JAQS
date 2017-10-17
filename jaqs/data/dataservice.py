@@ -615,27 +615,35 @@ class RemoteDataService(DataService):
             values are industry code
 
         """
-        df_raw = self.get_adj_factor_raw(symbol)
+        df_raw = self.get_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
     
         dic_sec = self._group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.loc[:, ['trade_date', 'adjust_factor']].set_index('trade_date').iloc[:, 0]
                    for sec, df in dic_sec.viewitems()}
-    
-        res = pd.concat(dic_sec, axis=1)
+        # TODO: len(dic_sec) may < len(symbol_list) for all _group_df_to_dict function results. To be checked.
         
+        # TODO: duplicate codes with dataview.py: line 512
+        res = pd.concat(dic_sec, axis=1)  # TODO: fillna ?
+        
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        res_final = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        res_final.loc[res.index, res.columns] = res
+
         # align to every trade date
         s, e = df_raw.loc[:, 'trade_date'].min(), df_raw.loc[:, 'trade_date'].max()
         dates_arr = self.get_trade_date(s, e)
-        res = res.reindex(dates_arr)
-        
-        res = res.fillna(method='ffill').fillna(method='bfill')
+        if not len(dates_arr) == len(res_final.index):
+            res_final = res_final.reindex(dates_arr)
+            
+            res_final = res_final.fillna(method='ffill').fillna(method='bfill')
 
         if div:
-            res = res.div(res.shift(1, axis=0)).fillna(1.0)
+            res_final = res_final.div(res_final.shift(1, axis=0)).fillna(1.0)
             
-        res = res.loc[start_date: end_date, :]
+        # res = res.loc[start_date: end_date, :]
 
-        return res
+        return res_final
 
     def get_adj_factor_raw(self, symbol, start_date=None, end_date=None):
         """
