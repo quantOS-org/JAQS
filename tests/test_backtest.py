@@ -47,7 +47,7 @@ def save_dataview(sub_folder='test_dataview'):
     props = {'start_date': 20141114, 'end_date': 20160327, 'universe': '000300.SH',
              'fields': ('open,high,low,close,vwap,volume,turnover,'
                         # + 'pb,net_assets,'
-                        + 's_fa_eps_basic,oper_exp,tot_profit,int_income'
+                        + 'eps_basic,oper_exp,tot_profit,int_income'
                         ),
              'freq': 1}
     

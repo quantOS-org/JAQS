@@ -109,7 +109,7 @@ class DataView(object):
              "minority_int_inc", "other_compreh_inc", "tot_compreh_inc",
              "tot_compreh_inc_parent_comp", "tot_compreh_inc_min_shrhldr", "ebit",
              "ebitda", "net_profit_after_ded_nr_lp", "net_profit_under_intl_acc_sta",
-             "s_fa_eps_basic", "s_fa_eps_diluted", "insurance_expense",
+             "eps_basic", "eps_diluted", "insurance_expense",
              "spe_bal_oper_profit", "tot_bal_oper_profit", "spe_bal_tot_profit",
              "tot_bal_tot_profit", "spe_bal_net_profit", "tot_bal_net_profit",
              "undistributed_profit", "adjlossgain_prevyear",
@@ -187,7 +187,7 @@ class DataView(object):
         self.fin_indicator = \
             {"extraordinary","deductedprofit","grossmargin","operateincome","investincome","stmnote_finexp",
              "stm_is","ebit","ebitda""fcff","fcfe","exinterestdebt_current","exinterestdebt_noncurrent","interestdebt",
-             "netdebt","tangibleasset","workingcapital","networkingcapital","investcapital","retainedearnings","eps_basic",
+             "netdebt","tangibleasset","workingcapital","networkingcapital","investcapital","retainedearnings","eps_basic_daily", # TODO eps_basic
              "eps_diluted","eps_diluted2","bps","ocfps","grps","orps","surpluscapitalps","surplusreserveps","undistributedps",
              "retainedps","cfps","ebitps","fcffps","fcfeps","netprofitmargin","grossprofitmargin","cogstosales",
              "expensetosales","profittogr","saleexpensetogr","adminexpensetogr","finaexpensetogr","impairtogr_ttm",
@@ -638,8 +638,8 @@ class DataView(object):
         merge = merge.loc[:, ~merge.columns.duplicated()]
         
         if merge.isnull().sum().sum() > 0:
-            Warning("nan in final merged data.")
-            merge.fillna(method='ffill', inplace=True)
+            print "WARNING: nan in final merged data. NO fill"
+            # merge.fillna(method='ffill', inplace=True)
             
         merge = merge.sort_index(axis=1, level=['symbol', 'field'])
         merge.index.name = index_name
@@ -675,8 +675,8 @@ class DataView(object):
             merge.loc[idx, pd.IndexSlice[sec_df, fields_df]] = df
             
         if merge.isnull().sum().sum() > 0:
-            Warning("nan in final merged data.")
-            merge.fillna(method='ffill', inplace=True)
+            print "WARNING: nan in final merged data. NO fill"
+            # merge.fillna(method='ffill', inplace=True)
     
         merge.sort_index(axis=1, level=['symbol', 'field'], inplace=True)
     
