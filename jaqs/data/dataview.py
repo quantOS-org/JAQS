@@ -798,7 +798,7 @@ class DataView(object):
             fields = props['fields'].split(sep)
             self.fields = [field for field in fields if self._is_predefined_field(field)]
             if len(self.fields) < len(fields):
-                print "Field name {} not valid, ignore.".format(set.difference(set(fields),
+                print "Field name [{}] not valid, ignore.".format(set.difference(set(fields),
                                                                                set(self.fields)))
         # TODO: hard-coded
         self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
@@ -848,17 +848,27 @@ class DataView(object):
         data_api : BaseDataServer
         field_name : str
             Must be a known field name (which is given in documents).
+        
+        Returns
+        -------
+        bool
+            whether add successfully.
 
         """
         if data_api is None:
             if self.data_api is None:
                 print "Add field failed. No data_api available. Please specify one in parameter."
+                return False
         else:
             self.data_api = data_api
             
         if field_name in self.fields:
-            print "Add formula failed: field name [{:s}] exist. Try another name.".format(field_name)
-            return
+            print "Field name [{:s}] already exists.".format(field_name)
+            return False
+
+        if not self._is_predefined_field(field_name):
+            print "Field name [{}] not valid, ignore.".format(field_name)
+            return False
 
         merge_d, merge_q = self._prepare_data([field_name])
     
@@ -871,6 +881,8 @@ class DataView(object):
             
         merge = merge.loc[:, pd.IndexSlice[:, field_name]]
         self.append_df(merge, field_name, is_quarterly=is_quarterly)  # whether contain only trade days is decided by existing data.
+        
+        return True
     
     def add_formula(self, field_name, formula, is_quarterly, formula_func_name_style='upper', data_api=None):
         """
@@ -892,7 +904,7 @@ class DataView(object):
             self.data_api = data_api
             
         if field_name in self.fields:
-            print "Add formula failed: field name [{:s}] exist. Try another name.".format(field_name)
+            print "Add formula failed: name [{:s}] exist. Try another name.".format(field_name)
             return
         
         parser = Parser()
@@ -911,9 +923,11 @@ class DataView(object):
         else:
             for var in var_list:
                 if var not in self.fields:
-                    print "variable [{:s}] is not recognized (it may be wrong)," \
+                    print "Variable [{:s}] is not recognized (it may be wrong)," \
                           "try to fetch from the server...".format(var)
-                    self.add_field(var)
+                    success = self.add_field(var)
+                    if not success:
+                        return
         
         df_ann = self.get_ann_df()
         for var in var_list:
@@ -992,7 +1006,7 @@ class DataView(object):
 
     def get(self, symbol="", start_date=0, end_date=0, fields=""):
         """
-        Basic API to get arbitrary data.
+        Basic API to get arbitrary data. If nothing fetched, return None.
         
         Parameters
         ----------
@@ -1007,7 +1021,7 @@ class DataView(object):
 
         Returns
         -------
-        res : pd.DataFrame
+        res : pd.DataFrame or None
             index is datetimeindex, columns are (symbol, fields) MultiIndex
 
         """
@@ -1030,8 +1044,11 @@ class DataView(object):
         
         fields_daily = self._get_fields('daily', fields)
         fields_quarterly = self._get_fields('quarterly', fields)
+        if not fields_daily and not fields_quarterly:
+            return None
         
-        df_ref_expanded = None
+        # get df_daily and df_quarterly from data_d and data_q
+        df_quarterly_expanded = None
         if fields_quarterly:
             df_ref_quarterly = self.data_q.loc[:,
                                                pd.IndexSlice[symbol, fields_quarterly]]
@@ -1043,20 +1060,22 @@ class DataView(object):
             for field_name, df in df_ref_quarterly.groupby(level=1, axis=1):  # by column multiindex fields
                 df_expanded = align(df, df_ref_ann, self.dates)
                 dic_expanded[field_name] = df_expanded
-            df_ref_expanded = pd.concat(dic_expanded.values(), axis=1)
-            df_ref_expanded.index.name = self.TRADE_DATE_FIELD_NAME
-            df_ref_expanded = df_ref_expanded.loc[start_date: end_date, :]
+            df_quarterly_expanded = pd.concat(dic_expanded.values(), axis=1)
+            df_quarterly_expanded.index.name = self.TRADE_DATE_FIELD_NAME
+            df_quarterly_expanded = df_quarterly_expanded.loc[start_date: end_date, :]
         
+        df_daily = None
         if fields_daily:
-            df_others = self.data_d.loc[pd.IndexSlice[start_date: end_date],
-                                        pd.IndexSlice[symbol, fields_daily]]
-        else:
-            df_others = None
+            df_daily = self.data_d.loc[pd.IndexSlice[start_date: end_date],
+                                       pd.IndexSlice[symbol, fields_daily]]
         
-        df_merge = self._merge_data([df_others, df_ref_expanded], index_name=self.TRADE_DATE_FIELD_NAME)
-        if df_merge is None:
-            print "WARNING: no data."
-        return df_merge
+        # res will be one of daily/quarterly, or combination of them.
+        if fields_daily and fields_quarterly:
+            res = self._merge_data([df_daily, df_quarterly_expanded], index_name=self.TRADE_DATE_FIELD_NAME)
+        else:
+            res = df_quarterly_expanded if df_quarterly_expanded is not None else df_daily
+        
+        return res
     
     def get_snapshot(self, snapshot_date, symbol="", fields=""):
         """
@@ -1078,6 +1097,9 @@ class DataView(object):
 
         """
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
+        if res is None:
+            print "No data."
+            return
         
         res = res.stack(level='symbol', dropna=False)
         res.index = res.index.droplevel(level=self.TRADE_DATE_FIELD_NAME)
@@ -1145,6 +1167,9 @@ class DataView(object):
 
         """
         res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field)
+        if res is None:
+            print "No data."
+            return
         
         res.columns = res.columns.droplevel(level='field')
         
