@@ -378,8 +378,9 @@ class AlphaBacktestInstance(BacktestInstance):
     def go_next_date(self):
         """update self.current_date and last_date."""
         if self.ctx.gateway.match_finished:
-            next_period_day = dtutil.get_next_period_day(self.current_date,
-                                                         self.strategy.period, self.strategy.days_delay)
+            next_period_day = dtutil.get_next_period_day(self.current_date, self.strategy.period,
+                                                         n=self.strategy.n_periods,
+                                                         extra_offset=self.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
                 self.current_date = next_period_day

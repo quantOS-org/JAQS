@@ -348,9 +348,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     def init_from_config(self, props):
         Strategy.init_from_config(self, props)
         
-        self.cash = props['init_balance']
-        self.period = props['period']
-        self.days_delay = props['days_delay']
+        self.cash = props.get('init_balance', 100000000)
+        self.period = props.get('period', 'month')
+        self.days_delay = props.get('days_delay', 0)
+        self.n_periods = props.get('n_periods', 1)
         self.position_ratio = props.get('position_ratio', 0.98)
 
         self.register_pc_method(name='equal_weight', func=self.equal_weight, options=None)
