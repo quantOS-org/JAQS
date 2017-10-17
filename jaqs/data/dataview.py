@@ -505,11 +505,8 @@ class DataView(object):
         """
         if level_names is None:
             level_names = ['symbol', 'field']
-        '''
-        if fields is None:
-            fields = dic.values()[0].columns
-        '''
-        keys = dic.keys()
+        merge = pd.concat(dic, axis=1)
+        
         values = dic.values()
         idx = np.unique(np.concatenate([df.index.values for df in values]))
         fields = np.unique(np.concatenate([df.columns.values for df in values]))
@@ -518,13 +515,7 @@ class DataView(object):
         cols_multi = cols_multi.sort_values()
         merge_final = pd.DataFrame(index=idx, columns=cols_multi, data=np.nan)
 
-        merge = pd.concat(dic, axis=1)
-        '''
-        merge = pd.concat(values, axis=1, join='outer')
-        merge = merge.sort_index(axis=1)
-        multi_idx = pd.MultiIndex.from_product([keys, fields], names=level_names)
-        merge.columns = multi_idx
-        '''
+        # TODO: this step costs much time for big data
         merge_final.loc[merge.index, merge.columns] = merge  # index and column of merge, df must be the same
 
         if merge_final.isnull().sum().sum() > 0:
