@@ -441,10 +441,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = weights
 
     def equal_weight(self):
-        raw_weights_dic = self.revenue_model.make_forecast()
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.items()}
         # discrete
-        weights = {k: 1.0 if v > 0 else 0.0 for k, v in weights.items()}
+        weights = {k: 1.0 for k in self.context.universe}
         return weights, ''
     
     def factor_value_weight(self):
