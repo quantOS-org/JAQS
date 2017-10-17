@@ -113,7 +113,7 @@ class PortfolioManager_RAW(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        for key, pos in self.positions.items():
+        for key, pos in self.positions.viewitems():
             sec, td = key.split('@')
             if str(pre_date) == td:
                 new_key = self._make_position_key(sec, date)

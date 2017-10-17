@@ -337,7 +337,7 @@ class RemoteDataService(DataService):
         str
 
         """
-        l = ['='.join([key, str(value)]) for key, value in d.items()]
+        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
         return '&'.join(l)
 
     def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None):
@@ -702,7 +702,7 @@ class RemoteDataService(DataService):
         
         dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int}
         cols = set(df_raw.columns)
-        dtype_map = {k: v for k, v in dtype_map.items() if k in cols}
+        dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
         
         df_raw = df_raw.astype(dtype=dtype_map)
         return df_raw, msg

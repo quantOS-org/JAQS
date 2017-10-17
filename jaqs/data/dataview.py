@@ -1188,7 +1188,7 @@ class DataView(object):
         data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
                          'data_benchmark': self._data_benchmark,
                          'data_group': self._data_group}
-        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
+        data_to_store = {k: v for k, v in data_to_store.viewitems() if v is not None}
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
 
         print "\nStore data..."
@@ -1216,7 +1216,7 @@ class DataView(object):
         
         jaqs.util.fileio.create_dir(fp)
         h5 = pd.HDFStore(fp)
-        for key, value in dic.items():
+        for key, value in dic.viewitems():
             h5[key] = value
         h5.close()
     

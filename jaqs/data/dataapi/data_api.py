@@ -474,7 +474,7 @@ class DataApi:
 
         index_column = None
         rpc_params = { }
-        for kw in kwargs.items():
+        for kw in kwargs.viewitems():
             if str(kw[0]) == "_index_column" :
                 index_column = kw[1]
             else:

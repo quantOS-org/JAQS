@@ -196,7 +196,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         return df
     
     def process_trades(self):
-        self._trades = {k: self._process_trades(v) for k, v in self.trades.items()}
+        self._trades = {k: self._process_trades(v) for k, v in self.trades.viewitems()}
     
     @staticmethod
     def _get_daily(close, trade):
@@ -263,8 +263,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.account = account
             
     def get_returns(self):
-        # vp_list = [df_profit.loc[:, 'VirtualProfit'].copy().rename({'VirtualProfit': sec}) for sec, df_profit in self.daily.items()]
-        vp_list = {sec: df_profit.loc[:, 'VirtualProfit'] for sec, df_profit in self.daily.items()}
+        # vp_list = [df_profit.loc[:, 'VirtualProfit'].copy().rename({'VirtualProfit': sec}) for sec, df_profit in self.daily.viewitems()]
+        vp_list = {sec: df_profit.loc[:, 'VirtualProfit'] for sec, df_profit in self.daily.viewitems()}
         # after concat, there will be NaN due to list / delist of different stocks
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution

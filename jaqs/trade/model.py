@@ -333,7 +333,7 @@ class FactorRevenueModel(BaseRevenueModel):
         """
         merge = pd.concat(forecasts.values(), axis=1)
         res = merge.sum(axis=1)
-        res = res.to_dict()
+        res = res.to_dict()  # convert Series to {label -> value} dict
         return res
     
     def make_forecast(self):
@@ -348,7 +348,7 @@ class FactorRevenueModel(BaseRevenueModel):
         """
         forecasts = self.get_forecasts()  # {str: pd.DataFrame}
         # TODO NaN
-        forecasts = {key: value.fillna(0) for key, value in forecasts.items()}
+        forecasts = {key: value.fillna(0) for key, value in forecasts.viewitems()}
         forecast = self.combine_sum(forecasts)
         return forecast
         
@@ -533,8 +533,8 @@ def test_models():
     weight_now = {'symbol1': 0.3, 'symbolB': 0.7}
     
     portfolio = 1e7
-    weight_last = {k: v * portfolio for k, v in weight_last.items()}
-    weight_now = {k: v * portfolio for k, v in weight_now.items()}
+    weight_last = {k: v * portfolio for k, v in weight_last.viewitems()}
+    weight_now = {k: v * portfolio for k, v in weight_now.viewitems()}
     
     revenue = FactorRevenueModel().forecast_revenue(weight_now)
     cost = SimpleCostModel().calc_cost(weight_last, weight_now)
