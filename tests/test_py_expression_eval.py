@@ -146,7 +146,7 @@ if __name__ == "__main__":
     parser = Parser()
     
     g = globals()
-    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
     
     for test_name, test_func in g.viewitems():
         print "\nTesting {:s}...".format(test_name)

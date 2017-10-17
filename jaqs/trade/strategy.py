@@ -442,7 +442,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             print msg
 
         # if nan assign zero
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in weights.items()}
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in weights.viewitems()}
         
         # step.2 set weights of those not selected to zero
         if self.stock_selector is not None:
@@ -452,7 +452,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         # normalize
         w_sum = np.sum(np.abs(weights.values()))
         if w_sum > 1e-8:  # else all zeros weights
-            weights = {k: v / w_sum for k, v in weights.items()}
+            weights = {k: v / w_sum for k, v in weights.viewitems()}
 
         self.weights = weights
 
@@ -479,11 +479,11 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             w_min = np.min(w.values())
             delta = 2 * abs(w_min)
             # if nan assign zero; else add const
-            w = {k: v + delta for k, v in w.items()}
+            w = {k: v + delta for k, v in w.viewitems()}
             return w
         
         raw_weights_dic = self.revenue_model.make_forecast()
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.items()}
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.viewitems()}
         weights = long_only_weight_adjust(weights)
         return weights, ""
         
@@ -549,17 +549,6 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         
         self.weights = weights
     
-    def get_univ_prices(self):
-        ds = self.context.data_api
-        
-        df_dic = dict()
-        for sec in self.context.universe:
-            df, msg = ds.daily(sec, self.trade_date, self.trade_date, fields="")
-            if msg != '0,':
-                print msg
-            df_dic[sec] = df
-        return df_dic
-    
     def on_after_rebalance(self, total):
         print "\n\n{}, cash all = {:9.4e}".format(self.trade_date, total)  # DEBUG
         pass
@@ -596,7 +585,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         cash_used = 0.0
         goals = []
         if algo == 'close' or 'vwap':  # order a certain amount of shares according to current close price
-            for sec, w in weights_dic.items():
+            for sec, w in weights_dic.viewitems():
                 goal_pos = GoalPosition()
                 goal_pos.symbol = sec
                 

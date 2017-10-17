@@ -245,7 +245,7 @@ class PnlManager(object):
         pre_date = self.calendar.get_last_trade_date(date)
         pre_close_prices = self.close_prices[pre_date]
         cur_close_prices = self.close_prices[date]
-        for code, hold_size in position.items():
+        for code, hold_size in position.viewitems():
             # hold pnl calc          
             
             pre_close = pre_close_prices.get(code, 0.0)
@@ -269,7 +269,7 @@ class PnlManager(object):
                 trades[date][code] = []
             trades[date][code].append(trade)
         
-        for key, value in trades.items():
+        for key, value in trades.viewitems():
             pnl = self.calcOneDayTradePnl(key, value)
             trade_pnls[pnl.date] = pnl
         dates = self.calendar.get_trade_date_range(self.start_date, self.end_date)
@@ -304,9 +304,9 @@ class PnlManager(object):
     # combine src position to dst_position
     def combinePosition(self, cur_position, pre_position):
         position = {}
-        for k, v in cur_position.items():
+        for k, v in cur_position.viewitems():
             position[k] = v
-        for k, v in pre_position.items():
+        for k, v in pre_position.viewitems():
             if position.has_key(k) == False:
                 position[k] = v
             else:
@@ -317,7 +317,7 @@ class PnlManager(object):
         pnl = DailyPnlReport()
         pnl.date = date
         close_prices = self.close_prices[date]
-        for code, trades in trade_map.items():
+        for code, trades in trade_map.viewitems():
             position = 0
             close = close_prices.get(code, 0.0)
             inst = self.instmgr.get_intruments(code)

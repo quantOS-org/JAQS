@@ -337,7 +337,7 @@ class RemoteDataService(DataService):
         str
 
         """
-        l = ['='.join([key, str(value)]) for key, value in d.items()]
+        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
         return '&'.join(l)
 
     def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None):
@@ -555,8 +555,15 @@ class RemoteDataService(DataService):
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
                    for sec, df in dic_sec.viewitems()}
 
-        df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
-        df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
+        df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.viewitems()}, axis=1)
+        df_value_tmp = pd.concat({sec: df.loc[:, 'industry1_code'] for sec, df in dic_sec.viewitems()}, axis=1)
+        
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        df_ann = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_ann.loc[df_ann_tmp.index, df_ann_tmp.columns] = df_ann_tmp
+        df_value = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
 
         dates_arr = self.get_trade_date(start_date, end_date)
         df_industry = align.align(df_value, df_ann, dates_arr)
@@ -702,7 +709,7 @@ class RemoteDataService(DataService):
         
         dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int}
         cols = set(df_raw.columns)
-        dtype_map = {k: v for k, v in dtype_map.items() if k in cols}
+        dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
         
         df_raw = df_raw.astype(dtype=dtype_map)
         return df_raw, msg

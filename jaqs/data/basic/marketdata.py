@@ -13,12 +13,11 @@ class Bar(object):
     
     @classmethod
     def create_from_df(cls, df):
+        dic_of_dic = df.to_dict(orient='index')
+        
         bar_list = []
-        for _, row in df.iterrows():
+        for v in dic_of_dic.values():
             bar = cls()
-            
-            dic = row.to_dict()
-            bar.__dict__.update(dic)
-            
+            bar.__dict__.update(v)
             bar_list.append(bar)
         return bar_list

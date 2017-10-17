@@ -268,7 +268,7 @@ class AlphaBacktestInstance(BacktestInstance):
 
         """
         # univ_price_dic : dict of {str: float} i.e. {sec: close_price}
-        prices = {k: v.loc[:, 'close'].values[0] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
@@ -369,8 +369,8 @@ class AlphaBacktestInstance(BacktestInstance):
     def get_univ_prices(self, field_name='close'):
         dv = self.ctx.dataview
         df = dv.get_snapshot(self.current_date, fields=field_name)
-        gp = df.groupby(by='symbol')
-        return {sec: df for sec, df in gp}
+        res = df.to_dict(orient='index')
+        return res
     
     def _is_trade_date(self, date):
         return date in self.ctx.dataview.dates

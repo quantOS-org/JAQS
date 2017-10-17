@@ -113,7 +113,7 @@ class PortfolioManager_RAW(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        for key, pos in self.positions.items():
+        for key, pos in self.positions.viewitems():
             sec, td = key.split('@')
             if str(pre_date) == td:
                 new_key = self._make_position_key(sec, date)
@@ -743,22 +743,22 @@ class StockSimulatorDaily(object):
         results = []
         for order in self.__orders.values():  # TODO viewvalues()
             symbol = order.symbol
-            df = price_dic[symbol]
-            if 'vwap' not in df.columns:
+            symbol_dic = price_dic[symbol]
+            if 'vwap' not in symbol_dic:
                 # df.loc[:, 'vwap'] = df.loc[:, 'turnover'] / df.loc[:, 'volume']
                 pass
             
             # get fill price
             if isinstance(order, FixedPriceTypeOrder):
                 price_target = order.price_target
-                fill_price = df.loc[:, price_target].values[0]
+                fill_price = symbol_dic[price_target]
             elif isinstance(order, VwapOrder):
                 if order.start != -1:
                     raise NotImplementedError("Vwap of a certain time range")
-                fill_price = df.loc[:, 'vwap'].values[0]
+                fill_price = symbol_dic['vwap']
             elif isinstance(order, Order):
                 # TODO
-                fill_price = df.loc[:, 'close'].values[0]
+                fill_price = symbol_dic['close']
             else:
                 raise NotImplementedError("order class {} not support!".format(order.__class__))
             

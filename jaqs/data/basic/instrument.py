@@ -29,13 +29,15 @@ class InstManager(object):
     def load_instruments(self):
         fields = ['symbol', 'inst_type', 'market', 'status', 'multiplier']
         res, msg = self.data_api.query_inst_info(symbol='', fields=','.join(fields), inst_type="")
-        
-        for _, row in res.iterrows():
+
+        dic_of_dic = res.to_dict(orient='index')
+        res = {v['symbol']: {v_key: v_value for v_key, v_value in v.viewitems() if v_key in fields}
+               for _, v in dic_of_dic.viewitems()}
+        for k, v in res.viewitems():
             inst = Instrument()
-            dic = row.to_dict()
-            dic = {k: v for k, v in dic.iteritems() if k in fields}
-            inst.__dict__.update(dic)
-            self.inst_map[inst.symbol] = inst
+            inst.__dict__.update(v)
+            self.inst_map[k] = inst
+        print
     
     def get_intruments(self, code):
         return self.inst_map.get(code, None)

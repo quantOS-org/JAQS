@@ -129,7 +129,7 @@ def test_remote_data_service_industry():
         res = align(df_value, df_ann, dates_arr)
         return res
     # res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()]
-    res_list = [align_single_df(df) for sec, df in dic_sec.items()[:10]]
+    res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()[:10]]
     res = pd.concat(res_list, axis=1)
     
     
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     t_start = time.time()
     
     g = globals()
-    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
 
     for test_name, test_func in g.viewitems():
         print "\nTesting {:s}...".format(test_name)
