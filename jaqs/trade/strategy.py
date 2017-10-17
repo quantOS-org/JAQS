@@ -549,17 +549,6 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         
         self.weights = weights
     
-    def get_univ_prices(self):
-        ds = self.context.data_api
-        
-        df_dic = dict()
-        for sec in self.context.universe:
-            df, msg = ds.daily(sec, self.trade_date, self.trade_date, fields="")
-            if msg != '0,':
-                print msg
-            df_dic[sec] = df
-        return df_dic
-    
     def on_after_rebalance(self, total):
         print "\n\n{}, cash all = {:9.4e}".format(self.trade_date, total)  # DEBUG
         pass
