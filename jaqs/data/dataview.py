@@ -284,7 +284,7 @@ class DataView(object):
             
         if field_type == 'market_daily':
             # turnover will not be adjusted
-            s.update({'open', 'high', 'close', 'low'})
+            s.update({'open', 'high', 'close', 'low', 'vwap'})
             
         if append:
             if field_type == 'market_daily':
@@ -344,7 +344,7 @@ class DataView(object):
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                      adjust_mode=None, fields=sep.join(fields_market_daily))
-                adj_cols = ['open', 'high', 'low', 'close']
+                adj_cols = ['open', 'high', 'low', 'close', 'vwap']
                 # adjusted prices
                 df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                              adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
