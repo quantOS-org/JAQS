@@ -1024,7 +1024,7 @@ class DataView(object):
             fields = fields.split(sep)
         
         if not symbol:
-            symbol = self.symbol
+            symbol = slice(None)  # this is 3X faster than symbol = self.symbol
         else:
             symbol = symbol.split(sep)
         
