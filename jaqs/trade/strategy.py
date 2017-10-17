@@ -351,7 +351,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.cash = props['init_balance']
         self.period = props['period']
         self.days_delay = props['days_delay']
-        self.position_ratio = props['position_ratio']
+        self.position_ratio = props.get('position_ratio', 0.98)
 
         self.register_pc_method(name='equal_weight', func=self.equal_weight, options=None)
         self.register_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_revenue,
