@@ -135,7 +135,10 @@ class StockSelector(FuncRegisterable):
     def __init__(self, context=None):
         super(StockSelector, self).__init__(context=context)
         pass
-    
+
+    def add_filter(self, name, func, options=None):
+        self.register_func(name, func, options)
+
     def get_selection(self):
         """
         Return a list of stocks that are not selected.
@@ -163,7 +166,10 @@ class BaseRevenueModel(FuncRegisterable):
     def __init__(self, context=None):
         super(BaseRevenueModel, self).__init__(context=context)
         pass
-    
+
+    def add_signal(self, name, func, options=None):
+        self.register_func(name, func, options)
+
     def forecast_revenue(self, weights):
         pass
 
