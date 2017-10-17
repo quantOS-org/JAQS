@@ -366,7 +366,7 @@ class DataView(object):
             fields_income = self._get_fields('income', fields, append=True)
             if fields_income:
                 df_income, msg3 = self.data_api.query_lb_fin_stat('income', symbol_str, self.extended_start_date_q, self.end_date,
-                                                                  sep.join(fields_income))
+                                                                  sep.join(fields_income), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
                 dic_income = self._group_df_to_dict(df_income, 'symbol')
@@ -374,7 +374,7 @@ class DataView(object):
             fields_balance = self._get_fields('balance_sheet', fields, append=True)
             if fields_balance:
                 df_balance, msg3 = self.data_api.query_lb_fin_stat('balance_sheet', symbol_str, self.extended_start_date_q, self.end_date,
-                                                                   sep.join(fields_balance))
+                                                                   sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
                 dic_balance = self._group_df_to_dict(df_balance, 'symbol')
@@ -382,7 +382,7 @@ class DataView(object):
             fields_cf = self._get_fields('cash_flow', fields, append=True)
             if fields_cf:
                 df_cf, msg3 = self.data_api.query_lb_fin_stat('cash_flow', symbol_str, self.extended_start_date_q, self.end_date,
-                                                              sep.join(fields_cf))
+                                                              sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
                 dic_cf = self._group_df_to_dict(df_cf, 'symbol')
@@ -391,7 +391,7 @@ class DataView(object):
             if fields_fin_ind:
                 df_fin_ind, msg4 = self.data_api.query_lb_fin_stat('fin_indicator', symbol_str,
                                                                    self.extended_start_date_q, self.end_date,
-                                                                   sep.join(fields_cf))
+                                                                   sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg4 != '0,':
                     print msg4
                 dic_fin_ind = self._group_df_to_dict(df_fin_ind, 'symbol')

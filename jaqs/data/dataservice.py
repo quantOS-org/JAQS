@@ -340,7 +340,7 @@ class RemoteDataService(DataService):
         l = ['='.join([key, str(value)]) for key, value in d.items()]
         return '&'.join(l)
 
-    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields=""):
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None):
         """
         Helper function to call data_api.query with 'lb.income' more conveniently.
         
@@ -355,6 +355,8 @@ class RemoteDataService(DataService):
             Annoucement date in results will be no later than start_date
         fields : str, optional
             separated by ',', default ""
+        drop_dup_cols : list or tuple
+            Whether drop duplicate entries according to drop_dup_cols.
 
         Returns
         -------
@@ -372,7 +374,8 @@ class RemoteDataService(DataService):
         dic_argument = {'symbol': symbol,
                         'start_date': start_date,
                         'end_date': end_date,
-                        'update_flag': '0'}
+                        # 'update_flag': '0'
+                       }
         if view_name != 'lb.finIndicator':
             dic_argument.update({'report_type': '408001000'})  # we do not use single quarter single there are zeros
             """
@@ -384,6 +387,7 @@ class RemoteDataService(DataService):
         
         res, msg = self.query(view_name, fields=fields, filter=filter_argument,
                               order_by=self.REPORT_DATE_FIELD_NAME)
+        
         # change data type
         try:
             cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
@@ -391,6 +395,10 @@ class RemoteDataService(DataService):
             res = res.astype(dtype=dic_dtype)
         except:
             pass
+        
+        if drop_dup_cols is not None:
+            res = res.sort_values(by=drop_dup_cols, axis=0)
+            res = res.drop_duplicates(subset=drop_dup_cols, keep='first')
         
         return res, msg
 
