@@ -1,15 +1,21 @@
 # encoding: UTF-8
 
 import pandas as pd
+import numpy as np
 import pytest
 from jaqs.data.dataservice import RemoteDataService
 
 from jaqs.data.py_expression_eval import Parser
 
 
-def test_logical_and_or():
-    import numpy as np
+def test_quantile():
+    val = pd.DataFrame(np.random.rand(500, 3000))
+    expr = parser.parse('Quantile(val, 10)')
+    res = parser.evaluate({'val': val})
+    assert np.nanmean(val[res == 1].values.flatten()) < 0.1
     
+    
+def test_logical_and_or():
     parser.parse('open + 3 && 1')
     res = parser.evaluate({'open': dfx})
     assert np.all(res.values.flatten())

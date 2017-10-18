@@ -274,6 +274,7 @@ class Parser(object):
             'Min': np.minimum,
             'Max': np.maximum,
             'Rank': self.rank,
+            'Quantile': self.to_quantile,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
             'Standardize': self.standardize,
@@ -607,6 +608,30 @@ class Parser(object):
             else:
                 df.fillna(rank, inplace=True)
         return df
+    
+    @staticmethod
+    def to_quantile(df, n_quantiles=5):
+        """
+        Convert cross-section values to the quantile number they belong.
+        Small values get small quantile numbers.
+        
+        Parameters
+        ----------
+        df : DataFrame
+            index date, column symbols
+        n_quantiles : int
+            The number of quantile to be divided to.
+
+        Returns
+        -------
+        res : DataFrame
+            index date, column symbols
+
+        """
+        labels = list(range(1, n_quantiles + 1, 1))
+        res = df.apply(lambda ser: np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=float), axis=0)
+        res[res < 0.5] = np.nan
+        return res
 
     def group_apply(self, func, df_arg, *args, **kwargs):
         """
