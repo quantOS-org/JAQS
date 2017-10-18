@@ -169,9 +169,7 @@ class AlphaAnalyzer(BaseAnalyzer):
     @staticmethod
     def _process_trades(df):
         """Add various statistics to trades DataFrame."""
-        # df.index = pd.to_datetime(df.loc[:, 'fill_date'], format="%Y%m%d")
-        df.index = df.loc[:, 'fill_date']
-        df.index.name = 'index'
+        df = df.set_index('fill_date')
         
         cols_to_drop = ['task_id', 'entrust_no', 'fill_no']
         df = df.drop(cols_to_drop, axis=1)
@@ -200,10 +198,16 @@ class AlphaAnalyzer(BaseAnalyzer):
     
     @staticmethod
     def _get_daily(close, trade):
+        trade_cols = ['BuyVolume', 'SellVolume', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+        trade = trade.loc[:, trade_cols]
+        # no duplicate index, avoid Error when concat
+        if not trade.index.is_unique:
+            gp = trade.groupby(by=trade.index)
+            func_last = lambda ser: ser.values[-1]
+            trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum,
+                            'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
+        
         merge = pd.concat([close, trade], axis=1, join='outer')
-        cols = ['close', 'BuyVolume', 'SellVolume',
-                'position', 'AvgPosPrice', 'CumNetTurnOver']
-        merge = merge.loc[:, cols]
     
         cols_nan_to_zero = ['BuyVolume', 'SellVolume']
         cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
