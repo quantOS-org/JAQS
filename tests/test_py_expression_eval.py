@@ -22,7 +22,6 @@ def test_group_quantile():
     df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
     expr = parser.parse('GroupQuantile(val, mygroup, 23)')
     res = parser.evaluate({'val': df_val, 'mygroup': df_group})
-
     n = 100
     df_val = pd.DataFrame(np.arange(n).reshape(2, -1))
     df_group = pd.DataFrame(np.array([1] * 25 + [2] * 25 + [2] * 20 + [3] * 20 + [9] * 10).reshape(2, -1))
@@ -40,13 +39,10 @@ def test_group_quantile():
 
 
 def test_quantile():
-    '''
     val = pd.DataFrame(np.random.rand(500, 3000))
     expr = parser.parse('Quantile(val, 12)')
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
-    '''
-    pass
     
     
 def test_logical_and_or():
@@ -156,7 +152,6 @@ def my_globals(request):
     
     df, msg = ds.daily("000001.SH, 600030.SH, 000300.SH", start_date=20170801, end_date=20170820,
                        fields="open,high,low,close,vwap,preclose")
-    ds.api.close()
     
     multi_index_names = ['trade_date', 'symbol']
     df_multi = df.set_index(multi_index_names, drop=False)
