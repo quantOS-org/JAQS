@@ -354,11 +354,11 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.n_periods = props.get('n_periods', 1)
         self.position_ratio = props.get('position_ratio', 0.98)
 
-        self.register_pc_method(name='equal_weight', func=self.equal_weight, options=None)
-        self.register_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_revenue,
+        self.use_pc_method(name='equal_weight', func=self.equal_weight, options=None)
+        self.use_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_revenue,
                                                                            'constraints': None,
                                                                            'initial_value': None})
-        self.register_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
+        self.use_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
         
         self._validate_parameters()
         print "AlphaStrategy Initialized."
@@ -389,8 +389,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.pm.on_trade_ind(ind)
         # print str(ind)
         
-    def register_pc_method(self, name, func, options=None):
-        self.register_func(name, func, options)
+    def use_pc_method(self, name, func, options=None):
+        self._register_func(name, func, options)
     
     def _get_weights_last(self):
         current_positions = self.query_portfolio()

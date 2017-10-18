@@ -21,7 +21,7 @@ import time
 
 import numpy as np
 from jaqs.data.dataservice import RemoteDataService
-from jaqs.example.demoalphastrategy import DemoAlphaStrategy
+from jaqs.trade.strategy import AlphaStrategy
 from jaqs.util import fileio
 
 from jaqs.util import fileio
@@ -76,67 +76,6 @@ def my_commission(symbol, turnover, context=None, user_options=None):
     return turnover * user_options['myrate']
 
 
-'''
-def test_alpha_strategy():
-    gateway = DailyStockSimGateway()
-    remote_data_service = RemoteDataService()
-
-    prop_file_path = fileio.join_relative_path('etc', 'alpha.json')
-    props = read_props(prop_file_path)
-    """
-    props = {
-        "benchmark": "000300.SH",
-        "universe": "600026.SH,600027.SH,600028.SH,600029.SH,600030.SH,600031.SH",
-    
-        "period": "week",
-        "days_delay": 2,
-    
-        "init_balance": 1e7,
-        "position_ratio": 0.7,
-    
-        "start_date": 20120101,
-        "end_date": 20170601,
-        }
-
-    """
-
-    remote_data_service.init_from_config(props)
-    remote_data_service.initialize()
-    gateway.init_from_config(props)
-
-    context = model.Context()
-    context.register_data_api(remote_data_service)
-    context.register_gateway(gateway)
-    
-    risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel()
-    cost_model = model.SimpleCostModel()
-    
-    risk_model.register_context(context)
-    signal_model.register_context(context)
-    cost_model.register_context(context)
-    
-    signal_model.register_func('pb_factor', pb_factor)
-    signal_model.activate_func({'pb_factor': {'coef': 3.27}})
-    cost_model.register_func('my_commission', my_commission)
-    cost_model.activate_func({'my_commission': {'myrate': 1e-2}})
-    
-    strategy = DemoAlphaStrategy(risk_model, signal_model, cost_model)
-    # strategy.register_context(context)
-    # strategy.pc_method = 'equal_weight'
-    strategy.pc_method = 'mc'
-    
-    trade = AlphaBacktestInstance_OLD_dataservice()
-    trade.init_from_config(props, strategy, context=context)
-    
-    trade.run_alpha()
-    
-    trade.save_results('../output/')
-    
-    
-'''
-
-
 def save_dataview():
     # total 130 seconds
     
@@ -183,29 +122,18 @@ def test_alpha_strategy_dataview():
         }
 
     gateway = DailyStockSimGateway()
-    gateway.init_from_config(props)
 
-    context = model.Context()
-    context.register_gateway(gateway)
-    context.register_dataview(dv)
+    context = model.Context(dataview=dv, gateway=gateway)
     
-    risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel()
-    cost_model = model.SimpleCostModel()
+    risk_model = model.FactorRiskModel(context)
+    signal_model = model.FactorRevenueModel(context)
+    cost_model = model.SimpleCostModel(context)
     
-    risk_model.register_context(context)
-    signal_model.register_context(context)
-    cost_model.register_context(context)
+    signal_model.add_signal('gtja', gtja_factor_dataview)
+    cost_model.consider_cost('my_commission', my_commission, {'my_commission': {'myrate': 1e-2}})
     
-    signal_model.register_func('gtja', gtja_factor_dataview)
-    signal_model.activate_func({'gtja': {}})
-    cost_model.register_func('my_commission', my_commission)
-    cost_model.activate_func({'my_commission': {'myrate': 1e-2}})
-    
-    strategy = DemoAlphaStrategy(risk_model, signal_model, cost_model)
-    # strategy.pc_method = 'equal_weight'
-    # strategy.pc_method = 'mc'
-    strategy.pc_method = 'factor_value_weight'
+    strategy = AlphaStrategy(risk_model=risk_model, revenue_model=signal_model, cost_model=cost_model,
+                             pc_method='factor_value_weight')
     
     bt = AlphaBacktestInstance()
     bt.init_from_config(props, strategy, context=context)

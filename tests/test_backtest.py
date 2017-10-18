@@ -122,10 +122,10 @@ def test_alpha_strategy_dataview():
     cost_model.register_context(context)
     stock_selector.register_context(context)
     
-    signal_model.register_func(name='my_factor', func=my_factor)
-    cost_model.register_func(name='my_commission', func=my_commission, options={'myrate': 1e-2})
-    stock_selector.register_func(name='total_profit_growth', func=my_selector)
-    stock_selector.register_func(name='total_profit_growth2', func=my_selector2)
+    signal_model.add_signal(name='my_factor', func=my_factor)
+    cost_model.consider_cost(name='my_commission', func=my_commission, options={'myrate': 1e-2})
+    stock_selector.add_filter(name='total_profit_growth', func=my_selector)
+    stock_selector.add_filter(name='total_profit_growth2', func=my_selector2)
     
     strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
                              cost_model=cost_model, risk_model=risk_model,

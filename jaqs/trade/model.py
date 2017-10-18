@@ -101,7 +101,7 @@ class FuncRegisterable(object):
         self.func_table = dict()
         self.active_funcs = []
     
-    def register_func(self, name, func, options=None):
+    def _register_func(self, name, func, options=None):
         if options is None:
             options = dict()
         
@@ -137,7 +137,7 @@ class StockSelector(FuncRegisterable):
         pass
 
     def add_filter(self, name, func, options=None):
-        self.register_func(name, func, options)
+        self._register_func(name, func, options)
 
     def get_selection(self):
         """
@@ -168,7 +168,7 @@ class BaseRevenueModel(FuncRegisterable):
         pass
 
     def add_signal(self, name, func, options=None):
-        self.register_func(name, func, options)
+        self._register_func(name, func, options)
 
     def forecast_revenue(self, weights):
         pass
@@ -386,11 +386,17 @@ class BaseCostModel(FuncRegisterable):
         super(BaseCostModel, self).__init__(context=context)
         pass
     
-    def calc_cost(self, symbol, size):
-        pass
+    def consider_cost(self, name, func, options=None):
+        self._register_func(name, func, options=options)
+    
+    def add_cost(self, name, func, options=None):
+        self._register_func(name, func, options=options)
 
 
-class SimpleCostModel(BaseRevenueModel):
+class SimpleCostModel(BaseCostModel):
+    def __init__(self, context=None):
+        super(SimpleCostModel, self).__init__(context=context)
+    
     def calc_individual_cost(self, symbol, turnover):
         # following data are fetched from the data server
         avg_bid_ask_spread = 1.0
@@ -483,6 +489,9 @@ class BaseRiskModel(FuncRegisterable):
     def __init__(self, context=None):
         super(BaseRiskModel, self).__init__(context=context)
         pass
+    
+    def consider_risk(self, name, func, options=None):
+        self._register_func(name, func, options=options)
 
 
 class FactorRiskModel(BaseRiskModel):
