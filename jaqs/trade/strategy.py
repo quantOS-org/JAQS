@@ -474,9 +474,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             """
             # TODO: we should not add a const
             w_min = np.min(w.values())
-            delta = 2 * abs(w_min)
+            if w_min < 0:
+                delta = 2 * abs(w_min)
             # if nan assign zero; else add const
-            w = {k: v + delta for k, v in w.viewitems()}
+                w = {k: v + delta for k, v in w.viewitems()}
             return w
         
         raw_weights_dic = self.revenue_model.make_forecast()
