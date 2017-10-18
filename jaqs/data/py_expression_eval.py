@@ -275,6 +275,7 @@ class Parser(object):
             'Max': np.maximum,
             'Rank': self.rank,
             'Quantile': self.to_quantile,
+            'GroupQuantile': self.group_quantile,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
             'Standardize': self.standardize,
@@ -599,18 +600,17 @@ class Parser(object):
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
     def group_rank(self, x, group):
         x = self._align_univariate(x)
-        vals = pd.Series(group.values.ravel()).unique()
-        df = None
+        vals = np.unique(group.values.flatten())
+        res = None
         for val in vals:
-            rank = x[group == val].rank(axis=1)
-            if df is None:
-                df = rank
+            rank = x[group == val].rank(axis=1, na_option='keep')
+            if res is None:
+                res = rank
             else:
-                df.fillna(rank, inplace=True)
-        return df
+                res = res.fillna(rank)
+        return res
     
-    @staticmethod
-    def to_quantile(df, n_quantiles=5):
+    def to_quantile(self, df, n_quantiles=5):
         """
         Convert cross-section values to the quantile number they belong.
         Small values get small quantile numbers.
@@ -628,9 +628,27 @@ class Parser(object):
             index date, column symbols
 
         """
+        df = self._align_univariate(df)
         labels = list(range(1, n_quantiles + 1, 1))
-        res = df.apply(lambda ser: np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=float), axis=0)
-        res[res < 0.5] = np.nan
+        res = df.apply(lambda ser: np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=int), axis=0)
+        res = res.applymap(lambda x: x if x in labels else np.nan)
+        return res
+
+    def group_quantile(self, df, group, n_quantiles=5):
+        df = self._align_univariate(df)
+        
+        labels = list(range(1, n_quantiles + 1, 1))
+
+        res = None
+        for val in np.unique(group.values.flatten()):
+            val_res = df[group == val].apply(lambda ser:
+                                             np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=int),
+                                             axis=0)
+            val_res = val_res.applymap(lambda x: x if x in labels else np.nan)
+            if res is None:
+                res = val_res
+            else:
+                res = res.fillna(val_res)
         return res
 
     def group_apply(self, func, df_arg, *args, **kwargs):

@@ -8,6 +8,22 @@ from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.py_expression_eval import Parser
 
 
+def test_group_rank():
+    shape = (500, 3000)
+    df_val = pd.DataFrame(np.random.rand(*shape))
+    df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
+    expr = parser.parse('GroupRank(val, mygroup)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+
+
+def test_group_quantile():
+    shape = (500, 3000)
+    df_val = pd.DataFrame(np.random.rand(*shape))
+    df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
+    expr = parser.parse('GroupQuantile(val, mygroup)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+
+
 def test_quantile():
     val = pd.DataFrame(np.random.rand(500, 3000))
     expr = parser.parse('Quantile(val, 10)')
