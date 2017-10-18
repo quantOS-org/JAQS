@@ -415,7 +415,7 @@ class PortfolioManager(TradeCallback):
 
         # change order status
         entrust_no = ind.entrust_no
-        if entrust_no == 101010:  # trades generate by system
+        if entrust_no == 101010 or 202020:  # trades generate by system
             pass
         else:
             order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)

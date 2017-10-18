@@ -713,10 +713,12 @@ class RemoteDataService(DataService):
                                  filter=filter_argument, orderby="symbol")
         if msg != '0,':
             print msg
-        
+
         dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int}
         cols = set(df_raw.columns)
         dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
         
         df_raw = df_raw.astype(dtype=dtype_map)
-        return df_raw, msg
+        
+        res = df_raw.set_index('symbol')
+        return res

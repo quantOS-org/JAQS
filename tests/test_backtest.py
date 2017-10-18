@@ -44,7 +44,7 @@ def save_dataview(sub_folder='test_dataview'):
     ds = RemoteDataService()
     dv = DataView()
     
-    props = {'start_date': 20141114, 'end_date': 20160327, 'universe': '000300.SH',
+    props = {'start_date': 20161114, 'end_date': 20170327, 'universe': '000300.SH',
              'fields': ('open,high,low,close,vwap,volume,turnover,'
                         # + 'pb,net_assets,'
                         + 'eps_basic,oper_exp,tot_profit,int_income'
@@ -122,12 +122,12 @@ def test_alpha_strategy_dataview():
     stock_selector.add_filter(name='total_profit_growth', func=my_selector)
     stock_selector.add_filter(name='total_profit_growth2', func=my_selector2)
     
-    strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
-                             cost_model=cost_model, risk_model=risk_model,
-                             pc_method='factor_value_weight')
+    # strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
+    #                          cost_model=cost_model, risk_model=risk_model,
+    #                          pc_method='factor_value_weight')
     # strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
     # strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
-    # strategy = AlphaStrategy()
+    strategy = AlphaStrategy()
     
     bt = AlphaBacktestInstance()
     bt.init_from_config(props, strategy, context=context)
@@ -175,7 +175,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
 
-    test_alpha_strategy_dataview()
+    # test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start

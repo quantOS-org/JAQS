@@ -190,6 +190,9 @@ class AlphaBacktestInstance(BacktestInstance):
         self.current_rebalance_date = 0
         
         self.univ_price_dic = {}
+        
+        self.POSITION_ADJUST_NO = 101010
+        self.DELIST_ADJUST_NO = 202020
 
     def position_adjust(self):
         """
@@ -204,7 +207,6 @@ class AlphaBacktestInstance(BacktestInstance):
         df_adj = self.ctx.dataview.get_ts('adjust_factor',
                                           start_date=start, end_date=end)
         pm = self.strategy.pm
-        
         for symbol in pm.holding_securities:
             ser = df_adj.loc[:, symbol]
             ser_div = ser.div(ser.shift(1)).fillna(1.0)
@@ -222,16 +224,43 @@ class AlphaBacktestInstance(BacktestInstance):
                 
                 trade_ind = Trade()
                 trade_ind.symbol = symbol
-                trade_ind.task_id = 101010
-                trade_ind.entrust_no = 101010
+                trade_ind.task_id = self.POSITION_ADJUST_NO
+                trade_ind.entrust_no = self.POSITION_ADJUST_NO
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
-                trade_ind.send_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=101010)
+                trade_ind.send_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
                 
                 self.strategy.on_trade_ind(trade_ind)
 
     def delist_adjust(self):
-        # TODO
-        pass
+        df_inst = self.ctx.dataview.data_inst
+
+        start = self.last_rebalance_date  # start will be one day later
+        end = self.current_rebalance_date  # end is the same to ensure position adjusted for dividend on rebalance day
+        
+        mask = np.logical_and(df_inst['delist_date'] >= start, df_inst['delist_date'] <= end)
+        dic_inst = df_inst.loc[mask, :].to_dict(orient='index')
+        
+        if not dic_inst:
+            return
+        pm = self.strategy.pm
+        for symbol in pm.holding_securities.copy():
+            value_dic = dic_inst.get(symbol, None)
+            if value_dic is None:
+                continue
+            pos = pm.get_position(symbol).curr_size
+            last_trade_date = self.ctx.calendar.get_last_trade_date(value_dic['delist_date'])
+            last_close_price = self.ctx.dataview.get_snapshot(last_trade_date, symbol=symbol, fields='close')
+            last_close_price = last_close_price.at[symbol, 'close']
+            
+            trade_ind = Trade()
+            trade_ind.symbol = symbol
+            trade_ind.task_id = self.DELIST_ADJUST_NO
+            trade_ind.entrust_no = self.DELIST_ADJUST_NO
+            trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
+            trade_ind.send_fill_info(price=last_close_price, size=pos,
+                                     date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
+    
+            self.strategy.on_trade_ind(trade_ind)
 
     def re_balance_plan_before_open(self):
         """

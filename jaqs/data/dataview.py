@@ -64,6 +64,7 @@ class DataView(object):
         self.data_q = None
         self._data_benchmark = None
         self._data_group = None
+        self._data_inst = None
         
         common_list = {'symbol', 'start_date', 'end_date'}
         market_bar_list = {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi'}
@@ -235,6 +236,17 @@ class DataView(object):
         if self._data_group is None:
             self._data_group = self.get_ts('group')
         return self._data_group
+    
+    @property
+    def data_inst(self):
+        """
+        
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        return self._data_inst
     
     @data_benchmark.setter
     def data_benchmark(self, df_new):
@@ -721,6 +733,13 @@ class DataView(object):
     def _prepare_comp_info(self):
         df = self.data_api.get_index_comp_df(self.universe, self.extended_start_date_d, self.end_date)
         self.append_df(df, 'index_member', is_quarterly=False)
+    
+    def _prepare_inst_info(self):
+        res = self.data_api.query_inst_info(symbol=','.join(self.symbol),
+                                            fields='symbol,inst_type,name,list_date,'
+                                                   'delist_date,product,pricetick,buylot,setlot',
+                                            inst_type="")
+        self._data_inst = res
 
     def prepare_data(self):
         """Prepare data for the FIRST time."""
@@ -728,6 +747,9 @@ class DataView(object):
         print "Query data..."
         self.data_d, self.data_q = self._prepare_data(self.fields)
 
+        print "Query instrument info..."
+        self._prepare_inst_info()
+        
         print "Query adj_factor..."
         self._prepare_adj_factor()
 
@@ -964,6 +986,7 @@ class DataView(object):
         self.data_d = dic.get('/data_d', None)
         self.data_q = dic.get('/data_q', None)
         self._data_benchmark = dic.get('/data_benchmark', None)
+        self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
         
         print "Dataview loaded successfully."
@@ -1179,7 +1202,7 @@ class DataView(object):
         data_path = os.path.join(folder_path, 'data.hd5')
         
         data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
-                         'data_benchmark': self._data_benchmark}
+                         'data_benchmark': self.data_benchmark, 'data_inst': self.data_inst}
         data_to_store = {k: v for k, v in data_to_store.viewitems() if v is not None}
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
 
