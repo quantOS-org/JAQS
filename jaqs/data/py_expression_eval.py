@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from jaqs.data.align import align
+import jaqs.util.numeric as numeric
 
 TNUMBER = 0
 TOP1 = 1
@@ -629,22 +630,19 @@ class Parser(object):
 
         """
         df = self._align_univariate(df)
-        labels = list(range(1, n_quantiles + 1, 1))
-        res = df.apply(lambda ser: np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=int), axis=0)
-        res = res.applymap(lambda x: x if x in labels else np.nan)
+        # TODO: unnecesssary warnings
+        # import warnings
+        # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
+        res_arr = numeric.quantilize_without_nan(df.values, n_quantiles=n_quantiles, axis=1)
+        res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
         return res
 
     def group_quantile(self, df, group, n_quantiles=5):
         df = self._align_univariate(df)
         
-        labels = list(range(1, n_quantiles + 1, 1))
-
         res = None
         for val in np.unique(group.values.flatten()):
-            val_res = df[group == val].apply(lambda ser:
-                                             np.asarray(pd.qcut(ser, n_quantiles, labels=labels), dtype=int),
-                                             axis=0)
-            val_res = val_res.applymap(lambda x: x if x in labels else np.nan)
+            val_res = self.to_quantile(df[group == val], n_quantiles=n_quantiles)
             if res is None:
                 res = val_res
             else:

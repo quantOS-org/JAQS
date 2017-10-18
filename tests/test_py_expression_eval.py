@@ -20,15 +20,30 @@ def test_group_quantile():
     shape = (500, 3000)
     df_val = pd.DataFrame(np.random.rand(*shape))
     df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
-    expr = parser.parse('GroupQuantile(val, mygroup)')
+    expr = parser.parse('GroupQuantile(val, mygroup, 23)')
     res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+
+    n = 100
+    df_val = pd.DataFrame(np.arange(n).reshape(2, -1))
+    df_group = pd.DataFrame(np.array([1] * 25 + [2] * 25 + [2] * 20 + [3] * 20 + [9] * 10).reshape(2, -1))
+    expr = parser.parse('GroupQuantile(val, mygroup, 5)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+    n1 = 5
+    n2 = 4
+    n3 = 2
+    res_correct = np.array([0.] * n1 + [1.] * n1 + [2.] * n1 + [3.] * n1 + [4.] * n1
+                           + [0.] * n1 + [1.] * n1 + [2.] * n1 + [3.] * n1 + [4.] * n1
+                           + [0.] * n2 + [1.] * n2 + [2.] * n2 + [3.] * n2 + [4.] * n2
+                           + [0.] * n2 + [1.] * n2 + [2.] * n2 + [3.] * n2 + [4.] * n2
+                           + [0.] * n3 + [1.] * n3 + [2.] * n3 + [3.] * n3 + [4.] * n3).reshape(2, -1)
+    assert np.abs(res.values - res_correct).flatten().sum() < 1e-6
 
 
 def test_quantile():
     val = pd.DataFrame(np.random.rand(500, 3000))
-    expr = parser.parse('Quantile(val, 10)')
+    expr = parser.parse('Quantile(val, 12)')
     res = parser.evaluate({'val': val})
-    assert np.nanmean(val[res == 1].values.flatten()) < 0.1
+    assert np.nanmean(val[res == 1].values.flatten()) < 0.11
     
     
 def test_logical_and_or():
