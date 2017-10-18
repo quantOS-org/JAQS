@@ -52,6 +52,7 @@ class DataView(object):
         self.end_date = 0
         self.fields = []
         self.freq = 1
+        self.all_price = True
 
         self.meta_data_list = ['start_date', 'end_date',
                                'extended_start_date_d', 'extended_start_date_q',
@@ -74,7 +75,8 @@ class DataView(object):
         # fields map
         self.market_daily_fields = \
             {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi', 'trade_status',
-             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'index_member', 'group'}
+             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'index_member'}
+        self.group_fields = {'sw1', 'sw2', 'sw3', 'sw4', 'zz1', 'zz2'}
         self.reference_daily_fields = \
             {'currency', 'total_market_value', 'float_market_value',
              'high_52w', 'low_52w', 'high_52w_adj', 'low_52w_adj', 'close_price',
@@ -274,6 +276,8 @@ class DataView(object):
             pool = self.fin_stat_cash_flow
         elif field_type == 'fin_indicator':
             pool = self.fin_indicator
+        elif field_type == 'group':
+            pool = self.group_fields
         elif field_type == 'daily':
             pool = set.union(self.market_daily_fields, self.reference_daily_fields,
                              self.custom_daily_fields)
@@ -353,13 +357,16 @@ class DataView(object):
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                      adjust_mode=None, fields=sep.join(fields_market_daily))
-                adj_cols = ['open', 'high', 'low', 'close', 'vwap']
-                # adjusted prices
-                df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
-                df_daily_adjust = df_daily_adjust.loc[:, adj_cols]
-                # concat axis = 1
-                df_daily = df_daily.join(df_daily_adjust, rsuffix='_adj')
+                if self.all_price:
+                    adj_cols = ['open', 'high', 'low', 'close', 'vwap']
+                    # adjusted prices
+                    df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
+                                                                 adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
+                    df_daily_adjust = df_daily_adjust.loc[:, adj_cols]
+                    # concat axis = 1
+                    df_daily = df_daily.join(df_daily_adjust, rsuffix='_adj')
+                    if msg11 != '0,':
+                        print msg11
                 if msg1 != '0,':
                     print msg1
                 dic_market_daily = self._group_df_to_dict(df_daily, 'symbol')
@@ -451,45 +458,6 @@ class DataView(object):
         
         return df
 
-    '''
-    @staticmethod
-    def _dic_of_df_to_multi_index_df_OLD(dic, levels=None):
-        """
-        Convert dict of DataFrame to MultiIndex DataFrame.
-        Columns of result will be MultiIndex constructed using keys of dict and columns of DataFrame.
-        Index of result will be the same with DataFrame.
-        Different DataFrame will be aligned (outer join) using index.
-        
-        Parameters
-        ----------
-        dic : dict
-            {symbol: DataFrame with index be datetime and columns be fields}.
-
-        Returns
-        -------
-        merge : pd.DataFrame
-            with MultiIndex columns.
-
-        """
-        if levels is None:
-            levels = ['symbol', 'field']
-        keys = dic.keys()
-        values = dic.values()
-        
-        cols = values[0].columns.values
-        multi_idx = pd.MultiIndex.from_product([keys, cols], names=levels)
-        
-        merge = pd.concat(values, axis=1, join='outer')
-        merge.columns = multi_idx
-        merge.sort_index(axis=1, level=levels, inplace=True)
-        
-        if merge.isnull().sum().sum() > 0:
-            print "WARNING: Nan encountered, NO fill."
-            # merge.fillna(method='ffill')
-            
-        return merge
-
-    '''
     def _dic_of_df_to_multi_index_df(self, dic, level_names=None):
         """
         Convert dict of DataFrame to MultiIndex DataFrame.
@@ -743,6 +711,8 @@ class DataView(object):
         return merge_d, merge_q
     
     def _prepare_adj_factor(self):
+        """Query and append daily adjust factor for prices."""
+        # TODO if all symbols are index, we do not fetch adj_factor
         symbol_str = ','.join(self.symbol)
         df_adj = self.data_api.get_adj_factor_daily(symbol_str,
                                                     start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
@@ -762,13 +732,15 @@ class DataView(object):
         self._prepare_adj_factor()
 
         if self.universe:
-            if 'group' in self.fields:
-                print "Query groups (industry)..."
-                self._prepare_group()
             print "Query benchmark..."
             self._data_benchmark = self._prepare_benchmark()
             print "Query benchmar member info..."
             self._prepare_comp_info()
+            
+            group_fields = self._get_fields('group', self.fields)
+            if group_fields:
+                print "Query groups (industry)..."
+                self._prepare_group(group_fields)
 
         print "Data has been successfully prepared."
 
@@ -793,16 +765,19 @@ class DataView(object):
         self.extended_start_date_d = dtutil.shift(self.start_date, n_weeks=-8)  # query more data
         self.extended_start_date_q = dtutil.shift(self.start_date, n_weeks=-80)
         self.end_date = props['end_date']
+        self.all_price = props.get('all_price', True)
         
+        # get and filter fields
         fields = props.get('fields', [])
         if fields:
             fields = props['fields'].split(sep)
             self.fields = [field for field in fields if self._is_predefined_field(field)]
             if len(self.fields) < len(fields):
-                print "Field name [{}] not valid, ignore.".format(set.difference(set(fields),
-                                                                               set(self.fields)))
+                print "Field name [{}] not valid, ignore.".format(set.difference(set(fields), set(self.fields)))
+        
         # TODO: hard-coded
-        self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
+        if self.all_price:
+            self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
         
         self.freq = props['freq']
         self.universe = props.get('universe', "")
@@ -825,11 +800,19 @@ class DataView(object):
         df_bench = self._process_index(df_bench, self.TRADE_DATE_FIELD_NAME)
         return df_bench
     
-    def _prepare_group(self):
-        df = self.data_api.get_industry_daily(symbol=','.join(self.symbol),
-                                              start_date=self.extended_start_date_q, end_date=self.end_date)
-        self.append_df(df, 'group', is_quarterly=False)
-        return df
+    def _prepare_group(self, group_fields):
+        data_map = {'sw1': ('SW', 1),
+                    'sw2': ('SW', 2),
+                    'sw3': ('SW', 3),
+                    'sw4': ('SW', 4),
+                    'zz1': ('ZZ', 1),
+                    'zz2': ('ZZ', 2)}
+        for field in group_fields:
+            type_, level = data_map[field]
+            df = self.data_api.get_industry_daily(symbol=','.join(self.symbol),
+                                                  start_date=self.extended_start_date_q, end_date=self.end_date,
+                                                  type_=type_, level=level)
+            self.append_df(df, field, is_quarterly=False)
     
     def _add_field(self, field_name, is_quarterly=None):
         self.fields.append(field_name)
@@ -1302,5 +1285,6 @@ class DataView(object):
         """
         flag = (field_name in self.market_daily_fields
                 or field_name in self.reference_daily_fields
-                or field_name in self.custom_daily_fields)
+                or field_name in self.custom_daily_fields
+                or field_name in self.group_fields)
         return flag

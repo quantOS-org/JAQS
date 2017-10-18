@@ -530,7 +530,7 @@ class RemoteDataService(DataService):
         res = {key: value for key, value in gp}
         return res
     
-    def get_industry_daily(self, symbol, start_date, end_date, type_='SW'):
+    def get_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
         
@@ -549,14 +549,16 @@ class RemoteDataService(DataService):
             values are industry code
 
         """
-        df_raw = self.get_industry_raw(symbol, type_=type_)
+        df_raw = self.get_industry_raw(symbol, type_=type_, level=level)
         
         dic_sec = self._group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
                    for sec, df in dic_sec.viewitems()}
 
         df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.viewitems()}, axis=1)
-        df_value_tmp = pd.concat({sec: df.loc[:, 'industry1_code'] for sec, df in dic_sec.viewitems()}, axis=1)
+        df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_code'.format(level)]
+                                  for sec, df in dic_sec.viewitems()},
+                                 axis=1)
         
         idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
         symbol_arr = np.sort(symbol.split(','))
@@ -574,15 +576,17 @@ class RemoteDataService(DataService):
         
         return df_industry
         
-    def get_industry_raw(self, symbol, type_='ZZ'):
+    def get_industry_raw(self, symbol, type_='ZZ', level=1):
         """
-        Get daily industry of securities from ShenWanHongYuan or ZhongZhengZhiShu.
+        Get daily industry of securities from ShenWanZhiShu or ZhongZhengZhiShu.
         
         Parameters
         ----------
         symbol : str
             separated by ','
         type_ : {'SW', 'ZZ'}
+        level : {1, 2, 3, 4}
+            Use which level of industry index classification.
 
         Returns
         -------
@@ -591,14 +595,18 @@ class RemoteDataService(DataService):
         """
         if type_ == 'SW':
             src = u'申万研究所'.encode('utf-8')
+            if level not in [1, 2, 3, 4]:
+                raise ValueError("For [SW], level must be one of {1, 2, 3, 4}")
         elif type_ == 'ZZ':
             src = u'中证指数有限公司'.encode('utf-8')
+            if level not in [1, 2, 3, 4]:
+                raise ValueError("For [ZZ], level must be one of {1, 2}")
         else:
             raise ValueError("type_ must be one of SW of ZZ")
-    
+        
         filter_argument = self._dic2url({'symbol': symbol,
                                          'industry_src': src})
-        fields_list = ['symbol', 'industry1_code', 'industry1_name']
+        fields_list = ['symbol', 'industry{:d}_code'.format(level), 'industry{:d}_name'.format(level)]
     
         df_raw, msg = self.query("lb.secIndustry", fields=','.join(fields_list),
                                  filter=filter_argument, orderby="symbol")
