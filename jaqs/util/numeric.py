@@ -13,7 +13,7 @@ def quantilize_without_nan(mat, n_quantiles=5, axis=-1):
     shape[axis] = 1
     divisor = divisor.reshape(*shape)
     
-    res = np.floor(rank / divisor)  # + 1.0
+    res = np.floor(rank / divisor) + 1.0
     res[mask] = np.nan
     
     return res
