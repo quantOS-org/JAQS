@@ -25,7 +25,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
 
     Attributes
     ----------
-    context : Context object
+    ctx : Context object
         Used to store relevant context of the strategy.
     run_mode : int
         Whether the strategy is under back-testing or live trading.
@@ -41,15 +41,13 @@ class Strategy(with_metaclass(abc.ABCMeta)):
     
     def __init__(self):
         super(Strategy, self).__init__()
-        self.context = None
+        self.ctx = None
         self.run_mode = common.RUN_MODE.BACKTEST
         
         self.pm = PortfolioManager(self)
 
         self.task_id_map = defaultdict(list)
         self.seq_gen = SequenceGenerator()
-
-        self.trade_date = 0
 
         self.init_balance = 0.0
     
@@ -71,13 +69,11 @@ class Strategy(with_metaclass(abc.ABCMeta)):
     
     """
     def on_new_day(self, trade_date):
-        last_date = self.trade_date
-        self.trade_date = trade_date
-        self.pm.on_new_day(self.trade_date, last_date)
+        pass
     
     def _get_next_num(self, key):
         """used to generate id for orders and trades."""
-        return str(np.int64(self.trade_date) * 10000 + self.seq_gen.get_next(key))
+        return str(np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next(key))
 
     def place_order(self, symbol, action, price, size, algo="", algo_param=None):
         """
@@ -108,7 +104,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         if algo:
             raise NotImplementedError("algo {}".format(algo))
         
-        order = Order.new_order(symbol, action, price, size, self.trade_date, 0)
+        order = Order.new_order(symbol, action, price, size, self.ctx.trade_date, 0)
         order.task_id = self._get_next_num('task_id')
         order.entrust_no = self._get_next_num('entrust_no')
         
@@ -116,7 +112,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         
         self.pm.add_order(order)
         
-        err_msg = self.context.gateway.place_order(order)
+        err_msg = self.ctx.gateway.place_order(order)
         
         if err_msg:
             return '0', err_msg
@@ -145,7 +141,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         
         err_msgs = []
         for entrust_no in entrust_no_list:
-            err_msg = self.context.gateway.cancel_order(entrust_no)
+            err_msg = self.ctx.gateway.cancel_order(entrust_no)
             err_msgs.append(err_msg)
         if any(map(lambda s: bool(s), err_msgs)):
             return False, ','.join(err_msgs)
@@ -180,7 +176,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
             
             self.pm.add_order(order)
             
-            err_msg = self.context.gateway.place_order(order)
+            err_msg = self.ctx.gateway.place_order(order)
             err_msgs.append(err_msg)
             
             self.task_id_map[order.task_id].append(order.entrust_no)
@@ -218,20 +214,20 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         err_msg : str
 
         """
-        assert len(goals) == len(self.context.universe)
+        assert len(goals) == len(self.ctx.universe)
         
         orders = []
         for goal in goals:
             sec, goal_size = goal.symbol, goal.size
             if sec in self.pm.holding_securities:
-                curr_size = self.pm.get_position(sec, self.trade_date).curr_size
+                curr_size = self.pm.get_position(sec, self.ctx.trade_date).curr_size
             else:
                 curr_size = 0
             diff_size = goal_size - curr_size
             if diff_size != 0:
                 action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
                 
-                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.trade_date, 0)
+                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
                 order.price_target = 'vwap'  # TODO
                 
                 orders.append(order)
@@ -326,6 +322,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         super(AlphaStrategy, self).__init__()
         
         self.period = ""
+        self.n_periods = 1
         self.days_delay = 0
         self.cash = 0
         self.position_ratio = 0.0
@@ -395,7 +392,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     def _get_weights_last(self):
         current_positions = self.query_portfolio()
         univ_pos_dic = {p.symbol: p.curr_size for p in current_positions}
-        for sec in self.context.universe:
+        for sec in self.ctx.universe:
             if sec not in univ_pos_dic:
                 univ_pos_dic[sec] = 0
         return univ_pos_dic
@@ -458,7 +455,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
     def equal_weight(self):
         # discrete
-        weights = {k: 1.0 for k in self.context.universe}
+        weights = {k: 1.0 for k in self.ctx.universe}
         return weights, ''
     
     def factor_value_weight(self):
@@ -505,7 +502,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
         """
         n_exp = 5  # number of experiments of Monte Carol
-        n_var = len(self.context.universe)
+        n_var = len(self.ctx.universe)
     
         weights_mat = np.random.rand(n_exp, n_var)
         weights_mat = weights_mat / weights_mat.sum(axis=1).reshape(-1, 1)
@@ -513,7 +510,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         min_f = 1e30
         min_weights = None
         for i in range(n_exp):
-            weights = {self.context.universe[j]: weights_mat[i, j] for j in range(n_var)}
+            weights = {self.ctx.universe[j]: weights_mat[i, j] for j in range(n_var)}
             f = -util_func(weights)
             if f < min_f:
                 min_weights = weights
@@ -539,7 +536,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         if not suspensions:
             return
         
-        if len(suspensions) == len(self.context.universe):
+        if len(suspensions) == len(self.ctx.universe):
             raise ValueError("All suspended")  # TODO custom error
         
         weights = {sec: w if w not in suspensions else 0.0 for sec, w in self.weights.viewitems()}
@@ -550,7 +547,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = weights
     
     def on_after_rebalance(self, total):
-        print "\n\n{}, cash all = {:9.4e}".format(self.trade_date, total)  # DEBUG
+        print "\n\n{}, cash all = {:9.4e}".format(self.ctx.trade_date, total)  # DEBUG
         pass
     
     def send_bullets(self):
@@ -596,7 +593,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 # order.symbol = sec
     
                 if sec in suspensions:
-                    current_pos = self.pm.get_position(sec, self.trade_date)
+                    current_pos = self.pm.get_position(sec, self.ctx.trade_date)
                     goal_pos.size = current_pos.curr_size if current_pos is not None else 0
                 elif abs(w) < 1e-8:
                     # order.entrust_size = 0
@@ -625,13 +622,13 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
     def liquidate_all(self):
         for sec in self.pm.holding_securities:
-            curr_size = self.pm.get_position(sec, self.trade_date).curr_size
+            curr_size = self.pm.get_position(sec, self.ctx.trade_date).curr_size
             self.place_order(sec, common.ORDER_ACTION.SELL, 1e-3, curr_size)
     
     def query_portfolio(self):
         positions = []
         for sec in self.pm.holding_securities:
-            positions.append(self.pm.get_position(sec, self.trade_date))
+            positions.append(self.pm.get_position(sec, self.ctx.trade_date))
         return positions
 
 
@@ -667,8 +664,8 @@ class EventDrivenStrategy(Strategy, Subscriber):
             self.subscribe_events()
     
     def subscribe_events(self):
-        universe = self.context.universe
-        data_server = self.context.dataserver
+        universe = self.ctx.universe
+        data_server = self.ctx.dataserver
         for i in xrange(len(universe)):
             self.subscribe(data_server, universe[i])
     

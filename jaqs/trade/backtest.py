@@ -16,13 +16,18 @@ from jaqs.util import fileio
 
 
 class BacktestInstance(Subscriber):
+    """
+    Attributes
+    ----------
+    last_date : int
+        Last trade date.
+    """
     def __init__(self):
         Subscriber.__init__(self)
         
         self.strategy = None
         self.start_date = 0
         self.end_date = 0
-        self.current_date = 0
         self.last_date = 0
 
         self.props = None
@@ -48,7 +53,7 @@ class BacktestInstance(Subscriber):
         # TODO
         self.ctx.add_universe(props['universe'])
         
-        strategy.context = self.ctx
+        strategy.ctx = self.ctx
 
         strategy.init_from_config(props)
         strategy.initialize(common.RUN_MODE.BACKTEST)
@@ -73,37 +78,37 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
             self.trade_days = df.loc[:, 'trade_date'].values
         return date in self.trade_days
     
-    def go_next_date(self):
-        """update self.current_date and last_date."""
+    def go_next_rebalance_day(self):
+        """update self.ctx.trade_date and last_date."""
         if self.ctx.gateway.match_finished:
-            next_period_day = dtutil.get_next_period_day(self.current_date,
+            next_period_day = dtutil.get_next_period_day(self.ctx.trade_date,
                                                          self.strategy.period, self.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
-                self.current_date = next_period_day
+                self.ctx.trade_date = next_period_day
             else:
-                self.current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
-            self.current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
+                self.ctx.trade_date = self.ctx.calendar.get_next_trade_date(next_period_day)
+            self.ctx.trade_date = self.ctx.calendar.get_next_trade_date(next_period_day)
 
             # update re-balance date
             if self.current_rebalance_date > 0:
                 self.last_rebalance_date = self.current_rebalance_date
             else:
                 self.last_rebalance_date = self.start_date
-            self.current_rebalance_date = self.current_date
+            self.current_rebalance_date = self.ctx.trade_date
         else:
             # TODO here we must make sure the matching will not last to next period
-            self.current_date = self.ctx.calendar.get_next_trade_date(self.current_date)
+            self.ctx.trade_date = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
 
-        self.last_date = self.ctx.calendar.get_last_trade_date(self.current_date)
+        self.last_date = self.ctx.calendar.get_last_trade_date(self.ctx.trade_date)
 
     def run_alpha(self):
         gateway = self.ctx.gateway
         
-        self.current_date = self.start_date
+        self.ctx.trade_date = self.start_date
         while True:
-            self.go_next_date()
-            if self.current_date > self.end_date:
+            self.go_next_rebalance_day()
+            if self.ctx.trade_date > self.end_date:
                 break
             
             if gateway.match_finished:
@@ -111,13 +116,13 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
                 df_dic = self.strategy.get_univ_prices()  # access data
                 self.strategy.re_balance_plan_before_open(df_dic, suspensions=[])
                 
-                self.on_new_day(self.current_date)
+                self.on_new_day(self.ctx.trade_date)
                 self.strategy.send_bullets()
             else:
-                self.on_new_day(self.current_date)
+                self.on_new_day(self.ctx.trade_date)
             
             df_dic = self.strategy.get_univ_prices()  # access data
-            trade_indications = gateway.match(df_dic, self.current_date)
+            trade_indications = gateway.match(df_dic, self.ctx.trade_date)
             for trade_ind in trade_indications:
                 self.strategy.on_trade_ind(trade_ind)
         
@@ -244,7 +249,7 @@ class AlphaBacktestInstance(BacktestInstance):
         # only filter index members when universe is defined
         if self.ctx.dataview.universe:
             col = 'index_member'
-            df_is_member = self.ctx.dataview.get_snapshot(self.current_date, fields=col)
+            df_is_member = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields=col)
             dic = df_is_member.loc[:, col].to_dict()
             # print len(self.ctx.dataview.symbol) - sum(dic.values())  # DEBUG
             self.strategy.weights = {k: v if dic[k] else 0.0 for k, v in self.strategy.weights.viewitems()}
@@ -271,7 +276,7 @@ class AlphaBacktestInstance(BacktestInstance):
     
         # step2. calculate market value and cash
         # market value does not include those suspended
-        market_value = self.strategy.pm.market_value(self.current_date, prices, all_list)
+        market_value = self.strategy.pm.market_value(self.ctx.trade_date, prices, all_list)
         # self.market_value_list.append((self.trade_date, market_value))  # DEBUG
         cash_available = self.strategy.cash + market_value
     
@@ -291,11 +296,11 @@ class AlphaBacktestInstance(BacktestInstance):
     def run_alpha(self):
         gateway = self.ctx.gateway
         
-        self.current_date = self.start_date
+        self.ctx.trade_date = self.start_date
         while True:
             # switch trade date
-            self.go_next_date()
-            if self.current_date > self.end_date:
+            self.go_next_rebalance_day()
+            if self.ctx.trade_date > self.end_date:
                 break
 
             # match uncome orders or re-balance
@@ -307,64 +312,70 @@ class AlphaBacktestInstance(BacktestInstance):
                 self.delist_adjust()
 
                 # Step2.
-                # plan re-balance before the re-balance day
-                self.on_new_day(self.last_date)
+                # plan re-balance before market open of the re-balance day:
+                self.on_new_day(self.last_date)  # use last trade date because strategy can only access data of last day
                 # get index memebers, get signals, generate weights
                 self.re_balance_plan_before_open()
 
                 # Step3.
                 # do re-balance on the re-balance day
-                self.on_new_day(self.current_date)
+                self.on_new_day(self.ctx.trade_date)
                 # get suspensions, get up/down limits, generate goal positions and send orders.
                 self.re_balance_plan_after_open()
                 self.strategy.send_bullets()
             else:
-                self.on_new_day(self.current_date)
+                self.on_new_day(self.ctx.trade_date)
             
             # return trade indications
-            trade_indications = gateway.match(self.univ_price_dic, self.current_date)
+            trade_indications = gateway.match(self.univ_price_dic)
             for trade_ind in trade_indications:
                 self.strategy.on_trade_ind(trade_ind)
+            
+            self.on_after_market_close()
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
                                                                          len(self.strategy.pm.trades))
+    
+    def on_after_market_close(self):
+        self.ctx.gateway.on_after_market_close()
         
     def get_univ_prices(self, field_name='close'):
         dv = self.ctx.dataview
-        df = dv.get_snapshot(self.current_date, fields=field_name)
+        df = dv.get_snapshot(self.ctx.trade_date, fields=field_name)
         res = df.to_dict(orient='index')
         return res
     
     def _is_trade_date(self, date):
         return date in self.ctx.dataview.dates
     
-    def go_next_date(self):
-        """update self.current_date and last_date."""
+    def go_next_rebalance_day(self):
+        """update self.ctx.trade_date and last_date."""
+        current_date = self.ctx.trade_date
         if self.ctx.gateway.match_finished:
-            next_period_day = dtutil.get_next_period_day(self.current_date, self.strategy.period,
+            next_period_day = dtutil.get_next_period_day(current_date, self.strategy.period,
                                                          n=self.strategy.n_periods,
                                                          extra_offset=self.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
-                self.current_date = next_period_day
+                current_date = next_period_day
             else:
-                self.current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
-            self.current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
+                current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
         
             # update re-balance date
             if self.current_rebalance_date > 0:
                 self.last_rebalance_date = self.current_rebalance_date
             else:
-                self.last_rebalance_date = self.current_date
-            self.current_rebalance_date = self.current_date
+                self.last_rebalance_date = current_date
+            self.current_rebalance_date = current_date
         else:
             # TODO here we must make sure the matching will not last to next period
-            self.current_date = self.ctx.calendar.get_next_trade_date(self.current_date)
+            current_date = self.ctx.calendar.get_next_trade_date(current_date)
     
-        self.last_date = self.ctx.calendar.get_last_trade_date(self.current_date)
+        self.ctx.trade_date = current_date
+        self.last_date = self.ctx.calendar.get_last_trade_date(current_date)
     
     def get_suspensions(self):
-        trade_status = self.ctx.dataview.get_snapshot(self.current_date, fields='trade_status')
+        trade_status = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='trade_status')
         trade_status = trade_status.loc[:, 'trade_status']
         # trade_status: {'N', 'XD', 'XR', 'DR', 'JiaoYi', 'TingPai', NUll (before 2003)}
         mask_sus = trade_status == u'停牌'.encode('utf-8')
@@ -372,14 +383,13 @@ class AlphaBacktestInstance(BacktestInstance):
 
     def get_limit_reaches(self):
         # TODO: 10% is not the absolute value to check limit reach
-        df_open = self.ctx.dataview.get_snapshot(self.current_date, fields='open')
+        df_open = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='open')
         df_close = self.ctx.dataview.get_snapshot(self.last_date, fields='close')
         merge = pd.concat([df_close, df_open], axis=1)
         merge.loc[:, 'limit'] = np.abs((merge['open'] - merge['close']) / merge['close']) > 9.5E-2
         return list(merge.loc[merge.loc[:, 'limit'], :].index.values)
     
     def on_new_day(self, date):
-        self.ctx.trade_date = date
         self.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
         self.univ_price_dic = self.get_univ_prices(field_name="close,vwap,open,high,low")  # access data
@@ -442,7 +452,7 @@ class EventBacktestInstance(BacktestInstance):
         self.strategy = strategy
         self.ctx.universe = props.get("symbol")
 
-        strategy.context = self.ctx
+        strategy.ctx = self.ctx
         strategy.init_from_config(props)
         strategy.initialize(common.RUN_MODE.BACKTEST)
 
@@ -451,10 +461,10 @@ class EventBacktestInstance(BacktestInstance):
         self.pnlmgr.initFromConfig(props, self.ctx.data_api)
     
     def go_next_trade_date(self):
-        next_dt = self.ctx.calendar.get_next_trade_date(self.current_date)
+        next_dt = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
         
-        self.last_date = self.current_date
-        self.current_date = next_dt
+        self.last_date = self.ctx.trade_date
+        self.ctx.trade_date = next_dt
     
     def run_event(self):
         data_api = self.ctx.data_api
@@ -462,7 +472,7 @@ class EventBacktestInstance(BacktestInstance):
         
         data_api.add_batch_subscribe(self, universe)
         
-        self.current_date = self.start_date
+        self.ctx.trade_date = self.start_date
         
         def __extract(func):
             return lambda event: func(event.data, **event.kwargs)
@@ -472,18 +482,18 @@ class EventBacktestInstance(BacktestInstance):
         ee.register(EVENT.MD_QUOTE, __extract(self.process_quote))
         ee.register(EVENT.MARKET_CLOSE, __extract(self.close_day))
         
-        while self.current_date <= self.end_date:  # each loop is a new trading day
-            quotes = data_api.get_daily_quotes(self.current_date)
+        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
+            quotes = data_api.get_daily_quotes(self.ctx.trade_date)
             if quotes is not None:
                 # gateway.oneNewDay()
                 e_newday = Event(EVENT.CALENDAR_NEW_TRADE_DATE)
-                e_newday.data = self.current_date
+                e_newday.data = self.ctx.trade_date
                 ee.put(e_newday)
                 ee.process_once()  # this line should be done on another thread
                 
-                # self.strategy.onNewday(self.current_date)
-                self.strategy.pm.on_new_day(self.current_date, self.last_date)
-                self.strategy.trade_date = self.current_date
+                # self.strategy.onNewday(self.ctx.trade_date)
+                self.strategy.pm.on_new_day(self.ctx.trade_date, self.last_date)
+                self.strategy.ctx.trade_date = self.ctx.trade_date
                 
                 for quote in quotes:
                     # self.processQuote(quote)
@@ -493,36 +503,36 @@ class EventBacktestInstance(BacktestInstance):
                     ee.process_once()
                 
                 # self.strategy.onMarketClose()
-                # self.closeDay(self.current_date)
+                # self.closeDay(self.ctx.trade_date)
                 e_close = Event(EVENT.MARKET_CLOSE)
-                e_close.data = self.current_date
+                e_close.data = self.ctx.trade_date
                 ee.put(e_close)
                 ee.process_once()
                 # self.strategy.onSettle()
                 
-                self.last_date = self.current_date
+                self.last_date = self.ctx.trade_date
             else:
                 # no quotes because of holiday or other issues. We don't update last_date
                 print "in trade.py: function run(): {} quotes is None, continue.".format(self.last_date)
             
-            self.current_date = self.go_next_trade_date(self.current_date)
+            self.ctx.trade_date = self.go_next_trade_date(self.ctx.trade_date)
             
             # self.strategy.onTradingEnd()
 
     def on_new_day(self):
-        self.ctx.gateway.on_new_day(self.current_date)
-        self.strategy.on_new_day(self.current_date)
-        print 'on_new_day in trade {}'.format(self.current_date)
+        self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        self.strategy.on_new_day(self.ctx.trade_date)
+        print 'on_new_day in trade {}'.format(self.ctx.trade_date)
 
     def run(self):
-        self.current_date = self.start_date
+        self.ctx.trade_date = self.start_date
     
-        while self.current_date <= self.end_date:  # each loop is a new trading day
+        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
             self.go_next_trade_date()
             self.on_new_day()
             
             df_quotes, msg = self.ctx.data_api.bar(symbol=self.ctx.universe, start_time=200000, end_time=160000,
-                                                   trade_date=self.current_date, freq=self.bar_type)
+                                                   trade_date=self.ctx.trade_date, freq=self.bar_type)
             if df_quotes is None:
                 print msg
                 continue

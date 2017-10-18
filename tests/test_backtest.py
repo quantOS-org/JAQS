@@ -87,7 +87,7 @@ def my_commission(symbol, turnover, context=None, user_options=None):
 
 def test_alpha_strategy_dataview():
     dv_subfolder_name = 'test_dataview'
-    save_dataview(sub_folder=dv_subfolder_name)
+    # save_dataview(sub_folder=dv_subfolder_name)
     
     dv = DataView()
     fullpath = fileio.join_relative_path('../output/prepared', dv_subfolder_name)
@@ -112,15 +112,10 @@ def test_alpha_strategy_dataview():
 
     context = model.Context(dataview=dv, gateway=gateway)
     
-    risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel()
-    cost_model = model.SimpleCostModel()
-    stock_selector = model.StockSelector()
-    
-    risk_model.register_context(context)
-    signal_model.register_context(context)
-    cost_model.register_context(context)
-    stock_selector.register_context(context)
+    risk_model = model.FactorRiskModel(context)
+    signal_model = model.FactorRevenueModel(context)
+    cost_model = model.SimpleCostModel(context)
+    stock_selector = model.StockSelector(context)
     
     signal_model.add_signal(name='my_factor', func=my_factor)
     cost_model.consider_cost(name='my_commission', func=my_commission, options={'myrate': 1e-2})

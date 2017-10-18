@@ -28,9 +28,7 @@ def test_double_ma():
     gateway = BarSimulatorGateway()
     data_service = RemoteDataService()
 
-    context = model.Context()
-    context.register_data_api(data_service)
-    context.register_gateway(gateway)
+    context = model.Context(data_api=data_service, gateway=gateway)
     
     backtest = EventBacktestInstance()
     backtest.init_from_config(props, strategy, context=context)

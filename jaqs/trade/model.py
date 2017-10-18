@@ -44,6 +44,10 @@ class Context(object):
         self.data_api = data_api
         self.dataview = dataview
         self.gateway = gateway
+        for member, obj in self.__dict__.viewitems():
+            if member in ['calendar', 'data_api', 'dataview', 'gateway']:
+                if hasattr(obj, 'register_context'):
+                    obj.register_context(self)
 
         self.pm = None
 
@@ -52,19 +56,29 @@ class Context(object):
         self.trade_date = 0
 
     def register_calendar(self, calendar):
+        if hasattr(calendar, 'register_context'):
+            calendar.register_context(self)
         self.calendar = calendar
 
     def register_portfolio_manager(self, portfolio_manager):
+        if hasattr(portfolio_manager, 'register_context'):
+            portfolio_manager.register_context(self)
         self.pm = portfolio_manager
         
     def register_data_api(self, data_api):
+        if hasattr(data_api, 'register_context'):
+            data_api.register_context(self)
         self.data_api = data_api
         
     def register_gateway(self, gateway):
+        if hasattr(gateway, 'register_context'):
+            gateway.register_context(self)
         self.gateway = gateway
     
-    def register_dataview(self, dv):
-        self.dataview = dv
+    def register_dataview(self, dataview):
+        if hasattr(dataview, 'register_context'):
+            dataview.register_context(self)
+        self.dataview = dataview
         
     def add_universe(self, univ):
         """
