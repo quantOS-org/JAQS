@@ -63,8 +63,8 @@ class DataView(object):
         self.data_d = None
         self.data_q = None
         self._data_benchmark = None
-        self._data_group = None
         self._data_inst = None
+        # self._data_group = None
         
         common_list = {'symbol', 'start_date', 'end_date'}
         market_bar_list = {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi'}
@@ -223,7 +223,8 @@ class DataView(object):
     @property
     def data_benchmark(self):
         return self._data_benchmark
-
+    '''
+    
     @property
     def data_group(self):
         """
@@ -236,6 +237,7 @@ class DataView(object):
         if self._data_group is None:
             self._data_group = self.get_ts('group')
         return self._data_group
+    '''
     
     @property
     def data_inst(self):
@@ -947,7 +949,7 @@ class DataView(object):
             var_df_dic[var] = df_var
         
         # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
-        df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates, df_group=self.data_group)
+        df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
         
         self.append_df(df_eval, field_name, is_quarterly=is_quarterly)
 
@@ -1105,7 +1107,7 @@ class DataView(object):
         """
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
         if res is None:
-            print "No data."
+            print "No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol)
             return
         
         res = res.stack(level='symbol', dropna=False)
@@ -1175,7 +1177,9 @@ class DataView(object):
         """
         res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field)
         if res is None:
-            print "No data."
+            print "No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
+                                                                                         end_date, field, symbol)
+            raise ValueError
             return
         
         res.columns = res.columns.droplevel(level='field')

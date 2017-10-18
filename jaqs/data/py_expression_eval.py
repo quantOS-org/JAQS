@@ -281,7 +281,7 @@ class Parser(object):
             'ConditionRank': self.cond_rank,
             'Standardize': self.standardize,
             'Cutoff': self.cutoff,
-            'GroupApply': self.group_apply,
+            # 'GroupApply': self.group_apply,
             # time series
             'Ewma': self.ewma,
             'Sma':self.sma,
@@ -345,7 +345,6 @@ class Parser(object):
         
         self.ann_dts = None
         self.trade_dts = None
-        self.df_group = None
     
     # -----------------------------------------------------
     # functions
@@ -649,7 +648,8 @@ class Parser(object):
                 res = res.fillna(val_res)
         return res
 
-    def group_apply(self, func, df_arg, *args, **kwargs):
+    '''
+        def group_apply(self, func, df_arg, *args, **kwargs):
         """
         Group on cross section (axis=1). Rank, Mean, Std, Max, Min, Standardize, cutoff.
         Single parameter.
@@ -701,6 +701,7 @@ class Parser(object):
         res = pd.concat(res_list, axis=0)
         return res
 
+    '''
     @staticmethod
     def standardize(df):
         """Cross section."""
@@ -948,7 +949,7 @@ class Parser(object):
         self.tokens = tokenstack
         return Expression(tokenstack, self.ops1, self.ops2, self.functions)
     
-    def evaluate(self, values, ann_dts=None, trade_dts=None, df_group=None):
+    def evaluate(self, values, ann_dts=None, trade_dts=None):
         """
         Evaluate the value of expression using. Data of different frequency will be automatically expanded.
         
@@ -960,9 +961,6 @@ class Parser(object):
             Announcement dates of financial statements of securities.
         trade_dts : np.ndarray
             The date index of result.
-        df_group : pd.DataFrame
-            Group codes used by group_apply function.
-            Index is date, column is symbol.
 
         Returns
         -------
@@ -971,7 +969,6 @@ class Parser(object):
         """
         self.ann_dts = ann_dts
         self.trade_dts = trade_dts
-        self.df_group = df_group
         
         values = values or {}
         nstack = []
