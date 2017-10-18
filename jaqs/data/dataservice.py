@@ -641,9 +641,8 @@ class RemoteDataService(DataService):
         df_raw = self.get_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
     
         dic_sec = self._group_df_to_dict(df_raw, by='symbol')
-        dic_sec = {sec: df.loc[:, ['trade_date', 'adjust_factor']].set_index('trade_date').iloc[:, 0]
+        dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
                    for sec, df in dic_sec.viewitems()}
-        # TODO: len(dic_sec) may < len(symbol_list) for all _group_df_to_dict function results. To be checked.
         
         # TODO: duplicate codes with dataview.py: line 512
         res = pd.concat(dic_sec, axis=1)  # TODO: fillna ?

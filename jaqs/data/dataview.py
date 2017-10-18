@@ -280,7 +280,7 @@ class DataView(object):
             pool = self.group_fields
         elif field_type == 'daily':
             pool = set.union(self.market_daily_fields, self.reference_daily_fields,
-                             self.custom_daily_fields)
+                             self.custom_daily_fields, self.group_fields)
         elif field_type == 'quarterly':
             pool = set.union(self.fin_stat_income, self.fin_stat_balance_sheet, self.fin_stat_cash_flow,
                              self.fin_indicator,

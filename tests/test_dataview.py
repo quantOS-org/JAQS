@@ -16,7 +16,7 @@ def test_write():
 
     dv.init_from_config(props, data_api=ds)
     dv.prepare_data()
-    assert dv.data_d.shape == (281, 42)
+    assert dv.data_d.shape == (281, 48)
     assert dv.dates.shape == (281, )
     # TODO
     """
@@ -76,7 +76,7 @@ def test_add_formula_directly():
     dv.prepare_data()
     
     dv.add_formula("myfactor", 'close / open', is_quarterly=False)
-    assert dv.data_d.shape == (281, 33)
+    assert dv.data_d.shape == (281, 39)
 
 
 def test_add_formula():

@@ -240,22 +240,14 @@ class AlphaBacktestInstance(BacktestInstance):
         # step.1 construct portfolio using models
         self.strategy.portfolio_construction()
         
-        '''
-        # DEBUG get highest weights
-        print "weights sum = {:.2f}".format(np.sum(self.weights.values()))
-        import pandas as pd
-        dfw = pd.Series(self.weights)
-        dfw.sort_values(inplace=True)
-        print dfw.tail()
-        # DEBUG
-        '''
-    
-        # step.2 set weights of those non-index-members to zero
-        col = 'index_member'
-        df_is_member = self.ctx.dataview.get_snapshot(self.current_date, fields=col)
-        dic = df_is_member.loc[:, col].to_dict()
-        # print len(self.ctx.dataview.symbol) - sum(dic.values())  # DEBUG
-        self.strategy.weights = {k: v if dic[k] else 0.0 for k, v in self.strategy.weights.viewitems()}
+        # Step.2 set weights of those non-index-members to zero
+        # only filter index members when universe is defined
+        if self.ctx.dataview.universe:
+            col = 'index_member'
+            df_is_member = self.ctx.dataview.get_snapshot(self.current_date, fields=col)
+            dic = df_is_member.loc[:, col].to_dict()
+            # print len(self.ctx.dataview.symbol) - sum(dic.values())  # DEBUG
+            self.strategy.weights = {k: v if dic[k] else 0.0 for k, v in self.strategy.weights.viewitems()}
         
     def re_balance_plan_after_open(self):
         """
@@ -273,17 +265,6 @@ class AlphaBacktestInstance(BacktestInstance):
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
         all_list = reduce(lambda s1, s2: s1.union(s2), [set(suspensions), set(limit_reaches)])
-    
-        '''
-        # DEBUG ----------------------------------------
-        # TODO why this two do not equal? (suspended stocks still have prices)
-        nan_symbols = [k for k, v in prices.viewitems() if np.isnan(v)]
-        set_diff = set.difference(set(nan_symbols), set(suspensions))
-        if len(set_diff) > 0:
-            print Warning("there are NaN values but not suspended.")
-            # print "Symbols with NaN price but not suspended: {}".format(set_diff)
-        # DEBUG ----------------------------------------
-        '''
     
         # step1. weights of those suspended and limit will be remove, and weights of others will be re-normalized
         self.strategy.re_weight_suspension(all_list)
@@ -304,25 +285,7 @@ class AlphaBacktestInstance(BacktestInstance):
         self.strategy.goal_positions = goals
         self.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()
-        '''
-        # ----------------------------------------
-        #  DEBUG validation
-        import pandas as pd
-        ret1 = self.context.dataview.data_d.loc[:, pd.IndexSlice[:, 'ret20']]
-        ret1.columns = ret1.columns.droplevel(level=1)
-        td = self.trade_date
-        ret1 = ret1.loc[td, :]
-        ret1 = ret1.sort_values().dropna()
         
-        ser_weights = pd.Series(self.weights).sort_values()
-        rank_ret = set(ret1.index.values[-50:])
-        rank_weights = set(ser_weights.index.values[-50:])
-        print len(set(rank_ret) - set(rank_weights)) / 50.
-        # assert rank_dv == rank_weights
-        #  DEBUG validation
-        # ----------------------------------------
-        '''
-    
         self.strategy.on_after_rebalance(cash_available)
 
     def run_alpha(self):
@@ -403,7 +366,8 @@ class AlphaBacktestInstance(BacktestInstance):
     def get_suspensions(self):
         trade_status = self.ctx.dataview.get_snapshot(self.current_date, fields='trade_status')
         trade_status = trade_status.loc[:, 'trade_status']
-        mask_sus = trade_status != u'交易'.encode('utf-8')
+        # trade_status: {'N', 'XD', 'XR', 'DR', 'JiaoYi', 'TingPai', NUll (before 2003)}
+        mask_sus = trade_status == u'停牌'.encode('utf-8')
         return list(trade_status.loc[mask_sus].index.values)
 
     def get_limit_reaches(self):

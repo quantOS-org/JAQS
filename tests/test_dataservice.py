@@ -129,7 +129,7 @@ def test_remote_data_service_industry():
         res = align(df_value, df_ann, dates_arr)
         return res
     # res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()]
-    res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()[:10]]
+    res_list = [align_single_df(df) for df in dic_sec.values()[:10]]
     res = pd.concat(res_list, axis=1)
     
     
@@ -144,7 +144,9 @@ def test_remote_data_service_industry_df():
     sec = '000008.SZ'
     type_ = 'ZZ'
     df_raw = ds.get_industry_raw(symbol=sec, type_=type_)
-    df = ds.get_industry_daily(symbol=symbol_arr, start_date=df_raw['in_date'].min(), end_date=20170505, type_=type_)
+    df = ds.get_industry_daily(symbol=symbol_arr,
+                               start_date=df_raw['in_date'].min(), end_date=20170505,
+                               type_=type_, level=1)
     
     for idx, row in df_raw.iterrows():
         in_date = row['in_date']
@@ -175,7 +177,6 @@ def test_remote_data_service_adj_factor():
     res = ds.get_adj_factor_daily(symbol_arr, start_date=20130101, end_date=20170101, div=False)
     assert abs(res.loc[20160408, '300024.SZ'] - 10.735) < 1e-3
     assert abs(res.loc[20160412, '300024.SZ'] - 23.658) < 1e-3
-    assert res.isnull().sum().sum() == 0
 
 
 def test_remote_data_service_inst_info():
