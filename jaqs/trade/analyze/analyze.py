@@ -325,7 +325,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         ax2.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m'))
         
         plt.tight_layout()
-        fig.savefig(save_folder + '/' + 'pnl_img.png')
+        fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
 
     def gen_report(self, source_dir, template_fn, out_folder='.', selected=None):
         """
@@ -353,6 +353,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         dic['position_change'] = self.position_change
         dic['account'] = self.account
         dic['df_daily'] = self.daily
+        self.returns.to_csv(os.path.join(out_folder, 'returns.csv'))
         
         r = Report(dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
 
