@@ -300,9 +300,9 @@ class RemoteDataService(DataService):
         
         Examples
         --------
-        res3, msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",
-                              filter="start_date=20170907&end_date=20170907",
-                              orderby="trade_date",
+        res3, msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",\
+                              filter="start_date=20170907&end_date=20170907",\
+                              orderby="trade_date",\
                               data_format='pandas')
             view does not change. fileds can be any field predefined in reference data api.
 

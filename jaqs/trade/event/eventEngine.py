@@ -50,15 +50,14 @@ class EventEngine(object):
     事件监听函数必须定义为输入参数仅为一个event对象，即：
     
     函数
-    def func(event)
-        ...
+    def func(event):\
+        pass
     
     对象方法
-    def method(self, event)
-        ...
+    def method(self, event):\
+        pass
         
     """
-    
     # ----------------------------------------------------------------------
     def __init__(self):
         """初始化事件引擎"""

@@ -1,37 +1,28 @@
 API说明文档
 ============
 
-行情数据
------------
+行情数据API文档
+---------------
+.. toctree::
+    :maxdepth: 2
+
+    market_data
+
+
+参考数据API文档
+---------------
+.. toctree::
+    :maxdepth: 2
+
+    base_data
+
+
+Other Important APIs
+--------------------
 
 .. toctree::
-:maxdepth: 3
-
-       market_data
-
-参考数据
------------
-
-.. toctree::
-:maxdepth: 3
-
-       base_data
-
-Subpackages
------------
-
-.. toctree::
+    :maxdepth: 2
 
     jaqs.data
-    jaqs.etc
-    jaqs.example
     jaqs.trade
     jaqs.util
-
-Module contents
----------------
-
-.. automodule:: jaqs
-    :members:
-    :undoc-members:
-    :show-inheritance:
