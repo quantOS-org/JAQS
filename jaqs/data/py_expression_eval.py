@@ -276,6 +276,7 @@ class Parser(object):
             'Max': np.maximum,
             'Rank': self.rank,
             'Quantile': self.to_quantile,
+            'Ts_Quantile': self.ts_quantile,
             'GroupQuantile': self.group_quantile,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
@@ -283,6 +284,7 @@ class Parser(object):
             'Cutoff': self.cutoff,
             # 'GroupApply': self.group_apply,
             # time series
+            'Ts_Rank': self.ts_rank,
             'Ewma': self.ewma,
             'Sma':self.sma,
             'Sum': self.sum,
@@ -554,9 +556,23 @@ class Parser(object):
     def product(self, x, n):
         return pd.rolling_apply(x, n, np.product)
 
-    def rank(self, x):
-        x = self._align_univariate(x)
-        return x.rank(axis=1)
+    def rank(self, df):
+        """Return a DataFrame with values ranging from 0.0 to 1.0"""
+        df = self._align_univariate(df)
+        return df.rank(axis=1) / (df.shape[1] - df.isnull().sum())
+    
+    @staticmethod
+    def ts_rank(df, window):
+        """Return a DataFrame with values ranging from 0.0 to 1.0"""
+        roll = df.rolling(window=window)
+    
+        def _rank_arr(arr, norm=1.0):
+            norm = norm * 1.0
+            ranks = np.argsort(np.argsort(arr))[-1] + 1
+            return ranks / norm
+    
+        res = roll.apply(_rank_arr, kwargs={'norm': window})
+        return res
 
     def step(self, x, n):
         st = x.copy()
@@ -610,7 +626,15 @@ class Parser(object):
                 res = res.fillna(rank)
         return res
     
-    def to_quantile(self, df, n_quantiles=5):
+    def ts_quantile(self, df, window=3, n_quantiles=5):
+        roll = df.rolling(window=window)
+    
+        func = lambda arr: numeric.quantilize_without_nan(arr, n_quantiles=n_quantiles, axis=0)[-1]
+        res = roll.apply(func)
+        return res
+    
+    
+    def to_quantile(self, df, n_quantiles=5, axis=1):
         """
         Convert cross-section values to the quantile number they belong.
         Small values get small quantile numbers.
@@ -621,6 +645,8 @@ class Parser(object):
             index date, column symbols
         n_quantiles : int
             The number of quantile to be divided to.
+        axis : int
+            Axis to apply quantilize.
 
         Returns
         -------
@@ -632,7 +658,7 @@ class Parser(object):
         # TODO: unnecesssary warnings
         # import warnings
         # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
-        res_arr = numeric.quantilize_without_nan(df.values, n_quantiles=n_quantiles, axis=1)
+        res_arr = numeric.quantilize_without_nan(df.values, n_quantiles=n_quantiles, axis=axis)
         res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
         return res
 
