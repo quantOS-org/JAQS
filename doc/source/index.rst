@@ -1,5 +1,5 @@
 
-JAQS: Open Source Quantitative Research&Trading Framework.
+JAQS: Just Another Quant System.
 ==========================================================
 
 在这里，你将可以获得：
