@@ -331,19 +331,7 @@ class PortfolioManager(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        """
-        for sec in self.holding_securities:
-            pre_key = self._make_position_key(sec, pre_date)
-            new_key = self._make_position_key(sec, date)
-            if pre_key in self.positions:
-                pre_position = self.positions.get(pre_key)
-                new_position = Position()
-                new_position.curr_size = pre_position.curr_size
-                new_position.init_size = new_position.curr_size
-                new_position.symbol = pre_position.symbol
-                new_position.trade_date = date
-                self.positions[new_key] = new_position
-        """
+        pass
     
     def add_order(self, order):
         """

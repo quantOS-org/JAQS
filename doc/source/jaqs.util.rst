@@ -28,6 +28,14 @@ jaqs\.util\.md2rst module
     :undoc-members:
     :show-inheritance:
 
+jaqs\.util\.numeric module
+--------------------------
+
+.. automodule:: jaqs.util.numeric
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 jaqs\.util\.profile module
 --------------------------
 
