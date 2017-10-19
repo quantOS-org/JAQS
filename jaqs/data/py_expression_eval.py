@@ -766,7 +766,7 @@ class Parser(object):
 
     # -----------------------------------------------------
     # helper methods
-    def set_capital(self, style='upper'):
+    def set_capital(self, style='camel'):
         """
         Set capital style of function names.
         
@@ -777,7 +777,7 @@ class Parser(object):
         
         """
         
-        def set_dic_key_capital(dic, style='upper'):
+        def set_dic_key_capital(dic, style='camel'):
             """
             
             Parameters
@@ -791,7 +791,7 @@ class Parser(object):
             dict
 
             """
-            if style == 'upper':
+            if style == 'camel':
                 # TODO: not implement
                 # deli = '_'
                 # res = {deli.join(s.title() for s in k.split(deli)): v for k, v in dic.viewitems()}

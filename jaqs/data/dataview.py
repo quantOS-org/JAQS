@@ -893,7 +893,7 @@ class DataView(object):
         
         return True
     
-    def add_formula(self, field_name, formula, is_quarterly, formula_func_name_style='upper', data_api=None):
+    def add_formula(self, field_name, formula, is_quarterly, formula_func_name_style='camel', data_api=None):
         """
         Add a new field, which is calculated using existing fields.
         
