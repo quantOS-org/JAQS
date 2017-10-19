@@ -8,7 +8,7 @@ from jaqs.data.calendar import Calendar
 class RegisteredFunction(object):
     def __init__(self, func, name="", options=None):
         self.func = func
-        self.name = ""
+        self.name = name
         if not options:
             options = dict()
         self.options = options
@@ -20,13 +20,14 @@ class Context(object):
 
     Attributes
     ----------
-    data_api : trade.DataServer object
+    data_api : DataService
         Data provider for the strategy.
+    dataview : DataView
     gateway : gateway.Gateway object
         Broker of the strategy.
     universe : list of str
         Securities that the strategy cares about.
-    calendar : trade.Calendar object
+    calendar : Calendar
         A certain calendar that the strategy refers to.
 
     Methods
@@ -35,40 +36,49 @@ class Context(object):
         Add new securities.
 
     """
-    def __init__(self):
-        # TODO: hard-code
-        self.calendar = Calendar()
-        
+    def __init__(self, calendar=None, data_api=None, dataview=None, gateway=None):
+        if calendar is None:
+            # TODO: hard-code
+            calendar = Calendar()
+        self.calendar = calendar
+        self.data_api = data_api
+        self.dataview = dataview
+        self.gateway = gateway
+        for member, obj in self.__dict__.viewitems():
+            if member in ['calendar', 'data_api', 'dataview', 'gateway']:
+                if hasattr(obj, 'register_context'):
+                    obj.register_context(self)
+
         self.pm = None
-        
-        self.data_api = None
-        self.dataview = None
-        
-        self.gateway = None
-        
-        self.trade_api = None
-        
+
         self.universe = []
         
         self.trade_date = 0
 
     def register_calendar(self, calendar):
+        if hasattr(calendar, 'register_context'):
+            calendar.register_context(self)
         self.calendar = calendar
 
     def register_portfolio_manager(self, portfolio_manager):
+        if hasattr(portfolio_manager, 'register_context'):
+            portfolio_manager.register_context(self)
         self.pm = portfolio_manager
         
     def register_data_api(self, data_api):
+        if hasattr(data_api, 'register_context'):
+            data_api.register_context(self)
         self.data_api = data_api
-    
-    def register_trade_api(self, trade_api):
-        self.trade_api = trade_api
         
     def register_gateway(self, gateway):
+        if hasattr(gateway, 'register_context'):
+            gateway.register_context(self)
         self.gateway = gateway
     
-    def register_dataview(self, dv):
-        self.dataview = dv
+    def register_dataview(self, dataview):
+        if hasattr(dataview, 'register_context'):
+            dataview.register_context(self)
+        self.dataview = dataview
         
     def add_universe(self, univ):
         """
@@ -89,7 +99,7 @@ class Context(object):
             raise NotImplementedError("type of univ is {}".format(type(univ)))
 
 
-class BaseModel(object):
+class FuncRegisterable(object):
     """
     A base class for all models. Support function register and context.
     
@@ -99,15 +109,24 @@ class BaseModel(object):
     context : Context
     
     """
-    def __init__(self):
-        self.context = None
+    def __init__(self, context=None):
+        super(FuncRegisterable, self).__init__()
+        self.context = context
         self.func_table = dict()
         self.active_funcs = []
     
-    def register_func(self, name, func, options=None):
+    def _register_func(self, name, func, options=None):
+        if options is None:
+            options = dict()
+        
         rf = RegisteredFunction(func, name, options)
         self.func_table[name] = rf
-
+        
+        self.active_funcs.append(name)
+    
+    def register_context(self, context):
+        self.context = context
+    '''
     def activate_func(self, f_dict):
         """
         Activate key in self.func_table using kwargs in value.
@@ -123,19 +142,53 @@ class BaseModel(object):
             self.func_table[f_name].options = options
             self.active_funcs.append(f_name)
     
-    def register_context(self, context):
-        self.context = context
+    '''
 
 
-class BaseRevenueModel(BaseModel):
-    def __init__(self):
-        super(BaseRevenueModel, self).__init__()
+class StockSelector(FuncRegisterable):
+    def __init__(self, context=None):
+        super(StockSelector, self).__init__(context=context)
         pass
-    
+
+    def add_filter(self, name, func, options=None):
+        self._register_func(name, func, options)
+
+    def get_selection(self):
+        """
+        Return a list of stocks that are not selected.
+        
+        Returns
+        -------
+        selected : list
+
+        """
+        mask_selected = dict()
+        for factor in self.active_funcs:
+            rf = self.func_table[factor]
+            res = rf.func(context=self.context, user_options=rf.options)
+            res = convert_to_df(res)
+            mask_selected[factor] = res
+        
+        merge = pd.concat(mask_selected.values(), axis=1)
+        symbol_arr = merge.index.values
+        mask_arr = np.all(merge.values, axis=1).astype(bool)
+        selected = symbol_arr[mask_arr].tolist()
+        return selected
+
+
+class BaseRevenueModel(FuncRegisterable):
+    def __init__(self, context=None):
+        super(BaseRevenueModel, self).__init__(context=context)
+        pass
+
+    def add_signal(self, name, func, options=None):
+        self._register_func(name, func, options)
+
     def forecast_revenue(self, weights):
         pass
 
 
+'''
 class FactorRevenueModel(BaseRevenueModel):
     """
     Forecast profit of target weight (portfolio), where:
@@ -149,7 +202,6 @@ class FactorRevenueModel(BaseRevenueModel):
     def __init__(self):
         super(FactorRevenueModel, self).__init__()
         
-        self.forecast_dic = None
         self.total_forecast = None
     
     @staticmethod
@@ -217,8 +269,10 @@ class FactorRevenueModel(BaseRevenueModel):
         
         return total_revenue
 
+'''
 
-class FactorRevenueModel_dv(FactorRevenueModel):
+
+class FactorRevenueModel(BaseRevenueModel):
     """
     Forecast profit of target weight (portfolio), where:
     
@@ -228,6 +282,43 @@ class FactorRevenueModel_dv(FactorRevenueModel):
     output: dict
     
     """
+    def __init__(self, context=None):
+        super(FactorRevenueModel, self).__init__(context=context)
+    
+        self.total_forecast = None
+
+    @staticmethod
+    def order2z(order_arr):
+        """Transform an array with order to z_score"""
+        mean, std = np.mean(order_arr), np.std(order_arr)
+        res = (np.asarray(order_arr, dtype=float) - mean) / std
+        return res
+
+    def combine_using_corr(self, forecasts):
+        """
+        Combine forecasts into one single forecast.
+        
+        Parameters
+        ----------
+        forecasts : dict
+
+        Returns
+        -------
+        res : float
+
+        """
+        n = len(forecasts)
+        forecast_corr = np.random.randn(n, n)
+        forecasts_arr = np.asarray(forecasts.values(), dtype=float).reshape(-1, 1)
+        return np.dot(forecast_corr, forecasts_arr).sum()
+
+    def combine_custom_weight(self, forecasts, forecast_weights):
+        res = 0.0
+        for factor, f in forecasts.viewitems():
+            w = forecast_weights[factor]
+            res += f * w
+        return res
+    
     def get_forecasts(self):
         """
         
@@ -241,7 +332,9 @@ class FactorRevenueModel_dv(FactorRevenueModel):
         forecasts = dict()
         for factor in self.active_funcs:
             rf = self.func_table[factor]
-            forecasts[factor] = rf.func(context=self.context, user_options=rf.options)
+            res = rf.func(context=self.context, user_options=rf.options)
+            res = convert_to_df(res)
+            forecasts[factor] = res
         return forecasts
     
     def combine_sum(self, forecasts):
@@ -260,15 +353,24 @@ class FactorRevenueModel_dv(FactorRevenueModel):
         """
         merge = pd.concat(forecasts.values(), axis=1)
         res = merge.sum(axis=1)
-        res = res.to_dict()
+        res = res.to_dict()  # convert Series to {label -> value} dict
         return res
     
     def make_forecast(self):
-        forecasts = self.get_forecasts()
+        """
+        Get and combine signals (forecasts). Return the combined signal.
+        
+        Returns
+        -------
+        forecast : dict of {str: float}
+            {symbol_name: forecast_value}
+        
+        """
+        forecasts = self.get_forecasts()  # {str: pd.DataFrame}
         # TODO NaN
-        forecasts = {key: value.fillna(0) for key, value in forecasts.items()}
+        forecasts = {key: value.fillna(0) for key, value in forecasts.viewitems()}
         forecast = self.combine_sum(forecasts)
-        self.forecast_dic = forecast
+        return forecast
         
     def forecast_revenue(self, weights):
         """
@@ -284,25 +386,31 @@ class FactorRevenueModel_dv(FactorRevenueModel):
 
         """
         total_revenue = 0.0
-        self.make_forecast()
+        forecast_dic = self.make_forecast()
         
-        weighted_revenue = {key: value * self.forecast_dic[key] for key, value in weights.viewitems()}
+        weighted_revenue = {key: value * forecast_dic[key] for key, value in weights.viewitems()}
         total_revenue = np.sum(weighted_revenue.values())
         
         return total_revenue
 
 
-class BaseCostModel(BaseModel):
+class BaseCostModel(FuncRegisterable):
     """Transaction Cost = commission + spread + execution"""
-    def __init__(self):
-        super(BaseCostModel, self).__init__()
+    def __init__(self, context=None):
+        super(BaseCostModel, self).__init__(context=context)
         pass
     
-    def calc_cost(self, symbol, size):
-        pass
+    def consider_cost(self, name, func, options=None):
+        self._register_func(name, func, options=options)
+    
+    def add_cost(self, name, func, options=None):
+        self._register_func(name, func, options=options)
 
 
-class SimpleCostModel(BaseRevenueModel):
+class SimpleCostModel(BaseCostModel):
+    def __init__(self, context=None):
+        super(SimpleCostModel, self).__init__(context=context)
+    
     def calc_individual_cost(self, symbol, turnover):
         # following data are fetched from the data server
         avg_bid_ask_spread = 1.0
@@ -391,15 +499,18 @@ class SimpleCostModel(BaseRevenueModel):
         return total_cost
 
 
-class BaseRiskModel(BaseModel):
-    def __init__(self):
-        super(BaseRiskModel, self).__init__()
+class BaseRiskModel(FuncRegisterable):
+    def __init__(self, context=None):
+        super(BaseRiskModel, self).__init__(context=context)
         pass
+    
+    def consider_risk(self, name, func, options=None):
+        self._register_func(name, func, options=options)
 
 
 class FactorRiskModel(BaseRiskModel):
-    def __init__(self):
-        super(FactorRiskModel, self).__init__()
+    def __init__(self, context=None):
+        super(FactorRiskModel, self).__init__(context=context)
         
         self.benchmark = ""
     
@@ -451,8 +562,8 @@ def test_models():
     weight_now = {'symbol1': 0.3, 'symbolB': 0.7}
     
     portfolio = 1e7
-    weight_last = {k: v * portfolio for k, v in weight_last.items()}
-    weight_now = {k: v * portfolio for k, v in weight_now.items()}
+    weight_last = {k: v * portfolio for k, v in weight_last.viewitems()}
+    weight_now = {k: v * portfolio for k, v in weight_now.viewitems()}
     
     revenue = FactorRevenueModel().forecast_revenue(weight_now)
     cost = SimpleCostModel().calc_cost(weight_last, weight_now)
@@ -468,6 +579,21 @@ def test_models():
     s.t.: g1(x) = abs(risk_factors[3]) < 100000.0
     g2(x) = var(risk_factors) <= 0.0
     """
+
+
+def convert_to_df(res):
+    if isinstance(res, pd.DataFrame):
+        pass
+    elif isinstance(res, pd.Series):
+        res = pd.DataFrame(index=res.index, data=res.values)
+    else:
+        raise ValueError("Return type of signal function must be DataFrame or Series or dict!"
+                         + "\nWe got [{}] instead.".format(type(res)))
+    return res
+    '''
+    elif isinstance(res, dict):
+        res = pd.DataFrame(columns=[factor], data=pd.Series(data=res))
+    '''
 
     
 if __name__ == "__main__":

@@ -1,15 +1,51 @@
 # encoding: UTF-8
 
 import pandas as pd
+import numpy as np
 import pytest
 from jaqs.data.dataservice import RemoteDataService
 
 from jaqs.data.py_expression_eval import Parser
 
 
-def test_logical_and_or():
-    import numpy as np
+def test_group_rank():
+    shape = (500, 3000)
+    df_val = pd.DataFrame(np.random.rand(*shape))
+    df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
+    expr = parser.parse('GroupRank(val, mygroup)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+
+
+def test_group_quantile():
+    shape = (500, 3000)
+    df_val = pd.DataFrame(np.random.rand(*shape))
+    df_group = pd.DataFrame(np.random.randint(1, 5, size=shape[0] * shape[1]).reshape(*shape))
+    expr = parser.parse('GroupQuantile(val, mygroup, 23)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+    n = 100
+    df_val = pd.DataFrame(np.arange(n).reshape(2, -1))
+    df_group = pd.DataFrame(np.array([1] * 25 + [2] * 25 + [2] * 20 + [3] * 20 + [9] * 10).reshape(2, -1))
+    expr = parser.parse('GroupQuantile(val, mygroup, 5)')
+    res = parser.evaluate({'val': df_val, 'mygroup': df_group})
+    n1 = 5
+    n2 = 4
+    n3 = 2
+    res_correct = np.array([0.] * n1 + [1.] * n1 + [2.] * n1 + [3.] * n1 + [4.] * n1
+                           + [0.] * n1 + [1.] * n1 + [2.] * n1 + [3.] * n1 + [4.] * n1
+                           + [0.] * n2 + [1.] * n2 + [2.] * n2 + [3.] * n2 + [4.] * n2
+                           + [0.] * n2 + [1.] * n2 + [2.] * n2 + [3.] * n2 + [4.] * n2
+                           + [0.] * n3 + [1.] * n3 + [2.] * n3 + [3.] * n3 + [4.] * n3).reshape(2, -1) + 1.0
+    assert np.abs(res.values - res_correct).flatten().sum() < 1e-6
+
+
+def test_quantile():
+    val = pd.DataFrame(np.random.rand(500, 3000))
+    expr = parser.parse('Quantile(val, 12)')
+    res = parser.evaluate({'val': val})
+    assert np.nanmean(val[res == 1].values.flatten()) < 0.11
     
+    
+def test_logical_and_or():
     parser.parse('open + 3 && 1')
     res = parser.evaluate({'open': dfx})
     assert np.all(res.values.flatten())
@@ -81,6 +117,7 @@ def test_if():
     assert res.iloc[0, 2] == -3.
 
 
+'''
 def test_group_apply():
     import numpy as np
     np.random.seed(369)
@@ -104,6 +141,7 @@ def test_group_apply():
     assert abs(res.iloc[19, 18] - (-1.17779)) < 1e-5
 
 
+'''
 def test_calc_return():
     expr = parser.parse('Return(close, 2, 0)')
     res = parser.evaluate({'close': dfx})
@@ -116,7 +154,6 @@ def my_globals(request):
     
     df, msg = ds.daily("000001.SH, 600030.SH, 000300.SH", start_date=20170801, end_date=20170820,
                        fields="open,high,low,close,vwap,preclose")
-    ds.api.close()
     
     multi_index_names = ['trade_date', 'symbol']
     df_multi = df.set_index(multi_index_names, drop=False)
@@ -146,7 +183,7 @@ if __name__ == "__main__":
     parser = Parser()
     
     g = globals()
-    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
     
     for test_name, test_func in g.viewitems():
         print "\nTesting {:s}...".format(test_name)

@@ -59,7 +59,7 @@ $ pip install jaqs --upgrade
 Quickstart
 ==========
 
-参见 `user guide <doc/source/user_guide.rst>`__
+参见 `入门指南 <doc/source/user_guide.rst>`__
 
 更多的示例保存在 ``jaqs/examples``
 

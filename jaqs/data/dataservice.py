@@ -300,9 +300,9 @@ class RemoteDataService(DataService):
         
         Examples
         --------
-        res3, msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",
-                              filter="start_date=20170907&end_date=20170907",
-                              orderby="trade_date",
+        res3, msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",\
+                              filter="start_date=20170907&end_date=20170907",\
+                              orderby="trade_date",\
                               data_format='pandas')
             view does not change. fileds can be any field predefined in reference data api.
 
@@ -337,10 +337,10 @@ class RemoteDataService(DataService):
         str
 
         """
-        l = ['='.join([key, str(value)]) for key, value in d.items()]
+        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
         return '&'.join(l)
 
-    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields=""):
+    def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None):
         """
         Helper function to call data_api.query with 'lb.income' more conveniently.
         
@@ -355,6 +355,8 @@ class RemoteDataService(DataService):
             Annoucement date in results will be no later than start_date
         fields : str, optional
             separated by ',', default ""
+        drop_dup_cols : list or tuple
+            Whether drop duplicate entries according to drop_dup_cols.
 
         Returns
         -------
@@ -372,7 +374,8 @@ class RemoteDataService(DataService):
         dic_argument = {'symbol': symbol,
                         'start_date': start_date,
                         'end_date': end_date,
-                        'update_flag': '0'}
+                        # 'update_flag': '0'
+                       }
         if view_name != 'lb.finIndicator':
             dic_argument.update({'report_type': '408001000'})  # we do not use single quarter single there are zeros
             """
@@ -384,6 +387,7 @@ class RemoteDataService(DataService):
         
         res, msg = self.query(view_name, fields=fields, filter=filter_argument,
                               order_by=self.REPORT_DATE_FIELD_NAME)
+        
         # change data type
         try:
             cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
@@ -391,6 +395,10 @@ class RemoteDataService(DataService):
             res = res.astype(dtype=dic_dtype)
         except:
             pass
+        
+        if drop_dup_cols is not None:
+            res = res.sort_values(by=drop_dup_cols, axis=0)
+            res = res.drop_duplicates(subset=drop_dup_cols, keep='first')
         
         return res, msg
 
@@ -522,7 +530,7 @@ class RemoteDataService(DataService):
         res = {key: value for key, value in gp}
         return res
     
-    def get_industry_daily(self, symbol, start_date, end_date, type_='SW'):
+    def get_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
         
@@ -541,14 +549,23 @@ class RemoteDataService(DataService):
             values are industry code
 
         """
-        df_raw = self.get_industry_raw(symbol, type_=type_)
+        df_raw = self.get_industry_raw(symbol, type_=type_, level=level)
         
         dic_sec = self._group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
                    for sec, df in dic_sec.viewitems()}
 
-        df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
-        df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
+        df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.viewitems()}, axis=1)
+        df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_code'.format(level)]
+                                  for sec, df in dic_sec.viewitems()},
+                                 axis=1)
+        
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        df_ann = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_ann.loc[df_ann_tmp.index, df_ann_tmp.columns] = df_ann_tmp
+        df_value = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
 
         dates_arr = self.get_trade_date(start_date, end_date)
         df_industry = align.align(df_value, df_ann, dates_arr)
@@ -559,15 +576,17 @@ class RemoteDataService(DataService):
         
         return df_industry
         
-    def get_industry_raw(self, symbol, type_='ZZ'):
+    def get_industry_raw(self, symbol, type_='ZZ', level=1):
         """
-        Get daily industry of securities from ShenWanHongYuan or ZhongZhengZhiShu.
+        Get daily industry of securities from ShenWanZhiShu or ZhongZhengZhiShu.
         
         Parameters
         ----------
         symbol : str
             separated by ','
         type_ : {'SW', 'ZZ'}
+        level : {1, 2, 3, 4}
+            Use which level of industry index classification.
 
         Returns
         -------
@@ -576,14 +595,18 @@ class RemoteDataService(DataService):
         """
         if type_ == 'SW':
             src = u'申万研究所'.encode('utf-8')
+            if level not in [1, 2, 3, 4]:
+                raise ValueError("For [SW], level must be one of {1, 2, 3, 4}")
         elif type_ == 'ZZ':
             src = u'中证指数有限公司'.encode('utf-8')
+            if level not in [1, 2, 3, 4]:
+                raise ValueError("For [ZZ], level must be one of {1, 2}")
         else:
             raise ValueError("type_ must be one of SW of ZZ")
-    
+        
         filter_argument = self._dic2url({'symbol': symbol,
                                          'industry_src': src})
-        fields_list = ['symbol', 'industry1_code', 'industry1_name']
+        fields_list = ['symbol', 'industry{:d}_code'.format(level), 'industry{:d}_name'.format(level)]
     
         df_raw, msg = self.query("lb.secIndustry", fields=','.join(fields_list),
                                  filter=filter_argument, orderby="symbol")
@@ -615,27 +638,34 @@ class RemoteDataService(DataService):
             values are industry code
 
         """
-        df_raw = self.get_adj_factor_raw(symbol)
+        df_raw = self.get_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
     
         dic_sec = self._group_df_to_dict(df_raw, by='symbol')
-        dic_sec = {sec: df.loc[:, ['trade_date', 'adjust_factor']].set_index('trade_date').iloc[:, 0]
+        dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
                    for sec, df in dic_sec.viewitems()}
-    
-        res = pd.concat(dic_sec, axis=1)
         
+        # TODO: duplicate codes with dataview.py: line 512
+        res = pd.concat(dic_sec, axis=1)  # TODO: fillna ?
+        
+        idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
+        symbol_arr = np.sort(symbol.split(','))
+        res_final = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
+        res_final.loc[res.index, res.columns] = res
+
         # align to every trade date
         s, e = df_raw.loc[:, 'trade_date'].min(), df_raw.loc[:, 'trade_date'].max()
         dates_arr = self.get_trade_date(s, e)
-        res = res.reindex(dates_arr)
-        
-        res = res.fillna(method='ffill').fillna(method='bfill')
+        if not len(dates_arr) == len(res_final.index):
+            res_final = res_final.reindex(dates_arr)
+            
+            res_final = res_final.fillna(method='ffill').fillna(method='bfill')
 
         if div:
-            res = res.div(res.shift(1, axis=0)).fillna(1.0)
+            res_final = res_final.div(res_final.shift(1, axis=0)).fillna(1.0)
             
-        res = res.loc[start_date: end_date, :]
+        # res = res.loc[start_date: end_date, :]
 
-        return res
+        return res_final
 
     def get_adj_factor_raw(self, symbol, start_date=None, end_date=None):
         """
@@ -683,10 +713,12 @@ class RemoteDataService(DataService):
                                  filter=filter_argument, orderby="symbol")
         if msg != '0,':
             print msg
-        
+
         dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int}
         cols = set(df_raw.columns)
-        dtype_map = {k: v for k, v in dtype_map.items() if k in cols}
+        dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
         
         df_raw = df_raw.astype(dtype=dtype_map)
-        return df_raw, msg
+        
+        res = df_raw.set_index('symbol')
+        return res

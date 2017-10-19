@@ -2,10 +2,10 @@
 import datetime
 import numpy as np
 import pandas as pd
-import pandas.tseries as pdts
+from pandas.tseries import offsets as offsets
 
 
-def get_next_period_day(current, period, n):
+def get_next_period_day(current, period, n=1, extra_offset=0):
     """
     Get the n'th day in next period from current day.
 
@@ -16,6 +16,8 @@ def get_next_period_day(current, period, n):
     period : str
         Interval between current and next. {'day', 'week', 'month'}
     n : int
+        n times period.
+    extra_offset : int
         n'th business day after next period.
 
     Returns
@@ -25,17 +27,20 @@ def get_next_period_day(current, period, n):
     """
     current_dt = convert_int_to_datetime(current)
     if period == 'day':
-        offset = pdts.offsets.BDay()  # move to next business day
+        offset = offsets.BDay()  # move to next business day
+        # offset = offsets.Day
     elif period == 'week':
-        offset = pdts.offsets.Week(weekday=0)  # move to next Monday
+        offset = offsets.Week(weekday=0)  # move to next Monday
     elif period == 'month':
-        offset = pdts.offsets.BMonthBegin()  # move to first business day of next month
+        offset = offsets.BMonthBegin()  # move to first business day of next month
+        # offset = offsets.MonthBegin
     else:
         raise NotImplementedError("Frequency as {} not support".format(period))
+    offset = offset * n
     
     next_dt = current_dt + offset
-    if n:
-        next_dt = next_dt + n * pdts.offsets.BDay()
+    if extra_offset:
+        next_dt = next_dt + extra_offset * offsets.BDay()
     nxt = convert_datetime_to_int(next_dt)
     return nxt
 

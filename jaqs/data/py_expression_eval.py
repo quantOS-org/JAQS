@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from jaqs.data.align import align
+import jaqs.util.numeric as numeric
 
 TNUMBER = 0
 TOP1 = 1
@@ -274,11 +275,13 @@ class Parser(object):
             'Min': np.minimum,
             'Max': np.maximum,
             'Rank': self.rank,
+            'Quantile': self.to_quantile,
+            'GroupQuantile': self.group_quantile,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
             'Standardize': self.standardize,
             'Cutoff': self.cutoff,
-            'GroupApply': self.group_apply,
+            # 'GroupApply': self.group_apply,
             # time series
             'Ewma': self.ewma,
             'Sma':self.sma,
@@ -342,7 +345,6 @@ class Parser(object):
         
         self.ann_dts = None
         self.trade_dts = None
-        self.df_group = None
     
     # -----------------------------------------------------
     # functions
@@ -598,17 +600,56 @@ class Parser(object):
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
     def group_rank(self, x, group):
         x = self._align_univariate(x)
-        vals = pd.Series(group.values.ravel()).unique()
-        df = None
+        vals = np.unique(group.values.flatten())
+        res = None
         for val in vals:
-            rank = x[group == val].rank(axis=1)
-            if df is None:
-                df = rank
+            rank = x[group == val].rank(axis=1, na_option='keep')
+            if res is None:
+                res = rank
             else:
-                df.fillna(rank, inplace=True)
-        return df
+                res = res.fillna(rank)
+        return res
+    
+    def to_quantile(self, df, n_quantiles=5):
+        """
+        Convert cross-section values to the quantile number they belong.
+        Small values get small quantile numbers.
+        
+        Parameters
+        ----------
+        df : DataFrame
+            index date, column symbols
+        n_quantiles : int
+            The number of quantile to be divided to.
 
-    def group_apply(self, func, df_arg, *args, **kwargs):
+        Returns
+        -------
+        res : DataFrame
+            index date, column symbols
+
+        """
+        df = self._align_univariate(df)
+        # TODO: unnecesssary warnings
+        # import warnings
+        # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
+        res_arr = numeric.quantilize_without_nan(df.values, n_quantiles=n_quantiles, axis=1)
+        res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
+        return res
+
+    def group_quantile(self, df, group, n_quantiles=5):
+        df = self._align_univariate(df)
+        
+        res = None
+        for val in np.unique(group.values.flatten()):
+            val_res = self.to_quantile(df[group == val], n_quantiles=n_quantiles)
+            if res is None:
+                res = val_res
+            else:
+                res = res.fillna(val_res)
+        return res
+
+    '''
+        def group_apply(self, func, df_arg, *args, **kwargs):
         """
         Group on cross section (axis=1). Rank, Mean, Std, Max, Min, Standardize, cutoff.
         Single parameter.
@@ -660,6 +701,7 @@ class Parser(object):
         res = pd.concat(res_list, axis=0)
         return res
 
+    '''
     @staticmethod
     def standardize(df):
         """Cross section."""
@@ -724,7 +766,7 @@ class Parser(object):
 
     # -----------------------------------------------------
     # helper methods
-    def set_capital(self, style='upper'):
+    def set_capital(self, style='camel'):
         """
         Set capital style of function names.
         
@@ -735,7 +777,7 @@ class Parser(object):
         
         """
         
-        def set_dic_key_capital(dic, style='upper'):
+        def set_dic_key_capital(dic, style='camel'):
             """
             
             Parameters
@@ -749,7 +791,7 @@ class Parser(object):
             dict
 
             """
-            if style == 'upper':
+            if style == 'camel':
                 # TODO: not implement
                 # deli = '_'
                 # res = {deli.join(s.title() for s in k.split(deli)): v for k, v in dic.viewitems()}
@@ -907,7 +949,7 @@ class Parser(object):
         self.tokens = tokenstack
         return Expression(tokenstack, self.ops1, self.ops2, self.functions)
     
-    def evaluate(self, values, ann_dts=None, trade_dts=None, df_group=None):
+    def evaluate(self, values, ann_dts=None, trade_dts=None):
         """
         Evaluate the value of expression using. Data of different frequency will be automatically expanded.
         
@@ -919,9 +961,6 @@ class Parser(object):
             Announcement dates of financial statements of securities.
         trade_dts : np.ndarray
             The date index of result.
-        df_group : pd.DataFrame
-            Group codes used by group_apply function.
-            Index is date, column is symbol.
 
         Returns
         -------
@@ -930,7 +969,6 @@ class Parser(object):
         """
         self.ann_dts = ann_dts
         self.trade_dts = trade_dts
-        self.df_group = df_group
         
         values = values or {}
         nstack = []

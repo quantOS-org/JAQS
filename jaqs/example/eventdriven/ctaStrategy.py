@@ -41,7 +41,7 @@ class CtaStrategy(EventDrivenStrategy):
             order.symbol = quote.symbol
             order.entrust_size = 10000
             order.entrust_price = quote.close
-            self.context.gateway.send_order(order, '', '')
+            self.ctx.gateway.send_order(order, '', '')
             print 'send order %s: %s %s %f' % (order.entrust_no, order.symbol, order.entrust_action, order.entrust_price)
         if time == 140000:
             order = Order()
@@ -52,7 +52,7 @@ class CtaStrategy(EventDrivenStrategy):
             order.symbol = quote.symbol
             order.entrust_size = 5000
             order.entrust_price = quote.close
-            self.context.gateway.send_order(order, '', '')
+            self.ctx.gateway.send_order(order, '', '')
             print 'send order %s: %s %s %f' % (order.entrust_no, order.symbol, order.entrust_action, order.entrust_price)
     
     def on_new_day(self, trade_date):
@@ -77,7 +77,6 @@ def test_cta():
     context = model.Context()
     context.register_data_api(data_service)
     context.register_gateway(gateway)
-    context.register_trade_api(gateway)
     
     backtest = EventBacktestInstance()
     backtest.init_from_config(props, strategy, context=context)

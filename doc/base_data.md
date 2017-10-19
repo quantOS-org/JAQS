@@ -664,8 +664,8 @@ df, msg = api.query(
 | ebitda | double | 息税折旧摊销前利润 |
 | net\_profit\_after\_ded\_nr\_lp | double | 扣除非经常性损益后净利润 |
 | net\_profit\_under\_intl\_acc\_sta | double | 国际会计准则净利润 |
-| s\_fa\_eps\_basic | double | 基本每股收益 |
-| s\_fa\_eps\_diluted | double | 稀释每股收益 |
+| eps\_basic | double | 基本每股收益 |
+| eps\_diluted | double | 稀释每股收益 |
 | insurance\_expense | double | 保险业务支出 |
 | spe\_bal\_oper\_profit | double | 营业利润差额(特殊报表科目) |
 | tot\_bal\_oper\_profit | double | 营业利润差额(合计平衡项目) |

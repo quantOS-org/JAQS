@@ -113,7 +113,7 @@ class PortfolioManager_RAW(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        for key, pos in self.positions.items():
+        for key, pos in self.positions.viewitems():
             sec, td = key.split('@')
             if str(pre_date) == td:
                 new_key = self._make_position_key(sec, date)
@@ -155,9 +155,9 @@ class PortfolioManager_RAW(TradeCallback):
         
         new_order = Order()
         new_order.copy(order)  # TODO why copy?
-        self.orders[self._make_order_key(order.entrust_no, self.strategy.trade_date)] = new_order
+        self.orders[self._make_order_key(order.entrust_no, self.strategy.ctx.trade_date)] = new_order
         
-        position_key = self._make_position_key(order.symbol, self.strategy.trade_date)
+        position_key = self._make_position_key(order.symbol, self.strategy.ctx.trade_date)
         if position_key not in self.positions:
             position = Position()
             position.symbol = order.symbol
@@ -181,7 +181,7 @@ class PortfolioManager_RAW(TradeCallback):
         
         if ind.order_status == common.ORDER_STATUS.CANCELLED or ind.order_status == common.ORDER_STATUS.REJECTED:
             entrust_no = ind.entrust_no
-            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.trade_date), None)
+            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)
             if order is not None:
                 order.order_status = ind.order_status
                 
@@ -207,7 +207,7 @@ class PortfolioManager_RAW(TradeCallback):
     def on_trade_ind(self, ind):
         entrust_no = ind.entrust_no
         
-        order = self.orders.get(self._make_order_key(entrust_no, self.strategy.trade_date), None)
+        order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)
         if order is None:
             print 'cannot find order for entrust_no' + entrust_no
             return
@@ -221,7 +221,7 @@ class PortfolioManager_RAW(TradeCallback):
         else:
             order.order_status = common.ORDER_STATUS.ACCEPTED
         
-        position_key = self._make_position_key(ind.symbol, self.strategy.trade_date)
+        position_key = self._make_position_key(ind.symbol, self.strategy.ctx.trade_date)
         position = self.positions.get(position_key)
         tradestat = self.tradestat.get(ind.symbol)
         
@@ -331,19 +331,7 @@ class PortfolioManager(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        """
-        for sec in self.holding_securities:
-            pre_key = self._make_position_key(sec, pre_date)
-            new_key = self._make_position_key(sec, date)
-            if pre_key in self.positions:
-                pre_position = self.positions.get(pre_key)
-                new_position = Position()
-                new_position.curr_size = pre_position.curr_size
-                new_position.init_size = new_position.curr_size
-                new_position.symbol = pre_position.symbol
-                new_position.trade_date = date
-                self.positions[new_key] = new_position
-        """
+        pass
     
     def add_order(self, order):
         """
@@ -360,9 +348,9 @@ class PortfolioManager(TradeCallback):
         
         new_order = Order()
         new_order.copy(order)  # TODO why copy?
-        self.orders[self._make_order_key(order.entrust_no, self.strategy.trade_date)] = new_order
+        self.orders[self._make_order_key(order.entrust_no, self.strategy.ctx.trade_date)] = new_order
         
-        position_key = self._make_position_key(order.symbol, self.strategy.trade_date)
+        position_key = self._make_position_key(order.symbol, self.strategy.ctx.trade_date)
         if position_key not in self.positions:
             position = Position()
             position.symbol = order.symbol
@@ -386,7 +374,7 @@ class PortfolioManager(TradeCallback):
         
         if ind.order_status == common.ORDER_STATUS.CANCELLED or ind.order_status == common.ORDER_STATUS.REJECTED:
             entrust_no = ind.entrust_no
-            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.trade_date), None)
+            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)
             if order is not None:
                 order.order_status = ind.order_status
                 
@@ -415,10 +403,10 @@ class PortfolioManager(TradeCallback):
 
         # change order status
         entrust_no = ind.entrust_no
-        if entrust_no == 101010:  # trades generate by system
+        if entrust_no == 101010 or 202020:  # trades generate by system
             pass
         else:
-            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.trade_date), None)
+            order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)
             if order is None:
                 print 'cannot find order for entrust_no' + entrust_no
                 return
@@ -431,7 +419,7 @@ class PortfolioManager(TradeCallback):
                 order.order_status = common.ORDER_STATUS.ACCEPTED
         
         # change position and trade stats
-        position_key = self._make_position_key(ind.symbol, self.strategy.trade_date)
+        position_key = self._make_position_key(ind.symbol, self.strategy.ctx.trade_date)
         position = self.positions.get(position_key)
         tradestat = self.tradestat.get(ind.symbol)
         
@@ -495,11 +483,17 @@ class PortfolioManager(TradeCallback):
         
         return market_value
 
+
 class BaseGateway(object):
     """
     Strategy communicates with Gateway using APIs defined by ourselves;
     Gateway communicates with brokers using brokers' APIs;
     Gateway can also communicate with simulator.
+    
+    Attributes
+    ----------
+    ctx : Context
+        Trading context, including data_api, dataview, calendar, etc.
 
     Note: Gateway knows nothing about task_id but entrust_no,
           so does Simulator.
@@ -511,7 +505,7 @@ class BaseGateway(object):
         self.cb_on_trade_ind = None
         self.cb_on_order_status = None
         self.cb_pm = None
-        pass
+        self.ctx = None
     
     @abstractmethod
     def init_from_config(self, props):
@@ -540,6 +534,9 @@ class BaseGateway(object):
         else:
             raise NotImplementedError("callback of type {}".format(type_))
     
+    def register_context(self, context=None):
+        self.ctx = context
+        
     def on_new_day(self, trade_date):
         pass
     
@@ -607,13 +604,16 @@ class DailyStockSimGateway(BaseGateway):
     def __init__(self):
         BaseGateway.__init__(self)
         
-        self.simulator = StockSimulatorDaily()
+        self.simulator = DailyStockSimulator()
     
     def init_from_config(self, props):
         pass
     
     def on_new_day(self, trade_date):
         self.simulator.on_new_day(trade_date)
+
+    def on_after_market_close(self):
+        self.simulator.on_after_market_close()
     
     def place_order(self, order):
         err_msg = self.simulator.add_order(order)
@@ -629,31 +629,31 @@ class DailyStockSimGateway(BaseGateway):
         return self.simulator.match_finished
     
     @abstractmethod
-    def match(self, price_dict, date=19700101, time=0):
+    def match(self, price_dict, time=0):
         """
         Match un-fill orders in simulator. Return trade indications.
 
         Parameters
         ----------
         price_dict : dict
+        time : int
+        # TODO: do we need time parameter?
 
         Returns
         -------
         list
 
         """
-        return self.simulator.match(price_dict, date, time)
+        return self.simulator.match(price_dict, date=self.ctx.trade_date, time=time)
 
 
-class StockSimulatorDaily(object):
+class DailyStockSimulator(object):
     """This is not event driven!
 
     Attributes
     ----------
     __orders : list of Order
         Store orders that have not been filled.
-    __order_id : int
-        Current order id
 
     """
     
@@ -667,8 +667,10 @@ class StockSimulatorDaily(object):
     
     def on_new_day(self, trade_date):
         self.date = trade_date
-        self.time = 150000
+    
+    def on_after_market_close(self):
         # self._refresh_orders() #TODO sometimes we do not want to refresh (multi-days match)
+        pass
     
     def _refresh_orders(self):
         self.__orders.clear()
@@ -743,22 +745,22 @@ class StockSimulatorDaily(object):
         results = []
         for order in self.__orders.values():  # TODO viewvalues()
             symbol = order.symbol
-            df = price_dic[symbol]
-            if 'vwap' not in df.columns:
+            symbol_dic = price_dic[symbol]
+            if 'vwap' not in symbol_dic:
                 # df.loc[:, 'vwap'] = df.loc[:, 'turnover'] / df.loc[:, 'volume']
                 pass
             
             # get fill price
             if isinstance(order, FixedPriceTypeOrder):
                 price_target = order.price_target
-                fill_price = df.loc[:, price_target].values[0]
+                fill_price = symbol_dic[price_target]
             elif isinstance(order, VwapOrder):
                 if order.start != -1:
                     raise NotImplementedError("Vwap of a certain time range")
-                fill_price = df.loc[:, 'vwap'].values[0]
+                fill_price = symbol_dic['vwap']
             elif isinstance(order, Order):
                 # TODO
-                fill_price = df.loc[:, 'close'].values[0]
+                fill_price = symbol_dic['close']
             else:
                 raise NotImplementedError("order class {} not support!".format(order.__class__))
             

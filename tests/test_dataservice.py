@@ -129,7 +129,7 @@ def test_remote_data_service_industry():
         res = align(df_value, df_ann, dates_arr)
         return res
     # res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()]
-    res_list = [align_single_df(df) for sec, df in dic_sec.items()[:10]]
+    res_list = [align_single_df(df) for df in dic_sec.values()[:10]]
     res = pd.concat(res_list, axis=1)
     
     
@@ -144,7 +144,9 @@ def test_remote_data_service_industry_df():
     sec = '000008.SZ'
     type_ = 'ZZ'
     df_raw = ds.get_industry_raw(symbol=sec, type_=type_)
-    df = ds.get_industry_daily(symbol=symbol_arr, start_date=df_raw['in_date'].min(), end_date=20170505, type_=type_)
+    df = ds.get_industry_daily(symbol=symbol_arr,
+                               start_date=df_raw['in_date'].min(), end_date=20170505,
+                               type_=type_, level=1)
     
     for idx, row in df_raw.iterrows():
         in_date = row['in_date']
@@ -175,23 +177,23 @@ def test_remote_data_service_adj_factor():
     res = ds.get_adj_factor_daily(symbol_arr, start_date=20130101, end_date=20170101, div=False)
     assert abs(res.loc[20160408, '300024.SZ'] - 10.735) < 1e-3
     assert abs(res.loc[20160412, '300024.SZ'] - 23.658) < 1e-3
-    assert res.isnull().sum().sum() == 0
 
 
 def test_remote_data_service_inst_info():
     ds = RemoteDataService()
     
-    res, msg = ds.query_inst_info('000001.SZ', fields='status,selllot,buylot,pricetick,multiplier,product')
-    assert res.loc[0, 'multiplier'] == 1
-    assert abs(res.loc[0, 'pricetick'] - 0.01) < 1e-2
-    assert res.loc[0, 'buylot'] == 100
+    sec = '000001.SZ'
+    res = ds.query_inst_info(sec, fields='status,selllot,buylot,pricetick,multiplier,product')
+    assert res.at[sec, 'multiplier'] == 1
+    assert abs(res.at[sec, 'pricetick'] - 0.01) < 1e-2
+    assert res.at[sec, 'buylot'] == 100
     
 if __name__ == "__main__":
     import time
     t_start = time.time()
     
     g = globals()
-    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
 
     for test_name, test_func in g.viewitems():
         print "\nTesting {:s}...".format(test_name)

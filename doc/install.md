@@ -10,18 +10,19 @@
 
 打开上面的网址，选择相应的操作系统，确定要按照的Python版本，一般建议用Python 2.7。
 
-![](img/anac.png)
+![](https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac.png)
+
 
 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda会自动设置PATH环境。
 
 安装完成后，windows下我们可以在系统菜单中看如下程序目录：
 
-![](img/anac_m.png)
+![](https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac_m.png)
 
 
 在cmd里执行ipyhont命令，可以调出IPython调试器。
 
-![](img/anac_ipython.png)
+![](https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac_ipython.png)
 
 
 2、安装依赖包
@@ -79,4 +80,4 @@ git clone [https://github.com/quantOS-org/jaqs.git](https://github.com/quantOS-o
 
 完成安装以后，执行import确认安装是否成功。
 
-![](img/jaqs_test.png)
+![](https://github.com/quantOS-org/jaqs/blob/master/doc/img/jaqs_test.png)
