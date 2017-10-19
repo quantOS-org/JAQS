@@ -7,4 +7,3 @@ msgpack_python
 seaborn
 six
 pyzmq
-python-snappy
