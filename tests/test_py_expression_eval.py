@@ -117,6 +117,7 @@ def test_if():
     assert res.iloc[0, 2] == -3.
 
 
+'''
 def test_group_apply():
     import numpy as np
     np.random.seed(369)
@@ -140,6 +141,7 @@ def test_group_apply():
     assert abs(res.iloc[19, 18] - (-1.17779)) < 1e-5
 
 
+'''
 def test_calc_return():
     expr = parser.parse('Return(close, 2, 0)')
     res = parser.evaluate({'close': dfx})
