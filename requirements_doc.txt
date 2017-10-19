@@ -1,1 +1,10 @@
+numpy
+enum34
+matplotlib
 sphinx_rtd_theme
+Jinja2
+msgpack_python
+seaborn
+six
+pyzmq
+python-snappy
