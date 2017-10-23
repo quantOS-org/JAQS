@@ -140,6 +140,7 @@ def test_q_get():
     folder_path = '../output/prepared/20160609_20170601_freq=1D'
     dv.load_dataview(folder=folder_path)
     res = dv.get("", 0, 0, 'total_oper_rev')
+    assert set(res.index.values) == set(dv.dates[dv.dates >= dv.start_date])
 
 
 def test_q_add_field():

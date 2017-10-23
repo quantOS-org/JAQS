@@ -720,7 +720,7 @@ class DataView(object):
         # drop dates that are not trade date
         if merge_d is not None:
             trade_dates = self.dates
-            merge_d = merge_d.loc[trade_dates, pd.IndexSlice[:, :]].copy()
+            merge_d = merge_d.loc[trade_dates, pd.IndexSlice[:, :]]
         
         return merge_d, merge_q
     
@@ -743,11 +743,30 @@ class DataView(object):
                                             inst_type="")
         self._data_inst = res
 
+    def _align_and_merge_q_into_d(self):
+        data_d, data_q = self.data_d, self.data_q
+        if data_d is not None and data_q is not None:
+            df_ref_ann = data_q.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]].copy()
+            df_ref_ann.columns = df_ref_ann.columns.droplevel(level='field')
+        
+            dic_expanded = dict()
+            for field_name, df in data_q.groupby(level=1, axis=1):  # by column multiindex fields
+                df_expanded = align(df, df_ref_ann, self.dates)
+                dic_expanded[field_name] = df_expanded
+            df_quarterly_expanded = pd.concat(dic_expanded.values(), axis=1)
+            df_quarterly_expanded.index.name = self.TRADE_DATE_FIELD_NAME
+        
+            data_d_merge = self._merge_data([data_d, df_quarterly_expanded], index_name=self.TRADE_DATE_FIELD_NAME)
+            data_d = data_d_merge.loc[data_d.index, :]
+        self.data_d = data_d
+        
     def prepare_data(self):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
         print "Query data..."
-        self.data_d, self.data_q = self._prepare_data(self.fields)
+        data_d, data_q = self._prepare_data(self.fields)
+        self.data_d, self.data_q = data_d, data_q
+        self._align_and_merge_q_into_d()
 
         print "Query instrument info..."
         self._prepare_inst_info()
@@ -889,8 +908,14 @@ class DataView(object):
             merge = merge_d
             
         merge = merge.loc[:, pd.IndexSlice[:, field_name]]
+        merge.columns = merge.columns.droplevel(level=1)
         self.append_df(merge, field_name, is_quarterly=is_quarterly)  # whether contain only trade days is decided by existing data.
         
+        if is_quarterly:
+            df_ann = merge_q.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
+            df_ann.columns = df_ann.columns.droplevel(level='field')
+            df_expanded = align(merge, df_ann, self.dates)
+            self.append_df(df_expanded, field_name, is_quarterly=False)
         return True
     
     def add_formula(self, field_name, formula, is_quarterly, formula_func_name_style='camel', data_api=None):
@@ -938,7 +963,7 @@ class DataView(object):
                     if not success:
                         return
         
-        df_ann = self.get_ann_df()
+        df_ann = self._get_ann_df()
         for var in var_list:
             if self._is_quarter_field(var):
                 df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
@@ -952,6 +977,11 @@ class DataView(object):
         df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
         
         self.append_df(df_eval, field_name, is_quarterly=is_quarterly)
+        
+        if is_quarterly:
+            df_ann = self._get_ann_df()
+            df_expanded = align(df_eval, df_ann, self.dates)
+            self.append_df(df_expanded, field_name, is_quarterly=False)
 
     @staticmethod
     def _load_h5(fp):
@@ -1051,38 +1081,7 @@ class DataView(object):
         if not end_date:
             end_date = self.end_date
         
-        fields_daily = self._get_fields('daily', fields)
-        fields_quarterly = self._get_fields('quarterly', fields)
-        if not fields_daily and not fields_quarterly:
-            return None
-        
-        # get df_daily and df_quarterly from data_d and data_q
-        df_quarterly_expanded = None
-        if fields_quarterly:
-            df_ref_quarterly = self.data_q.loc[:,
-                                               pd.IndexSlice[symbol, fields_quarterly]]
-            df_ref_ann = self.data_q.loc[:,
-                                         pd.IndexSlice[symbol, self.ANN_DATE_FIELD_NAME]]
-            df_ref_ann.columns = df_ref_ann.columns.droplevel(level='field')
-            
-            dic_expanded = dict()
-            for field_name, df in df_ref_quarterly.groupby(level=1, axis=1):  # by column multiindex fields
-                df_expanded = align(df, df_ref_ann, self.dates)
-                dic_expanded[field_name] = df_expanded
-            df_quarterly_expanded = pd.concat(dic_expanded.values(), axis=1)
-            df_quarterly_expanded.index.name = self.TRADE_DATE_FIELD_NAME
-            df_quarterly_expanded = df_quarterly_expanded.loc[start_date: end_date, :]
-        
-        df_daily = None
-        if fields_daily:
-            df_daily = self.data_d.loc[pd.IndexSlice[start_date: end_date],
-                                       pd.IndexSlice[symbol, fields_daily]]
-        
-        # res will be one of daily/quarterly, or combination of them.
-        if fields_daily and fields_quarterly:
-            res = self._merge_data([df_daily, df_quarterly_expanded], index_name=self.TRADE_DATE_FIELD_NAME)
-        else:
-            res = df_quarterly_expanded if df_quarterly_expanded is not None else df_daily
+        res = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
         
         return res
     
@@ -1115,7 +1114,7 @@ class DataView(object):
         
         return res
 
-    def get_ann_df(self):
+    def _get_ann_df(self):
         """
         Query announcement date of financial statements of all securities.
         
@@ -1129,8 +1128,6 @@ class DataView(object):
         if self.data_q is None:
             return None
         df_ann = self.data_q.loc[:, pd.IndexSlice[:, self.ANN_DATE_FIELD_NAME]]
-        
-        df_ann = df_ann.copy()
         df_ann.columns = df_ann.columns.droplevel(level='field')
     
         return df_ann
@@ -1148,8 +1145,7 @@ class DataView(object):
         if not end_date:
             end_date = self.end_date
     
-        df_ref_quarterly = self.data_q.loc[:,
-                                           pd.IndexSlice[symbol, field]]
+        df_ref_quarterly = self.data_q.loc[:, pd.IndexSlice[symbol, field]]
         df_ref_quarterly.columns = df_ref_quarterly.columns.droplevel(level='field')
         
         return df_ref_quarterly
@@ -1251,6 +1247,7 @@ class DataView(object):
             Whether df is quarterly data (like quarterly financial statement) or daily data.
 
         """
+        df = df.copy()
         if isinstance(df, pd.DataFrame):
             pass
         elif isinstance(df, pd.Series):
