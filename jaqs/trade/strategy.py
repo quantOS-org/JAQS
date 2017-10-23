@@ -418,10 +418,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         net_revenue = revenue - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
         return net_revenue
     
-    def portfolio_construction(self):
+    def portfolio_construction(self, dic_universe):
         """
         Calculate target weights of each symbol in the strategy universe.
         User should not modify this function arbitrarily.
+        
+        Attributes
+        ----------
+        dic_universe : dict of {str: float}
+            value 0 for not in universe, 1 for in.
 
         Returns
         -------
@@ -429,33 +434,37 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             Weights of each symbol.
 
         """
-        # pick the registered portfolio construction method
+        # Step.1 filter and narrow down universe to sub-universe
+        if self.stock_selector is not None:
+            selected_list = self.stock_selector.get_selection()
+            dic_universe = {k: v if k in selected_list else 0.0 for k, v in dic_universe.viewitems()}
+        sub_univ = sorted([symbol for symbol, v in dic_universe.viewitems() if v])
+        
+        self.ctx.snapshot_sub = self.ctx.snapshot.loc[sub_univ, :]
+        
+        # Step.2 pick the registered portfolio construction method
         rf = self.func_table[self.pc_method]
         func, options = rf.func, rf.options
 
-        # use the registered method to calculate weights
-        weights, msg = func(**options)
+        # Step.3 use the registered method to calculate weights and get weights for all symbols in universe
+        weights_sub_universe, msg = func(**options)
+        weights_all_universe = {symbol: weights_sub_universe.get(symbol, 0.0) for symbol in self.ctx.universe}
         if msg:
             print msg
 
         # if nan assign zero
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in weights.viewitems()}
+        weights_all_universe = {k: 0.0 if np.isnan(v) else v for k, v in weights_all_universe.viewitems()}
         
-        # step.2 set weights of those not selected to zero
-        if self.stock_selector is not None:
-            selected_list = self.stock_selector.get_selection()
-            weights = {k: v if k in selected_list else 0.0 for k, v in weights.viewitems()}
-
         # normalize
-        w_sum = np.sum(np.abs(weights.values()))
+        w_sum = np.sum(np.abs(weights_all_universe.values()))
         if w_sum > 1e-8:  # else all zeros weights
-            weights = {k: v / w_sum for k, v in weights.viewitems()}
+            weights_all_universe = {k: v / w_sum for k, v in weights_all_universe.viewitems()}
 
-        self.weights = weights
+        self.weights = weights_all_universe
 
     def equal_weight(self):
         # discrete
-        weights = {k: 1.0 for k in self.ctx.universe}
+        weights = {k: 1.0 for k in self.ctx.snapshot_sub.index.values}
         return weights, ''
     
     def factor_value_weight(self):
@@ -480,8 +489,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 w = {k: v + delta for k, v in w.viewitems()}
             return w
         
-        raw_weights_dic = self.revenue_model.make_forecast()
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in raw_weights_dic.viewitems()}
+        dic_forecasts = self.revenue_model.make_forecast()
+        weights = {k: 0.0 if np.isnan(v) else v for k, v in dic_forecasts.viewitems()}
         weights = long_only_weight_adjust(weights)
         return weights, ""
         
@@ -503,7 +512,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
         """
         n_exp = 5  # number of experiments of Monte Carol
-        n_var = len(self.ctx.universe)
+        sub_univ = self.ctx.snapshot_sub.index.values
+        n_var = len(sub_univ)
     
         weights_mat = np.random.rand(n_exp, n_var)
         weights_mat = weights_mat / weights_mat.sum(axis=1).reshape(-1, 1)
@@ -511,7 +521,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         min_f = 1e30
         min_weights = None
         for i in range(n_exp):
-            weights = {self.ctx.universe[j]: weights_mat[i, j] for j in range(n_var)}
+            weights = {sub_univ[j]: weights_mat[i, j] for j in range(n_var)}
             f = -util_func(weights)
             if f < min_f:
                 min_weights = weights

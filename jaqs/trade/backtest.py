@@ -271,17 +271,15 @@ class AlphaBacktestInstance(BacktestInstance):
         ----------
 
         """
-        # step.1 construct portfolio using models
-        self.strategy.portfolio_construction()
-        
-        # Step.2 set weights of those non-index-members to zero
+        # Step.1 set weights of those non-index-members to zero
         # only filter index members when universe is defined
         if self.ctx.dataview.universe:
             col = 'index_member'
             df_is_member = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields=col)
-            dic = df_is_member.loc[:, col].to_dict()
-            # print len(self.ctx.dataview.symbol) - sum(dic.values())  # DEBUG
-            self.strategy.weights = {k: v if dic[k] else 0.0 for k, v in self.strategy.weights.viewitems()}
+            dic_index_member = df_is_member.loc[:, col].to_dict()
+
+        # step.2 construct portfolio using models
+        self.strategy.portfolio_construction(dic_index_member)
         
     def re_balance_plan_after_open(self):
         """
@@ -367,12 +365,14 @@ class AlphaBacktestInstance(BacktestInstance):
     def on_after_market_close(self):
         self.ctx.gateway.on_after_market_close()
         
+    '''
     def get_univ_prices(self, field_name='close'):
         dv = self.ctx.dataview
         df = dv.get_snapshot(self.ctx.trade_date, fields=field_name)
         res = df.to_dict(orient='index')
         return res
     
+    '''
     def _is_trade_date(self, date):
         return date in self.ctx.dataview.dates
     
@@ -420,8 +420,10 @@ class AlphaBacktestInstance(BacktestInstance):
     def on_new_day(self, date):
         self.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
-        self.univ_price_dic = self.get_univ_prices(field_name="close,vwap,open,high,low")  # access data
-
+        
+        self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
+        self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
+    
     def save_results(self, folder='../output/'):
         import pandas as pd
     

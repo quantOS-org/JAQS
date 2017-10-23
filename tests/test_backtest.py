@@ -64,20 +64,17 @@ def save_dataview(sub_folder='test_dataview'):
 
 
 def my_selector(context, user_options=None):
-    dv = context.dataview
-    growth_rate = dv.get_snapshot(context.trade_date, fields='total_profit_growth')
+    growth_rate = context.snapshot.loc['total_profit_growth']
     return growth_rate > 0.05
 
 
 def my_selector2(context, user_options=None):
-    dv = context.dataview
-    growth_rate = dv.get_snapshot(context.trade_date, fields='total_profit_growth')
+    growth_rate = context.snapshot.loc['total_profit_growth']
     return growth_rate > 0.07
 
 
 def my_factor(context, user_options=None):
-    dv = context.dataview
-    res = dv.get_snapshot(context.trade_date, fields='new_high')
+    res = context.snapshot_sub.loc['new_high']
     return res
 
 
@@ -87,7 +84,7 @@ def my_commission(symbol, turnover, context=None, user_options=None):
 
 def test_alpha_strategy_dataview():
     dv_subfolder_name = 'test_dataview'
-    # save_dataview(sub_folder=dv_subfolder_name)
+    save_dataview(sub_folder=dv_subfolder_name)
     
     dv = DataView()
     fullpath = fileio.join_relative_path('../output/prepared', dv_subfolder_name)

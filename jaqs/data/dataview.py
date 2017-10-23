@@ -76,7 +76,7 @@ class DataView(object):
         # fields map
         self.market_daily_fields = \
             {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi', 'trade_status',
-             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'index_member'}
+             'open_adj', 'high_adj', 'low_adj', 'close_adj', 'vwap_adj', 'index_member'}
         self.group_fields = {'sw1', 'sw2', 'sw3', 'sw4', 'zz1', 'zz2'}
         self.reference_daily_fields = \
             {'currency', 'total_market_value', 'float_market_value',
@@ -294,7 +294,8 @@ class DataView(object):
             pool = self.group_fields
         elif field_type == 'daily':
             pool = set.union(self.market_daily_fields, self.reference_daily_fields,
-                             self.custom_daily_fields, self.group_fields)
+                             self.group_fields,
+                             self.custom_daily_fields)
         elif field_type == 'quarterly':
             pool = set.union(self.fin_stat_income, self.fin_stat_balance_sheet, self.fin_stat_cash_flow,
                              self.fin_indicator,
@@ -309,7 +310,7 @@ class DataView(object):
         if complement:
             s = set(fields) - s
             
-        if field_type == 'market_daily':
+        if field_type == 'market_daily' and self.all_price:
             # turnover will not be adjusted
             s.update({'open', 'high', 'close', 'low', 'vwap'})
             
@@ -820,7 +821,9 @@ class DataView(object):
         
         # TODO: hard-coded
         if self.all_price:
-            self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj'])
+            self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj',
+                                'open', 'high', 'low', 'close',
+                                'vwap', 'vwap_adj'])
         
         self.freq = props['freq']
         self.universe = props.get('universe', "")
