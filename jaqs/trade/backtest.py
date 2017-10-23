@@ -305,9 +305,8 @@ class AlphaBacktestInstance(BacktestInstance):
     
         # step2. calculate market value and cash
         # market value does not include those suspended
-        market_value = self.strategy.pm.market_value(self.ctx.trade_date, prices, all_list)
-        # self.market_value_list.append((self.trade_date, market_value))  # DEBUG
-        cash_available = self.strategy.cash + market_value
+        market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices, all_list)
+        cash_available = self.strategy.cash + market_value_float
     
         cash_use = cash_available * self.strategy.position_ratio
         cash_unuse = cash_available - cash_use
@@ -320,7 +319,7 @@ class AlphaBacktestInstance(BacktestInstance):
         self.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()
         
-        self.strategy.on_after_rebalance(cash_available)
+        self.strategy.on_after_rebalance(cash_available + market_value_frozen)
 
     def run_alpha(self):
         gateway = self.ctx.gateway

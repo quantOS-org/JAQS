@@ -471,17 +471,19 @@ class PortfolioManager(TradeCallback):
         if suspensions is None:
             suspensions = []
         
-        market_value = 0.0
+        market_value_float = 0.0
+        market_value_frozen = 0.0  # suspended or high/low limit
         for sec in self.holding_securities:
-            if sec in suspensions:
-                continue
-            
             size = self.get_position(sec, ref_date).curr_size
             # TODO PortfolioManager object should not access price
             price = ref_prices[sec]
-            market_value += price * size * 100
+            mv_sec = price * size * 100
+            if sec in suspensions:
+                market_value_frozen += mv_sec
+            else:
+                market_value_float += mv_sec
         
-        return market_value
+        return market_value_float, market_value_frozen
 
 
 class BaseGateway(object):
