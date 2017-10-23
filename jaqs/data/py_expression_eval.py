@@ -39,6 +39,7 @@ class Expression(object):
         self.functions = functions
         self.ann_dts = None
         self.trade_dts = None
+        self.index_member = None
     
     def simplify(self, values):
         values = values or {}
@@ -556,11 +557,6 @@ class Parser(object):
     def product(self, x, n):
         return pd.rolling_apply(x, n, np.product)
 
-    def rank(self, df):
-        """Return a DataFrame with values ranging from 0.0 to 1.0"""
-        df = self._align_univariate(df)
-        return df.rank(axis=1) / (df.shape[1] - df.isnull().sum())
-    
     @staticmethod
     def ts_rank(df, window):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
@@ -613,9 +609,22 @@ class Parser(object):
 
     # -----------------------------------------------------
     # cross section functions
+    def _mask_non_index_member(self, df):
+        if self.index_member is not None:
+            self.index_member = self.index_member.astype(bool)
+            df[~self.index_member] = np.nan
+        return df
+
+    def rank(self, df):
+        """Return a DataFrame with values ranging from 0.0 to 1.0"""
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+        return df.rank(axis=1)  # / (df.shape[1] - df.isnull().sum())
+
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
     def group_rank(self, x, group):
         x = self._align_univariate(x)
+        x = self._mask_non_index_member(x)
         vals = np.unique(group.values.flatten())
         res = None
         for val in vals:
@@ -632,7 +641,6 @@ class Parser(object):
         func = lambda arr: numeric.quantilize_without_nan(arr, n_quantiles=n_quantiles, axis=0)[-1]
         res = roll.apply(func)
         return res
-    
     
     def to_quantile(self, df, n_quantiles=5, axis=1):
         """
@@ -655,6 +663,7 @@ class Parser(object):
 
         """
         df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
         # TODO: unnecesssary warnings
         # import warnings
         # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
@@ -664,6 +673,7 @@ class Parser(object):
 
     def group_quantile(self, df, group, n_quantiles=5):
         df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
         
         res = None
         for val in np.unique(group.values.flatten()):
@@ -728,9 +738,11 @@ class Parser(object):
         return res
 
     '''
-    @staticmethod
-    def standardize(df):
+    def standardize(self, df):
         """Cross section."""
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+        
         axis = 1
         mean = df.mean(axis=axis)
         std = df.std(axis=axis)
@@ -749,6 +761,9 @@ class Parser(object):
         pd.DataFrame
 
         """
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+
         axis = 1
         x = df.values
         
@@ -975,7 +990,7 @@ class Parser(object):
         self.tokens = tokenstack
         return Expression(tokenstack, self.ops1, self.ops2, self.functions)
     
-    def evaluate(self, values, ann_dts=None, trade_dts=None):
+    def evaluate(self, values, ann_dts=None, trade_dts=None, index_member=None):
         """
         Evaluate the value of expression using. Data of different frequency will be automatically expanded.
         
@@ -987,6 +1002,7 @@ class Parser(object):
             Announcement dates of financial statements of securities.
         trade_dts : np.ndarray
             The date index of result.
+        index_member : pd.DataFrame
 
         Returns
         -------
@@ -995,6 +1011,7 @@ class Parser(object):
         """
         self.ann_dts = ann_dts
         self.trade_dts = trade_dts
+        self.index_member = index_member
         
         values = values or {}
         nstack = []

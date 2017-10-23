@@ -921,7 +921,9 @@ class DataView(object):
             self.append_df(df_expanded, field_name, is_quarterly=False)
         return True
     
-    def add_formula(self, field_name, formula, is_quarterly, formula_func_name_style='camel', data_api=None):
+    def add_formula(self, field_name, formula, is_quarterly,
+                    formula_func_name_style='camel', data_api=None,
+                    within_index=True):
         """
         Add a new field, which is calculated using existing fields.
         
@@ -935,6 +937,8 @@ class DataView(object):
             Whether df is quarterly data (like quarterly financial statement) or daily data.
         formula_func_name_style : {'upper', 'lower'}, optional
         data_api : RemoteDataService, optional
+        within_index : bool
+            When do cross-section operatioins, whether just do within index components.
         
         """
         if data_api is not None:
@@ -966,7 +970,6 @@ class DataView(object):
                     if not success:
                         return
         
-        df_ann = self._get_ann_df()
         for var in var_list:
             if self._is_quarter_field(var):
                 df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
@@ -977,7 +980,12 @@ class DataView(object):
             var_df_dic[var] = df_var
         
         # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
-        df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
+        df_ann = self._get_ann_df()
+        if within_index:
+            df_index_member = self.get_ts('index_member', start_date=self.extended_start_date_d, end_date=self.end_date)
+            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates, index_member=df_index_member)
+        else:
+            df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
         
         self.append_df(df_eval, field_name, is_quarterly=is_quarterly)
         
