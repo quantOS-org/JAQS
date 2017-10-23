@@ -7,7 +7,7 @@ from jaqs.util import fileio
 from jaqs.trade import model
 from jaqs.trade import common
 from jaqs.data.dataservice import RemoteDataService
-from jaqs.example.doubleMaStrategy import DoubleMaStrategy
+from jaqs.example.eventdriven.doubleMaStrategy import DoubleMaStrategy
 from jaqs.trade.backtest import EventBacktestInstance
 from jaqs.trade.gateway import BarSimulatorGateway
 

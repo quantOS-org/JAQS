@@ -45,7 +45,7 @@ def test_quantile():
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
 
     val = pd.DataFrame(np.random.rand(2000, 100))
-    expr = parser.parse('Ts_Quantile(val, 11, 5)')
+    expr = parser.parse('Ts_Quantile(val, 500, 12)')
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
     
