@@ -418,15 +418,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         net_revenue = revenue - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
         return net_revenue
     
-    def portfolio_construction(self, dic_universe):
+    def portfolio_construction(self, universe_list=None):
         """
         Calculate target weights of each symbol in the strategy universe.
         User should not modify this function arbitrarily.
         
         Attributes
         ----------
-        dic_universe : dict of {str: float}
-            value 0 for not in universe, 1 for in.
+        universe_list : list of str
+            Symbols that should be considered during this re-balance.
 
         Returns
         -------
@@ -437,8 +437,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         # Step.1 filter and narrow down universe to sub-universe
         if self.stock_selector is not None:
             selected_list = self.stock_selector.get_selection()
-            dic_universe = {k: v if k in selected_list else 0.0 for k, v in dic_universe.viewitems()}
-        sub_univ = sorted([symbol for symbol, v in dic_universe.viewitems() if v])
+            universe_list = [s for s in universe_list if s in selected_list]
+        sub_univ = sorted(universe_list)
         
         self.ctx.snapshot_sub = self.ctx.snapshot.loc[sub_univ, :]
         

@@ -93,7 +93,7 @@ def test_alpha_strategy_dataview():
     props = {
         "benchmark": "000300.SH",
         # "symbol": ','.join(dv.symbol),
-        "universe": ','.join(dv.symbol),
+        "universe": ','.join(dv.symbol),  # TODO: confusing
     
         "start_date": dv.start_date,
         "end_date": dv.end_date,

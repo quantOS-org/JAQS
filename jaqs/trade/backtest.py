@@ -273,13 +273,16 @@ class AlphaBacktestInstance(BacktestInstance):
         """
         # Step.1 set weights of those non-index-members to zero
         # only filter index members when universe is defined
+        universe_list = self.ctx.universe
         if self.ctx.dataview.universe:
             col = 'index_member'
             df_is_member = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields=col)
+            df_is_member = df_is_member.fillna(0).astype(bool)
             dic_index_member = df_is_member.loc[:, col].to_dict()
+            universe_list = [symbol for symbol, value in dic_index_member.items() if value]
 
         # step.2 construct portfolio using models
-        self.strategy.portfolio_construction(dic_index_member)
+        self.strategy.portfolio_construction(universe_list)
         
     def re_balance_plan_after_open(self):
         """
