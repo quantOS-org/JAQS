@@ -619,7 +619,7 @@ class Parser(object):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
-        return df.rank(axis=1)  # / (df.shape[1] - df.isnull().sum())
+        return df.rank(axis=1) / (df.shape[1] - df.isnull().sum())
 
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
     def group_rank(self, x, group):
