@@ -64,7 +64,7 @@ class Trade(object):
     
     def __repr__(self):
         return "{0.fill_date:8d}({0.fill_time:8d}) " \
-               "{0.entrust_action:6s} {0.fill_size:5d} of " \
+               "{0.entrust_action:6s} {0.fill_size:5f} of " \
                "{0.symbol:10s}@{0.fill_price:.3f}".format(self)
     
     def __str__(self):
