@@ -261,6 +261,9 @@ class RemoteDataService(DataService):
         
         self.REPORT_DATE_FIELD_NAME = 'report_date'
 
+    def __del__(self):
+        self.api.close()
+    
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):
         df, err_msg = self.api.daily(symbol=symbol, start_date=start_date, end_date=end_date,
