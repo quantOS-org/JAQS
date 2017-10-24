@@ -85,3 +85,9 @@ class GoalPosition(object):
         self.ref_price = 0.0
         self.size = 0
         self.urgency = 0
+    
+    def __repr__(self):
+        return "{0.size:5d} of {0.symbol:10s}".format(self)
+
+    def __str__(self):
+        return self.__repr__()
