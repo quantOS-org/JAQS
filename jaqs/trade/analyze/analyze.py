@@ -326,7 +326,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         ax2.set_xlabel("Date")
         ax2.set_ylabel("Percent")
         ax1.set_ylabel("Percent")
-        ax2.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m'))
+        ax2.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
         
         plt.tight_layout()
         fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
