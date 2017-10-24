@@ -79,14 +79,10 @@ class DataView(object):
              'open_adj', 'high_adj', 'low_adj', 'close_adj', 'vwap_adj', 'index_member'}
         self.group_fields = {'sw1', 'sw2', 'sw3', 'sw4', 'zz1', 'zz2'}
         self.reference_daily_fields = \
-            {'currency', 'total_market_value', 'float_market_value',
-             'high_52w', 'low_52w', 'high_52w_adj', 'low_52w_adj', 'close_price',
-             'price_level', 'limit_status',
-             'pe', 'pb', 'pe_ttm', 'pcf', 'pcf_ttm', 'ncf', 'ncf_ttm', 'ps', 'ps_ttm',
-             'turnover_ratio', 'turnover_ratio_float',
-             'share_amount', 'share_float', 'price_div_dps',
-             'share_float_free', 'nppc_ttm', 'nppc_lyr', 'net_assets',
-             'ncfoa_ttm', 'ncfoa_lyr', 'rev_ttm', 'rev_lyr', 'nicce_ttm'}
+            {'total_mv','float_mv','pe','pb_new','pe_ttm','pcf_ocf','pcf_ocfttm','pcf_ncf','pcf_ncfttm',
+             'ps','ps_ttm','turnoverratio','freeturnover','total_share','float_share','close','price_div_dps',
+             'free_share','profit_ttm','profit_lyr','net_assets','cash_flows_oper_act_ttm','cash_flows_oper_act_lyr',
+             'operrev_ttm','operrev_lyr','limit_status'}
         self.fin_stat_income = \
             {"symbol", "ann_date", "start_date", "end_date",
              "comp_type_code", "comp_type_code", "act_ann_date", "start_actdate",
