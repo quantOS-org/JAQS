@@ -291,8 +291,7 @@ class AlphaBacktestInstance(BacktestInstance):
         Price here must not be adjusted.
 
         """
-        # univ_price_dic : dict of {str: float} i.e. {sec: close_price}
-        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
@@ -312,7 +311,7 @@ class AlphaBacktestInstance(BacktestInstance):
         # step3. generate target positions
         # position of those suspended will remain the same (will not be traded)
         goals, cash_remain = self.strategy.generate_weights_order(self.strategy.weights, cash_use, prices,
-                                                                  algo='close', suspensions=suspensions)
+                                                                  suspensions=all_list)
         self.strategy.goal_positions = goals
         self.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()

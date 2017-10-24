@@ -482,6 +482,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
             """
             # TODO: we should not add a const
+            if not len(w):
+                return w
             w_min = np.min(w.values())
             if w_min < 0:
                 delta = 2 * abs(w_min)
@@ -550,7 +552,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         if len(suspensions) == len(self.ctx.universe):
             raise ValueError("All suspended")  # TODO custom error
         
-        weights = {sec: w if w not in suspensions else 0.0 for sec, w in self.weights.viewitems()}
+        weights = {sec: w if sec not in suspensions else 0.0 for sec, w in self.weights.viewitems()}
         weights_sum = np.sum(np.abs(weights.values()))
         if weights_sum > 0.0:
             weights = {sec: w / weights_sum for sec, w in weights.viewitems()}
@@ -558,13 +560,13 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = weights
     
     def on_after_rebalance(self, total):
-        print "\n\n{}, available cash all (exclude suspensions) = {:9.4e}".format(self.ctx.trade_date, total)  # DEBUG
+        print "\n\nBefore {} re-balance: available cash all (exclude suspensions) = {:9.4e}".format(self.ctx.trade_date, total)  # DEBUG
         pass
     
     def send_bullets(self):
         self.goal_portfolio(self.goal_positions)
     
-    def generate_weights_order(self, weights_dic, turnover, prices, algo="close", suspensions=None):
+    def generate_weights_order(self, weights_dic, turnover, prices, suspensions=None):
         """
         Send order according subject to total turnover and weights of different securities.
 
@@ -576,8 +578,6 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             Total turnover goal of all securities. (cash quota)
         prices : dict of {str: float}
             {symbol: price}
-        algo : str
-            {'close', 'open', 'vwap', etc.}
         suspensions : list of str
 
         Returns
@@ -586,47 +586,30 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         cash_left : float
 
         """
-        if algo not in ['close', 'vwap']:
-            raise NotImplementedError("Currently we only suport order at close price.")
-        
-        cash_left = 0.0
+        # cash_left = 0.0
         cash_used = 0.0
         goals = []
-        if algo == 'close' or 'vwap':  # order a certain amount of shares according to current close price
-            for sec, w in weights_dic.viewitems():
-                goal_pos = GoalPosition()
-                goal_pos.symbol = sec
-                
-                # if algo == 'close':
-                # order.price_target = 'close'
-                # else:
-                # order = VwapOrder()
-                # order.symbol = sec
-    
-                if sec in suspensions:
-                    current_pos = self.pm.get_position(sec, self.ctx.trade_date)
-                    goal_pos.size = current_pos.curr_size if current_pos is not None else 0
-                elif abs(w) < 1e-8:
-                    # order.entrust_size = 0
-                    goal_pos.size = 0
-                else:
-                    price = prices[sec]
-                    shares_raw = w * turnover / price
-                    # shares unit 100
-                    shares = int(round(shares_raw / 100., 0))  # TODO cash may be not enough
-                    shares_left = shares_raw - shares * 100  # may be negative
-                    # cash_left += shares_left * price
-                    cash_used += shares * price * 100
-                    
-                    # order.entrust_size = shares
-                    # order.entrust_action = common.ORDER_ACTION.BUY
-                    # order.entrust_date = self.trade_date
-                    # order.entrust_time = 0
-                    # order.order_status = common.ORDER_STATUS.NEW
-                    goal_pos.size = shares
-                
-                # orders.append(order)
-                goals.append(goal_pos)
+        for sec, w in weights_dic.viewitems():
+            goal_pos = GoalPosition()
+            goal_pos.symbol = sec
+            
+            if sec in suspensions:
+                current_pos = self.pm.get_position(sec, self.ctx.trade_date)
+                goal_pos.size = current_pos.curr_size if current_pos is not None else 0
+            elif abs(w) < 1e-8:
+                # order.entrust_size = 0
+                goal_pos.size = 0
+            else:
+                price = prices[sec]
+                shares_raw = w * turnover / price
+                # shares unit 100
+                shares = int(round(shares_raw / 100., 0))  # TODO cash may be not enough
+                # shares_left = shares_raw - shares * 100  # may be negative
+                # cash_left += shares_left * price
+                cash_used += shares * price * 100
+                goal_pos.size = shares
+            
+            goals.append(goal_pos)
         
         cash_left = turnover - cash_used
         return goals, cash_left
