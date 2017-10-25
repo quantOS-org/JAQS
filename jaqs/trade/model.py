@@ -185,8 +185,8 @@ class StockSelector(FuncRegisterable):
             res = convert_to_df(res)
             mask_selected[factor] = res
         
-        merge = pd.concat(mask_selected.values(), axis=1).fillna(0.0)
-        symbol_arr = merge.index.values.astype(bool)
+        merge = pd.concat(mask_selected.values(), axis=1).astype(float).astype(bool).fillna(False)
+        symbol_arr = merge.index.values
         mask_arr = np.all(merge.values, axis=1)
         selected = symbol_arr[mask_arr].tolist()
         return selected
