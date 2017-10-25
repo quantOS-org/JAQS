@@ -29,10 +29,12 @@ class Context(object):
         Securities that the strategy cares about.
     calendar : Calendar
         A certain calendar that the strategy refers to.
+    snapshot : pd.DataFrame
+        Current snapshot of data.
 
     Methods
     -------
-    add_universe(univ)
+    init_universe(univ)
         Add new securities.
 
     """
@@ -44,16 +46,16 @@ class Context(object):
         self.data_api = data_api
         self.dataview = dataview
         self.gateway = gateway
+        self.pm = None
+
+        self.universe = []
+        self.trade_date = 0
+        self.snapshot = None
+        
         for member, obj in self.__dict__.viewitems():
             if member in ['calendar', 'data_api', 'dataview', 'gateway']:
                 if hasattr(obj, 'register_context'):
                     obj.register_context(self)
-
-        self.pm = None
-
-        self.universe = []
-        
-        self.trade_date = 0
 
     def register_calendar(self, calendar):
         if hasattr(calendar, 'register_context'):
@@ -80,7 +82,7 @@ class Context(object):
             dataview.register_context(self)
         self.dataview = dataview
         
-    def add_universe(self, univ):
+    def init_universe(self, univ):
         """
         univ could be single symbol or securities separated by ,
         
@@ -99,6 +101,20 @@ class Context(object):
             raise NotImplementedError("type of univ is {}".format(type(univ)))
 
 
+class AlphaContext(Context):
+    """
+    Attributes
+    ----------
+    snapshot_sub : pd.DataFrame
+        Current snapshot of the universe available to be traded.
+        
+    """
+    def __init__(self, calendar=None, data_api=None, dataview=None, gateway=None):
+        super(AlphaContext, self).__init__(calendar=calendar, data_api=data_api,
+                                           dataview=dataview, gateway=gateway)
+        self.snapshot_sub = None
+    
+    
 class FuncRegisterable(object):
     """
     A base class for all models. Support function register and context.
@@ -169,9 +185,9 @@ class StockSelector(FuncRegisterable):
             res = convert_to_df(res)
             mask_selected[factor] = res
         
-        merge = pd.concat(mask_selected.values(), axis=1)
-        symbol_arr = merge.index.values
-        mask_arr = np.all(merge.values, axis=1).astype(bool)
+        merge = pd.concat(mask_selected.values(), axis=1).fillna(0.0)
+        symbol_arr = merge.index.values.astype(bool)
+        mask_arr = np.all(merge.values, axis=1)
         selected = symbol_arr[mask_arr].tolist()
         return selected
 
