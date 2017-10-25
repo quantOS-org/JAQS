@@ -488,7 +488,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             return w
         
         dic_forecasts = self.revenue_model.make_forecast()
-        weights = {k: 0.0 if np.isnan(v) else v for k, v in dic_forecasts.viewitems()}
+        weights = {k: 0.0 if (np.isnan(v) or np.isinf(v)) else v for k, v in dic_forecasts.viewitems()}
         weights = long_only_weight_adjust(weights)
         return weights, ""
         
@@ -597,6 +597,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 goal_pos.size = 0
             else:
                 price = prices[sec]
+                if not (np.isfinite(price) and np.isfinite(w)):
+                    raise ValueError("NaN or Inf encountered! \n"
+                                     "trade_date={}, symbol={}, price={}, weight={}".format(self.ctx.trade_date,
+                                                                                           sec, price, w))
                 shares_raw = w * turnover / price
                 # shares unit 100
                 shares = int(round(shares_raw / 100., 0))  # TODO cash may be not enough
