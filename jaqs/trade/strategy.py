@@ -334,13 +334,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         
         self.weights = None
         
-        self.benchmark = ""
-        
-        self.goal_positions = None
-        
         self.pc_method = pc_method
         
-        self.market_value_list = []
+        self.goal_positions = None
 
     def init_from_config(self, props):
         Strategy.init_from_config(self, props)

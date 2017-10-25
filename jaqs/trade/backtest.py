@@ -23,7 +23,7 @@ class BacktestInstance(Subscriber):
         Last trade date.
     """
     def __init__(self):
-        Subscriber.__init__(self)
+        super(BacktestInstance, self).__init__()
         
         self.strategy = None
         self.start_date = 0
@@ -44,23 +44,26 @@ class BacktestInstance(Subscriber):
         context : Context
 
         """
-        self.props = props
+        for name in ['start_date', 'end_date']:
+            if name not in props:
+                raise ValueError("{} must be provided in props.".format(name))
         
+        self.props = props
         self.start_date = props.get("start_date")
         self.end_date = props.get("end_date")
-        
         self.ctx = context
-        # TODO
-        self.ctx.add_universe(props['universe'])
-        
-        strategy.ctx = self.ctx
-
-        strategy.init_from_config(props)
-        strategy.initialize(common.RUN_MODE.BACKTEST)
-        
         self.strategy = strategy
         
-        return True
+        if 'symbol' in props:
+            self.ctx.init_universe(props['universe'])
+        elif hasattr(context, 'dataview'):
+            self.ctx.init_universe(context.dataview.symbol)
+        else:
+            raise ValueError("No dataview, no symbol either.")
+        
+        strategy.ctx = self.ctx
+        strategy.init_from_config(props)
+        strategy.initialize(common.RUN_MODE.BACKTEST)
 
 
 '''
@@ -184,7 +187,7 @@ class AlphaBacktestInstance(BacktestInstance):
 
     """
     def __init__(self):
-        BacktestInstance.__init__(self)
+        super(AlphaBacktestInstance, self).__init__()
     
         self.last_rebalance_date = 0
         self.current_rebalance_date = 0
@@ -281,7 +284,14 @@ class AlphaBacktestInstance(BacktestInstance):
             dic_index_member = df_is_member.loc[:, col].to_dict()
             universe_list = [symbol for symbol, value in dic_index_member.items() if value]
 
-        # step.2 construct portfolio using models
+        # Step.2 filter out those not listed or already de-listed
+        df_inst = self.ctx.dataview.data_inst
+        mask = np.logical_and(self.ctx.trade_date > df_inst['list_date'],
+                              self.ctx.trade_date < df_inst['delist_date'])
+        listing_symbols = df_inst.loc[mask, :].index.values
+        universe_list = [s for s in universe_list if s in listing_symbols]
+        
+        # step.3 construct portfolio using models
         self.strategy.portfolio_construction(universe_list)
         
     def re_balance_plan_after_open(self):

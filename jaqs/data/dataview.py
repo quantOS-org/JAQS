@@ -786,13 +786,13 @@ class DataView(object):
 
     def init_from_config(self, props, data_api):
         """
-        Query various data from data_server and automatically merge them.
-        This make research / trade easier.
+        Initialize various attributes like start/end date, universe/symbol, fields, etc.
+        If your want to parse symbol, but use a custom benchmark index, please directly assign self.data_benchmark.
         
         Parameters
         ----------
-        props : dict, optional
-            start_date, end_date, freq, symbol, fields
+        props : dict
+            start_date, end_date, freq, symbol, fields, etc.
         data_api : BaseDataServer
         
         """
@@ -806,6 +806,7 @@ class DataView(object):
         self.extended_start_date_q = dtutil.shift(self.start_date, n_weeks=-80)
         self.end_date = props['end_date']
         self.all_price = props.get('all_price', True)
+        self.freq = props.get('freq', 1)
         
         # get and filter fields
         fields = props.get('fields', [])
@@ -815,20 +816,25 @@ class DataView(object):
             if len(self.fields) < len(fields):
                 print "Field name [{}] not valid, ignore.".format(set.difference(set(fields), set(self.fields)))
         
-        # TODO: hard-coded
+        # append additional fields
         if self.all_price:
             self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj',
                                 'open', 'high', 'low', 'close',
                                 'vwap', 'vwap_adj'])
         
-        self.freq = props['freq']
-        self.universe = props.get('universe', "")
-        if self.universe:
-            self.symbol = data_api.get_index_comp(self.universe, self.extended_start_date_d, self.end_date)
+        # initialize universe/symbol
+        universe = props.get('universe', "")
+        symbol = props.get('symbol', "")
+        if symbol and universe:
+            raise ValueError("Please use either [symbol] or [universe].")
+        if not (symbol or universe):
+            raise ValueError("One of [symbol] or [universe] must be provided.")
+        if universe:
+            self.universe = universe
+            self.symbol = sorted(data_api.get_index_comp(self.universe, self.extended_start_date_d, self.end_date))
             self.fields.append('index_member')
         else:
-            self.symbol = props['symbol'].split(sep)  # list
-        self.symbol = sorted(self.symbol)
+            self.symbol = sorted(symbol.split(sep))
     
         print "Initialize config success."
         
