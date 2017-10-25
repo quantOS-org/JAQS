@@ -340,6 +340,7 @@ class AlphaBacktestInstance(BacktestInstance):
             self.go_next_rebalance_day()
             if self.ctx.trade_date > self.end_date:
                 break
+            print "\n=======new day {}".format(self.ctx.trade_date)
 
             # match uncome orders or re-balance
             if gateway.match_finished:
@@ -468,6 +469,15 @@ class AlphaBacktestInstance(BacktestInstance):
         fileio.save_json(self.props, configs_fn)
     
         print ("Backtest results has been successfully saved to:\n" + folder)
+    
+    def show_position_info(self):
+        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
+        market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices)
+        for symbol in self.strategy.pm.holding_securities:
+            p = prices[symbol]
+            size = self.strategy.pm.get_position(symbol).curr_size
+            print "{}  {:.2e}   {:.1f}@{:.2f}".format(symbol, p*size*100, p, size)
+        print "float {:.2e}, frozen {:.2e}".format(market_value_float, market_value_frozen)
 
 
 class EventBacktestInstance(BacktestInstance):
