@@ -283,12 +283,11 @@ class AlphaAnalyzer(BaseAnalyzer):
         market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
         market_values.columns = ['strat', 'bench']
         
-        cols = ['strat', 'bench', 'active', 'strat_cum', 'bench_cum', 'active_cum']
         df_returns = market_values.pct_change(periods=1).fillna(0.0)
         
-        df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
-        df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench', 'active']] + 1.0).cumprod(), rsuffix='_cum')
-        df_returns.columns = cols
+        df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod(), rsuffix='_cum')
+        df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
+        df_returns.loc[:, 'active'] = df_returns['active_cum'].pct_change(1).fillna(0.0)
         
         start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
