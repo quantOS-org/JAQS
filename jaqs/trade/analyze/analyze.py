@@ -46,6 +46,7 @@ class BaseAnalyzer(object):
         self._trades = None
         self._configs = None
         self.data_api = None
+        self.dataview = None
         
         self._universe = []
         self._closes = None
@@ -72,18 +73,20 @@ class BaseAnalyzer(object):
         """Read-only attribute, close prices of securities in the universe"""
         return self._closes
     
-    def initialize(self, data_server_, file_folder='.'):
+    def initialize(self, data_server_=None, dataview=None, file_folder='.'):
         """
         Read trades from csv file to DataFrame of given data type.
 
         Parameters
         ----------
         data_server_ : RemoteDataService
+        dataview : DataView
         file_folder : str
             Directory path where trades and configs are stored.
 
         """
         self.data_api = data_server_
+        self.dataview = dataview
         
         type_map = {'task_id': str,
                     'entrust_no': str,
@@ -114,13 +117,9 @@ class BaseAnalyzer(object):
     
     def _init_symbol_price(self):
         """Get close price of securities in the universe from data server."""
-        df, err_msg = self.data_api.daily(','.join(self.universe), self.configs['start_date'], self.configs['end_date'],
-                                          fields="close", adjust_mode=self.adjust_mode)
-        dic_sec = self.data_api._group_df_to_dict(df, by='symbol')
-        dic_sec = {sec: df.set_index('trade_date').loc[:, ['close']] for sec, df in dic_sec.viewitems()}
-        
-        self._closes = dic_sec
-    
+        df_close = self.dataview.get_ts('close')
+        self._closes = df_close
+
     def _init_universe(self, securities):
         """Return a set of securities."""
         self._universe = set(securities)
@@ -139,6 +138,14 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.returns = None  # OrderedDict
         self.position_change = None  # OrderedDict
         self.account = None  # OrderedDict
+        
+        self.data_benchmark = None
+
+    def initialize(self, data_server_=None, dataview=None, file_folder='.'):
+        super(AlphaAnalyzer, self).initialize(data_server_=data_server_, dataview=dataview,
+                                              file_folder=file_folder)
+        if self.dataview is not None and self.dataview.data_benchmark is not None:
+            self.data_benchmark = self.dataview.data_benchmark
         
     @staticmethod
     def _get_avg_pos_price(pos_arr, price_arr):
@@ -226,7 +233,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         """Add various statistics to daily DataFrame."""
         daily_dic = dict()
         for sec, df_trade in self.trades.viewitems():
-            df_close = self.closes[sec]
+            df_close = self.closes[sec].rename('close')
             
             res = self._get_daily(df_close, df_trade)
             daily_dic[sec] = res
@@ -267,45 +274,25 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.account = account
             
     def get_returns(self):
-        # vp_list = [df_profit.loc[:, 'VirtualProfit'].copy().rename({'VirtualProfit': sec}) for sec, df_profit in self.daily.viewitems()]
         vp_list = {sec: df_profit.loc[:, 'VirtualProfit'] for sec, df_profit in self.daily.viewitems()}
-        # after concat, there will be NaN due to list / delist of different stocks
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
         strategy_value = df_profit.sum(axis=1) * 100 + self.configs['init_balance']
         
-        benchmark_name = self.configs['benchmark']
-        df_bench_value, err_msg = self.data_api.daily(benchmark_name,
-                                                      self.configs['start_date'], self.configs['end_date'],
-                                                      fields='close', adjust_mode=self.adjust_mode)
-        # df_bench_value.index = pd.to_datetime(df_bench_value.loc[:, 'trade_date'], format="%Y%m%d")
-        # df_bench_value.index = df_bench_value.loc[:, 'trade_date']
-        # df_bench_value.index.name = 'index'
-        df_bench_value = df_bench_value.set_index('trade_date')
-        df_bench_value.drop(['symbol'], axis=1, inplace=True)
-        
-        # pnl_return_cum = pd.DataFrame(index=strategy_value.index, data=self._to_pct_return(strategy_value.values))
-        # bench_return_cum = pd.DataFrame(index=df_bench_value.index, data=self._to_pct_return(df_bench_value.values))
-        
-        market_values = pd.concat([strategy_value, df_bench_value],
-                                  axis=1).fillna(method='ffill')
+        market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
         market_values.columns = ['strat', 'bench']
         
         cols = ['strat', 'bench', 'active', 'strat_cum', 'bench_cum', 'active_cum']
         df_returns = market_values.pct_change(periods=1).fillna(0.0)
-        # df_returns = np.log(market_values).diff(1).fillna(0.0)  # log return
+        
         df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
         df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench', 'active']] + 1.0).cumprod(), rsuffix='_cum')
         df_returns.columns = cols
-        # returns = pd.concat([bench_return_cum, pnl_return_cum], axis=1).fillna(method='ffill')
-        # returns.columns = ['Benchmark', 'Strategy']
-        # returns.loc[:, 'extra'] = returns.loc[:, 'Strategy'] - returns.loc[:, 'Benchmark']
-        # returns.loc[:, 'DD']
         
         start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
-        years = (end - start).days / 225.
+        years = (end - start).days / 365.0
         
         self.metrics['yearly_return'] = np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1
         self.metrics['yearly_vol'] = df_returns.loc[:, 'active'].std() * np.sqrt(225.)
