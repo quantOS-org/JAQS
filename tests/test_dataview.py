@@ -11,7 +11,7 @@ def test_write():
     
     secs = '600030.SH,000063.SZ,000001.SZ'
     props = {'start_date': 20160601, 'end_date': 20170601, 'symbol': secs,
-             'fields': 'open,close,high,low,volume,pb,net_assets,ncf',
+             'fields': 'open,close,high,low,volume,pb,net_assets,pcf_ncf',
              'freq': 1}
 
     dv.init_from_config(props, data_api=ds)
@@ -58,7 +58,7 @@ def test_add_field():
     
     from jaqs.data.dataservice import RemoteDataService
     ds = RemoteDataService()
-    dv.add_field('share_amount', ds)
+    dv.add_field('total_share', ds)
     assert dv.data_d.shape == (nrows, ncols + 1 * n_securities)
 
 
@@ -121,7 +121,7 @@ def test_q():
     dv = DataView()
     
     secs = '600030.SH,000063.SZ,000001.SZ'
-    props = {'start_date': 20160609, 'end_date': 20170601, 'universe': '000300.SH', 'symbol': secs,
+    props = {'start_date': 20160609, 'end_date': 20170601, 'symbol': secs,
              'fields': ('open,close,'
                         + 'pb,net_assets,'
                         + 'total_oper_rev,oper_exp,'

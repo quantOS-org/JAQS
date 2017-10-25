@@ -54,14 +54,14 @@ def test_remote_data_service_lb():
     ds = RemoteDataService()
     
     # test lb.secDailyIndicator
-    fields = "pb,pe,share_float_free,net_assets,limit_status"
+    fields = "pb,pe,free_share,net_assets,limit_status"
     for res3, msg3 in [ds.query("lb.secDailyIndicator", fields=fields,
                                 filter="symbol=600030.SH&start_date=20170907&end_date=20170907",
                                 orderby="trade_date"),
                        ds.query_lb_dailyindicator('600030.SH', 20170907, 20170907, fields)]:
         assert msg3 == '0,'
         assert abs(res3.loc[0, 'pb'] - 1.5135) < 1e-4
-        assert abs(res3.loc[0, 'share_float_free'] - 781496.5954) < 1e-4
+        assert abs(res3.loc[0, 'free_share'] - 781496.5954) < 1e-4
         assert abs(res3.loc[0, 'net_assets'] - 1.437e11) < 1e8
         assert res3.loc[0, 'limit_status'] == 0
     

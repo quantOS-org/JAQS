@@ -79,10 +79,11 @@ class DataView(object):
              'open_adj', 'high_adj', 'low_adj', 'close_adj', 'vwap_adj', 'index_member'}
         self.group_fields = {'sw1', 'sw2', 'sw3', 'sw4', 'zz1', 'zz2'}
         self.reference_daily_fields = \
-            {'total_mv','float_mv','pe','pb_new','pe_ttm','pcf_ocf','pcf_ocfttm','pcf_ncf','pcf_ncfttm',
-             'ps','ps_ttm','turnoverratio','freeturnover','total_share','float_share','close','price_div_dps',
-             'free_share','profit_ttm','profit_lyr','net_assets','cash_flows_oper_act_ttm','cash_flows_oper_act_lyr',
-             'operrev_ttm','operrev_lyr','limit_status'}
+            {"total_mv", "float_mv", "pe", "pb", "pe_ttm", "pcf_ocf", "pcf_ocfttm", "pcf_ncf",
+             "pcf_ncfttm", "ps", "ps_ttm", "turnover_ratio", "free_turnover_ratio", "total_share",
+             "float_share", "close", "price_div_dps", "free_share", "np_parent_comp_ttm",
+             "np_parent_comp_lyr", "net_assets", "ncf_oper_ttm", "ncf_oper_lyr", "oper_rev_ttm",
+             "oper_rev_lyr", "limit_status"}
         self.fin_stat_income = \
             {"symbol", "ann_date", "start_date", "end_date",
              "comp_type_code", "comp_type_code", "act_ann_date", "start_actdate",
