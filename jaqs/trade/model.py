@@ -328,13 +328,6 @@ class FactorRevenueModel(BaseRevenueModel):
         forecasts_arr = np.asarray(forecasts.values(), dtype=float).reshape(-1, 1)
         return np.dot(forecast_corr, forecasts_arr).sum()
 
-    def combine_custom_weight(self, forecasts, forecast_weights):
-        res = 0.0
-        for factor, f in forecasts.viewitems():
-            w = forecast_weights[factor]
-            res += f * w
-        return res
-    
     def get_forecasts(self):
         """
         
@@ -408,6 +401,45 @@ class FactorRevenueModel(BaseRevenueModel):
         total_revenue = np.sum(weighted_revenue.values())
         
         return total_revenue
+
+
+class FactorRevenueModel_custom(FactorRevenueModel):
+    """
+    Custom weight.
+
+    """
+
+    def __init__(self, context=None, signal_weights=None):
+        super(FactorRevenueModel_custom, self).__init__(context=context)
+
+        self.signal_weights = signal_weights
+
+    def combine_custom_weight(self, forecasts):
+        td = self.context.trade_date
+
+        res = 0.0
+        for factor_name, factor_value in forecasts.viewitems():
+            weights_dic = self.signal_weights.loc[td, :].to_dict()
+
+            weight = weights_dic[factor_name]
+            res += factor_value * weight
+        return res
+
+    def make_forecast(self):
+        """
+        Get and combine signals (forecasts). Return the combined signal.
+
+        Returns
+        -------
+        forecast : dict of {str: float}
+            {symbol_name: forecast_value}
+
+        """
+        forecasts = self.get_forecasts()  # {str: pd.DataFrame}
+        # TODO NaN
+        forecasts = {key: value.fillna(0) for key, value in forecasts.viewitems()}
+        forecast = self.combine_custom_weight(forecasts)
+        return forecast
 
 
 class BaseCostModel(FuncRegisterable):
