@@ -767,13 +767,14 @@ class Parser(object):
         axis = 1
         x = df.values
         
-        median = np.median(x, axis=axis)
+        median = np.nanmedian(x, axis=axis).reshape(-1, 1)
         diff = x - median
         diff_abs = np.abs(diff)
-        mad = np.median(np.abs(diff), axis=axis)
+        mad = np.nanmedian(diff_abs, axis=axis).reshape(-1, 1)
         
         mask = diff_abs > z_score * mad
-        x[mask] = z_score * mad * np.sign(diff[mask]) + median
+        x[mask] = 0
+        x = x + z_score * mad * np.sign(diff * mask) + mask * median
         
         return pd.DataFrame(index=df.index, columns=df.columns, data=x)
     
