@@ -117,7 +117,7 @@ class BaseAnalyzer(object):
     
     def _init_symbol_price(self):
         """Get close price of securities in the universe from data server."""
-        df_close = self.dataview.get_ts('close')
+        df_close = self.dataview.get_ts('close', start_date=self.start_date, end_date=self.end_date)
         self._closes = df_close
 
     def _init_universe(self, securities):
@@ -127,6 +127,8 @@ class BaseAnalyzer(object):
     def _init_configs(self, file_folder):
         configs = json.load(open(os.path.join(file_folder, 'configs.json'), 'r'))
         self._configs = configs
+        self.start_date = self.configs['start_date']
+        self.end_date = self.configs['end_date']
 
 
 class AlphaAnalyzer(BaseAnalyzer):
@@ -145,7 +147,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         super(AlphaAnalyzer, self).initialize(data_server_=data_server_, dataview=dataview,
                                               file_folder=file_folder)
         if self.dataview is not None and self.dataview.data_benchmark is not None:
-            self.data_benchmark = self.dataview.data_benchmark
+            self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
+                                                                   &(self.dataview.data_benchmark.index <= self.end_date)]
         
     @staticmethod
     def _get_avg_pos_price(pos_arr, price_arr):
