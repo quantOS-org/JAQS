@@ -91,7 +91,7 @@ def my_commission(symbol, turnover, context=None, user_options=None):
 
 
 def test_alpha_strategy_dataview():
-    # save_dataview()
+    save_dataview()
     
     dv = DataView()
     fullpath = fileio.join_relative_path('../output/prepared', sub_folder)
@@ -180,7 +180,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
     
-    # test_alpha_strategy_dataview()
+    test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start
