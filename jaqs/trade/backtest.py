@@ -304,7 +304,7 @@ class AlphaBacktestInstance(BacktestInstance):
         Price here must not be adjusted.
 
         """
-        prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
@@ -447,7 +447,7 @@ class AlphaBacktestInstance(BacktestInstance):
                     'entrust_action': str,
                     'symbol': str,
                     'fill_price': float,
-                    'fill_size': int,
+                    'fill_size': float,
                     'fill_date': int,
                     'fill_time': int,
                     'fill_no': str}
@@ -471,7 +471,7 @@ class AlphaBacktestInstance(BacktestInstance):
         print ("Backtest results has been successfully saved to:\n" + folder)
     
     def show_position_info(self):
-        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
         market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices)
         for symbol in self.strategy.pm.holding_securities:
             p = prices[symbol]

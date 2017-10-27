@@ -93,7 +93,7 @@ class BaseAnalyzer(object):
                     'entrust_action': str,
                     'symbol': str,
                     'fill_price': float,
-                    'fill_size': int,
+                    'fill_size': float,
                     'fill_date': int,
                     'fill_time': int,
                     'fill_no': str}
@@ -301,6 +301,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.metrics['beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
         self.metrics['sharpe'] = self.metrics['yearly_return'] / self.metrics['yearly_vol']
         
+        # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
+        # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
 
     def plot_pnl(self, save_folder="."):
