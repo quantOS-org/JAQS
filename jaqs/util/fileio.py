@@ -57,9 +57,10 @@ def save_json(serializable, file_name):
     file_name : str
 
     """
-    create_dir(file_name)
+    fn = os.path.abspath(file_name)
+    create_dir(fn)
     
-    with open(file_name, 'w') as f:
+    with open(fn, 'w') as f:
         json.dump(serializable, f)
 
 
