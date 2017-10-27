@@ -245,7 +245,7 @@ class Parser(object):
             'Floor': np.floor,
             'Round': np.round,
             '-': self.neg,
-            '!': self.neg,
+            '!': self.logicalNot,
             'Sign': np.sign,
             #            'Rank':         self.rank,
             'exp': np.exp
@@ -464,6 +464,14 @@ class Parser(object):
     
     def neg(self, a):
         return -a
+    
+    def logicalNot(self, a):
+        arr  = self._to_array(a)
+        mask = np.isnan(a)        
+        res = np.logical_not(a)
+        res = res.astype(float)
+        res[mask] = np.nan
+        return pd.DataFrame(index=a.index, columns=a.columns, data=res)
     
     def random(self, a):
         return np.random.rand() * (a or 1)
@@ -895,6 +903,11 @@ class Parser(object):
                         self.tokenprio = 5
                         self.tokenindex = '-'
                         noperators += 1
+                        self.addfunc(tokenstack, operstack, TOP1)                    
+                    elif self.isLogicNot():
+                        self.tokenprio = 5
+                        self.tokenindex = '!'
+                        noperators += 1
                         self.addfunc(tokenstack, operstack, TOP1)
                     expected = \
                         self.PRIMARY | self.LPAREN | self.FUNCTION | self.SIGN
@@ -1198,6 +1211,7 @@ class Parser(object):
             ('>', 1, '>'),
             ('and', 0, 'and'),
             ('or', 0, 'or'),
+            ('!', 5, '!'),
         )
         for token, priority, index in ops:
             if self.expression.startswith(token, self.pos):
@@ -1209,7 +1223,7 @@ class Parser(object):
     
     def isSign(self):
         code = self.expression[self.pos - 1]
-        return (code == '+') or (code == '-')
+        return (code == '+') or (code == '-') or (code == '!')
     
     def isPositiveSign(self):
         code = self.expression[self.pos - 1]
@@ -1217,7 +1231,11 @@ class Parser(object):
     
     def isNegativeSign(self):
         code = self.expression[self.pos - 1]
-        return code == '-'
+        return code == '-' 
+    
+    def isLogicNot(self):
+        code = self.expression[self.pos - 1]
+        return code == '!' 
     
     def isLeftParenth(self):
         code = self.expression[self.pos]
