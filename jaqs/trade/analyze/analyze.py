@@ -276,7 +276,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.position_change = res
         self.account = account
             
-    def get_returns(self):
+    def get_returns(self, compound_return=True):
         vp_list = {sec: df_profit.loc[:, 'VirtualProfit'] for sec, df_profit in self.daily.viewitems()}
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution
@@ -289,8 +289,12 @@ class AlphaAnalyzer(BaseAnalyzer):
         df_returns = market_values.pct_change(periods=1).fillna(0.0)
         
         df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod(), rsuffix='_cum')
-        df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
-        df_returns.loc[:, 'active'] = df_returns['active_cum'].pct_change(1).fillna(0.0)
+        if compound_return:
+            df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
+            df_returns.loc[:, 'active'] = df_returns['active_cum'].pct_change(1).fillna(0.0)
+        else:
+            df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
+            df_returns.loc[:, 'active_cum'] = df_returns['active'].add(1.0).cumprod(axis=0)
         
         start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
