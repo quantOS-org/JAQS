@@ -1285,7 +1285,55 @@ class DataView(object):
         else:
             self.data_d = merge
         self._add_field(field_name, is_quarterly)
-    
+
+    def remove_field(self, field_names):
+        """
+        Query and append new field to DataView.
+        
+        Parameters
+        ----------
+        field_names : str or list
+            The (custom) field to be removed from dataview.
+        
+        Returns
+        -------
+        bool
+            whether add successfully.
+
+        """
+        if isinstance(field_names, str):
+            field_names = [field_names]
+        elif isinstance(field_names, (list, tuple)):
+            pass
+        else:
+            raise ValueError("field_names must be str or list of str.")
+        
+        for field_name in field_names:
+            # parameter validation
+            if field_name not in self.fields:
+                print "Field name [{:s}] does not exist.".format(field_name)
+                return
+        
+            if self._is_daily_field(field_name):
+                is_quarterly = False
+            elif self._is_quarter_field(field_name):
+                is_quarterly = True
+            else:
+                print "Field name [{}] is a pre-defined field, ignore.".format(field_name)
+                return
+        
+            # remove field data
+            self.data_d = self.data_d.drop(field_name, axis=1, level=1)
+            if is_quarterly:
+                self.data_q = self.data_q.drop(field_name, axis=1, level=1)
+
+            # remove fields name from list
+            self.fields.remove(field_name)
+            if is_quarterly:
+                self.custom_quarterly_fields.remove(field_name)
+            else:
+                self.custom_daily_fields.remove(field_name)
+
     def _is_quarter_field(self, field_name):
         """
         Check whether a field name is quarterly frequency.
