@@ -13,8 +13,8 @@
 #### 引入模块
 
 ```python
-import data_api
-from data_api import DataApi
+from jaqs.util import fileio
+from jaqs.data.dataapi import DataApi
 ```
 #### 登录数据服务器
 ```python
