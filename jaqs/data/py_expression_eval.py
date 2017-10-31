@@ -365,7 +365,10 @@ class Parser(object):
     
     def div(self, a, b):
         (a, b) = self._align_bivariate(a, b)
-        return a / b
+        res = a / b
+        if isinstance(res, pd.DataFrame):
+            res = res.replace([np.inf, -np.inf], np.nan)
+        return res
     
     def mod(self, a, b):
         (a, b) = self._align_bivariate(a, b)
