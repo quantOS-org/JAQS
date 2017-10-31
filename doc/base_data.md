@@ -1,5 +1,9 @@
 # 参考数据
 
+## 调用说明
+- 每个数据表都是通过api.query函数调用，第一个参数view需填入对应的接口名，如：`view="lb.instrumentInfo"` 
+- 每个数据表的输入参数指的是filter参数里面的内容，通过'&'符号拼接，如：`filter="inst_type=&status=1&symbol="` 
+
 ## 证券基础信息表
 
 ### 调用示例
@@ -16,7 +20,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | inst\_type | string | 证券类别 |
 | start_delistdate | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
@@ -59,7 +62,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | start_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
 | end_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
@@ -93,7 +95,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | start_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
 | end_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
@@ -135,7 +136,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | start_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
 | end_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
@@ -165,7 +165,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | start_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
 | end_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
@@ -199,7 +198,6 @@ df, msg = api.query(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | industry1_name | string | 一级行业名称 例如：钢铁|
 | industry2_name | string | 二级行业名称 |
@@ -296,14 +294,14 @@ df, msg = api.query(
                 view="jz.sysConstants", 
                 fields="", 
                 filter="code_type=inst_type", 
-                data_format='pandas')
+                data_format='pandas'
+                )
 ```
 
 ### 输入参数
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | code_type | string | 参数类型 |
 | fields | string | 需要返回字段，多字段以','隔开；为""时返回所有字段 |
 
@@ -324,59 +322,50 @@ df, msg = api.query(
 df, msg = api.query(
                 view="wd.secDailyIndicator",
                 fields='pb,net_assets,ncf,price_level',
-                filter='symbol=000063.SZ&start_date=20170605&end_date=20170701')
+                filter='symbol=000063.SZ&start_date=20170605&end_date=20170701'
+                )
 ```
 
 ### 输入参数
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| view | string | 数据接口名 |
 | symbol | string | 证券代码 |
 | start_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
 | end_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为'YYYY-MM-DD'格式，如'2017-08-09' |
-| fields | string | 需要返回字段，多字段以','隔开；为""时返回所有字段 |
 
 ### 输出参数
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | symbol | string | 证券代码 |
-| trade\_date | string | 参数名称 |
-| currency | string | 货币代码 |
-| total\_market\_value | string | 当日总市值 |
-| float\_market\_value | double | 当日流通市值 |
-| high\_52w | double | 52周最高价 |
-| low\_52w | double | 52周最低价 |
-| pe | double | PE |
-| pb | double | PB |
-| pe\_ttm | double | PE TTM |
-| pcf | double | PCF经营现金流 |
-| pcf\_ttm | double | PCF经营现金流 TTM |
-| ncf | double | 现金净流量 |
-| ncf\_ttm | double | 现金净流量TTM |
-| ps | double | 市销率 |
-| ps\_ttm | double | 市销率 TTM |
-| turnover\_ratio | double | 换手率 |
-| turnover\_ratio\_float | double | 换手率(基准.自由流通股本) |
-| share\_amount | double | 当日总股本 |
-| share\_float | double | 当日流通股本 |
-| close\_price | double | 当日收盘价 |
-| price\_div\_dps | double | 股价/每股派息 (万股 ) |
-| high\_52w\_adj | double | 52周最高价(复权) |
-| low\_52w\_adj | double | 52周最低价（复权） |
-| share\_float\_free | double | 当日自由流通股本 |
-| nppc\_ttm | double | 归属母公司净利润 TTM |
-| nppc\_lyr | double | 归属母公司净利润 LYR |
+| trade\_date | string | 交易日期 |
+| total\_mv | double | 当日总市值 |
+| float\_mv | double | 当日流通市值 |
+| pe | double | 市盈率 |
+| pb\_new | double | 市净率 |
+| pe\_ttm | double | 市盈率TTM |
+| pcf\_ocf | double | 市现率(PCF,经营现金流) |
+| pcf\_ocfttm | double | 市现率(PCF,经营现金流TTM) |
+| pcf\_ncf | double | 市现率(PCF,现金净流量) |
+| pcf\_ncfttm | double | 市现率(PCF,现金净流量TTM) |
+| ps | double | 市销率(PS) |
+| ps\_ttm | double | 市销率(PS,TTM) |
+| turnoverratio | double | 换手率 |
+| freeturnover | double | 换手率(自由流通股本) |
+| total\_share | double | 当日总股本 |
+| float\_share | double | 当日流通股本 |
+| close | double | 当日收盘价 |
+| price\_div\_dps | double | 股价/每股派息 |
+| free\_share | double | 当日自由流通股本 |
+| profit\_ttm | double | 归属母公司净利润(TTM) |
+| profit\_lyr | double | 归属母公司净利润(LYR) |
 | net\_assets | double | 当日净资产 |
-| ncfoa\_ttm | double | 经营活动产生的现金流量净额 TTM |
-| ncfoa\_lyr | double | 经营活动产生的现金流量净额 LYR |
-| rev\_ttm | double | 营业收入 TTM |
-| rev\_lyr | double | 营业收入 LYR |
-| nicce\_ttm | double | 现金及现金等价物净增加额(TTM) |
-| nicce\_lyr | double | 现金及现金等价物净增加额(LYR) |
-| limit\_status | string | 涨跌停状态 |
-| price\_level | double | 最高最低价状态 |
+| cash\_flows\_oper\_act\_ttm | double | 经营活动产生的现金流量净额(TTM) |
+| cash\_flows\_oper\_act\_lyr | double | 经营活动产生的现金流量净额(LYR) |
+| operrev\_ttm | double | 营业收入(TTM) |
+| operrev\_lyr | double | 营业收入(LYR) |
+| limit\_status | Int | 涨跌停状态 |
 
 
 ## 资产负债表
@@ -664,8 +653,8 @@ df, msg = api.query(
 | ebitda | double | 息税折旧摊销前利润 |
 | net\_profit\_after\_ded\_nr\_lp | double | 扣除非经常性损益后净利润 |
 | net\_profit\_under\_intl\_acc\_sta | double | 国际会计准则净利润 |
-| eps\_basic | double | 基本每股收益 |
-| eps\_diluted | double | 稀释每股收益 |
+| s\_fa\_eps\_basic | double | 基本每股收益 |
+| s\_fa\_eps\_diluted | double | 稀释每股收益 |
 | insurance\_expense | double | 保险业务支出 |
 | spe\_bal\_oper\_profit | double | 营业利润差额(特殊报表科目) |
 | tot\_bal\_oper\_profit | double | 营业利润差额(合计平衡项目) |
@@ -813,7 +802,7 @@ df, msg = api.query(
 | plus\_end\_bal\_cash\_equ | double | 加:现金等价物的期末余额 |
 | less\_beg\_bal\_cash\_equ | double | 减:现金等价物的期初余额 |
 | im\_net\_incr\_cash\_cash\_equ | double | 间接法-现金及现金等价物净增加额 |
-| free\_cash\_flow | double | 企业自由现金流量 |
+| free\_cash\_flow | double | 企业自由现金流量(FCFF) |
 | spe\_bal\_cash\_inflows\_oper | double | 经营活动现金流入差额(特殊报表科目) |
 | tot\_bal\_cash\_inflows\_oper | double | 经营活动现金流入差额(合计平衡项目) |
 | spe\_bal\_cash\_outflows\_oper | double | 经营活动现金流出差额(特殊报表科目) |
@@ -866,14 +855,14 @@ df, msg = api.query(
 | symbol | string | 证券代码 |
 | ann\_date | string | 公告日期 |
 | report\_date | string | 报告期 |
-| oper\_rev | double | 营业收入 |
-| oper\_profit | double | 营业利润 |
-| total\_profit | double | 利润总额 |
-| net\_profit\_int\_inc | double | 净利润 |
-| total\_assets | double | 总资产 |
+| oper\_rev | double | 营业收入(元) |
+| oper\_profit | double | 营业利润(元) |
+| total\_profit | double | 利润总额(元) |
+| net\_profit\_int\_inc | double | 净利润(元) |
+| total\_assets | double | 总资产(元) |
 | tot\_shrhldr\_int | double | 股东权益合计 |
-| eps\_diluted | double | 每股收益(摊薄) |
-| roe\_diluted | double | 净资产收益率(摊薄) |
+| eps\_diluted | double | 每股收益(摊薄)(元) |
+| roe\_diluted | double | 净资产收益率(摊薄)(%) |
 | is\_audit | double | 是否审计 |
 | yoy\_int\_inc | double | 去年同期修正后净利润 |
 
@@ -1016,8 +1005,8 @@ df, msg = api.query(
 | stm\_is | double | 折旧与摊销 |
 | ebit | double | 息税前利润 |
 | ebitda | double | 息税折旧摊销前利润 |
-| fcff | double | 企业自由现金流量 |
-| fcfe | double | 股权自由现金流量 |
+| fcff | double | 企业自由现金流量(FCFF) |
+| fcfe | double | 股权自由现金流量(FCFE) |
 | exinterestdebt\_current | double | 无息流动负债 |
 | exinterestdebt\_noncurrent | double | 无息非流动负债 |
 | interestdebt | double | 带息债务 |
@@ -1236,3 +1225,171 @@ df, msg = api.query(
 | in\_date | string | 纳入日期 |
 | out\_date | string | 剔除日期 |
 | is\_new | int | 最新标志 |
+
+
+## 公募基金净值表
+
+### 调用示例
+
+```python
+df, msg = api.query(
+                view="lb.mfNav", 
+                fields="", 
+                filter="", 
+                data_format='pandas')
+```
+
+### 输入参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| start\_date | string | 公告开始日期 |
+| end\_date | string | 公告结束日期 |
+| start\_pdate | string | 截止开始日期 |
+| end\_pdate | string | 截止结束日期 |
+| update\_flag | Int | 数据更新标记 |
+
+### 输出参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| ann\_date | string | 公告日期 |
+| price\_date | string | 截止日期 |
+| nav | double | 单位净值 |
+| nav\_accumulated | double | 累计净值 |
+| div\_accumulated | double | 累计分红 |
+| adj\_factor | double | 复权因子 |
+| currency | string | 货币代码 |
+| netasset | double | 资产净值 |
+| if\_mergedshare | Int | 是否合计数据 |
+| netasset\_total | double | 合计资产净值 |
+| nav\_adjusted | double | 复权单位净值 |
+| update\_flag | int | 数据更新标记 |
+
+## 基金分红表
+
+### 调用示例
+
+```python
+df, msg = api.query(
+                view="lb.mfDividend", 
+                fields="", 
+                filter="", 
+                data_format='pandas')
+```
+
+### 输入参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| start\_date | string | 公告开始日期 |
+| end\_date | string | 公告结束日期 |
+| update\_flag | int | 数据更新标记 |
+
+### 输出参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| ann\_date | string | 公告日期 |
+| ebch\_date | string | 可分配收益基准日 |
+| div\_progress | string | 方案进度 |
+| cash\_dvd | double | 每股派息(元) |
+| currency | string | 货币代码 |
+| record\_date | string | 权益登记日 |
+| ex\_date | string | 除息日 |
+| div\_edexdate | string | 除息日(场外) |
+| pay\_date | string | 派息日 |
+| div\_paydate | string | 派息日(场外) |
+| div\_impdate | string | 分红实施公告日 |
+| sh\_bch\_y | string | 份额基准年度 |
+| bch\_unit | double | 基准基金份额(万份) |
+| eapr | double | 可分配收益(元) |
+| exdiv\_date | string | 净值除权日 |
+| eapr\_amount | double | 收益分配金额(元) |
+| reinv\_bch\_date | string | 红利再投资份额净值基准日 |
+| reinv\_toac\_date | string | 红利再投资到账日 |
+| reinv\_redeem\_date | string | 红利再投资可赎回起始日 |
+| div\_object | string | 分配对象 |
+| div\_ipaydt | string | 收益支付日 |
+| update\_flag | int | 数据更新标记 |
+
+## 基金投资组合表
+
+### 调用示例
+
+```python
+df, msg = api.query(
+                view="lb.mfPortfolio", 
+                fields="", 
+                filter="", 
+                data_format='pandas')
+```
+
+### 输入参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| start\_date | string | 公告开始日期 |
+| end\_date | string | 公告结束日期 |
+| update\_flag | int | 数据更新标记 |
+
+### 输出参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| ann\_date | string | 公告日期 |
+| prt\_enddate | string | 截止日期 |
+| currency | string | 货币代码 |
+| s\_symbol | string | 股票代码 |
+| stk\_value | double | 持有股票市值(元) |
+| stk\_quantity | double | 持有股票数量（股） |
+| stk\_valuetonav | double | 持有股票市值占基金净值比例(%) |
+| posstk\_value | double | 积极投资持有股票市值(元) |
+| posstk\_quantity | double | 积极投资持有股数（股） |
+| posstkto\_nav | double | 积极投资持有股票市值占净资产比例(%) |
+| passtke\_value | double | 指数投资持有股票市值(元) |
+| passtk\_quantity | double | 指数投资持有股数（股） |
+| passtkto\_nav | double | 指数投资持有股票市值占净资产比例(%) |
+| stock\_per | double | 占股票市值比 |
+| float\_shr\_per | double | 占流通股本比例 |
+| update\_flag | int | 数据更新标记 |
+
+## 基金持有债券组合
+
+### 调用示例
+
+```python
+df, msg = api.query(
+                view="lb.mfBondPortfolio", 
+                fields="", 
+                filter="", 
+                data_format='pandas')
+```
+
+### 输入参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| start\_pdate | string | 截止开始日期 |
+| end\_pdate | string | 截止结束日期 |
+| update\_flag | int | 数据更新标记 
+
+### 输出参数
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 证券代码 |
+| prt\_enddate | string | 截止日期 |
+| currency | string | 货币代码 |
+| bond\_code | string | 持有债券代码 |
+| bond\_value | double | 持有债券市值(元) |
+| bond\_quantity | double | 持有债券数量（张） |
+| bond\_valueto\_nav | double | 持有债券市值占基金净值比例(%) |
+| update\_flag | Int | 数据更新标记 |
