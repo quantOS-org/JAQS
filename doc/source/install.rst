@@ -91,7 +91,7 @@ git clone
 
 |image3|
 
-.. |image0| image:: https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac.png
-.. |image1| image:: https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac_m.png
-.. |image2| image:: https://github.com/quantOS-org/jaqs/blob/master/doc/img/anac_ipython.png
-.. |image3| image:: https://github.com/quantOS-org/jaqs/blob/master/doc/img/jaqs_test.png
+.. |image0| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac.png
+.. |image1| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_m.png
+.. |image2| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_ipython.png
+.. |image3| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/jaqs_test.png

@@ -1,12 +1,11 @@
-# 数据视图
 
 数据视图(DataView)将各种行情数据和参考数据进行了封装，方便用户使用数据。
 
-## 初始化
+### 初始化
 
 DataView初始化工作主要包括创建DataView和DataService、初始化配置、数据准备三步。
 
-### 创建DataView和DataService
+#### 创建DataView和DataService
 
 
 DataService提供原始的数据，目前jaqs已经提供远程数据服务类（RemoteDataService），可以通过互联网获取行情数据和参考数据。
@@ -18,7 +17,7 @@ dv = DataView()
 ds = RemoteDataService()
 ```
 
-### 初始化配置 
+#### 初始化配置
 通过init_from_config函数进行初始化配置，配置参数如下表所示：
 
 | 字段 | 类型 | 说明 | 缺省值 |
@@ -40,16 +39,16 @@ props = {'start_date': 20160601, 'end_date': 20170601, 'symbol': secs,
 dv.init_from_config(props, data_api=ds)
 ```
 
-### 数据准备
+#### 数据准备
 
 从数据服务获取数据：
 ```python
 dv.prepare_data()
 ```
 
-## 获取数据
+### 获取数据
 
-### 数据结构说明
+#### 数据结构说明
 
 DataView用一个三维的数据结构保存的所需数据，其三维数据轴分别为：
 
@@ -57,7 +56,7 @@ DataView用一个三维的数据结构保存的所需数据，其三维数据轴
 2. 交易日期，如 20150202, 20150203
 3. 数据字段，如 open, high, low, close
 
-### 根据日期获取数据: 
+#### 根据日期获取数据:
 
 使用get_snapshot()函数来获取某日的数据快照，输入参数见下表：
 
@@ -76,7 +75,7 @@ snap1 = dv.get_snapshot(20170504, symbol='600030.SH,000063.SZ', fields='close,pb
 
 返回结果示例：
 
-###根据数据字段获取数据
+#### 根据数据字段获取数据
 
 使用get_ts()函数获取某个数据字段的时间序列，输入参数见下表：
 
@@ -95,8 +94,8 @@ ts1 = dv.get_ts('close', symbol='600030.SH,000063.SZ',
             start_date=20170101, end_date=20170302)
 ```
 
-## 数据视图及保存
-### 保存DataView到文件
+### 数据视图及保存
+#### 保存DataView到文件
 
 使用save_dataview()函数将当前数据视图保存到指定文件夹，保存格式为h5文件。函数输入参数如下：
 
@@ -111,7 +110,7 @@ folder_path = '../output/prepared'
 dv.save_dataview(folder_path=folder_path)
 ```
 
-### 读取已经保存的DataView
+#### 读取已经保存的DataView
 利用load_dataview()函数，DataView可以不经初始化，直接读取已经保存的DataView数据。函数输入参数如下所示：
 
 |字段|类型|说明|缺省值|
@@ -126,8 +125,8 @@ folder_path = '../output/prepared/20160601_20170601_freq=1D'
 dv.load_dataview(folder=folder_path)
 ```
 
-## 添加数据
-### 添加字段
+### 添加数据
+#### 添加字段
 利用add_field()函数可以添加当前DataView没有包含的数据，输入参数如下：
 
 |字段|类型|说明|缺省值|
@@ -141,7 +140,7 @@ ds = RemoteDataService()
 dv.add_field('total_share', ds)
 ```
 
-### 添加自定义公式数据
+#### 添加自定义公式数据
 利用add_formula()函数可以添加当前DataView添加自定义公式数据字段，输入参数如下所示：
 
 |字段|类型|说明|缺省
@@ -162,7 +161,7 @@ dv.add_formula("myfactor", 'close / open', is_quarterly=False)
 | ---| ---|---|
 |+|加法运算|close + open|
 |-|减法运算|close - open|
-|*|乘法运算|vwap * volume|
+| * |乘法运算|vwap * volume|
 |/|除法运算|close / open|
 |^|幂函数|close ^ 2|
 |%|取余函数|oi % 10 |
@@ -173,7 +172,7 @@ dv.add_formula("myfactor", 'close / open', is_quarterly=False)
 |>=|大于等于|close >= open|
 |<=|小于等于|close <= open|
 |&&|逻辑与|(close > open) && (close > vwap)|
-|&#124;&#124;|逻辑或| (close > open) &#124;&#124;(close > vwap)|
+|&&|逻辑或| (close > open) && (close > vwap)|
 |Sin(x)|正弦函数|Sin(close/open) |
 |Cos(x)|余弦函数|Cos(close/open) |
 |Tan(x)|正切函数|Tan(close/open) |
