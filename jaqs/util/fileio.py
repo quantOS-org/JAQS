@@ -67,3 +67,25 @@ def save_json(serializable, file_name):
 def join_relative_path(*paths):
     """Get absolute path using paths that are relative to project root."""
     return os.path.abspath(os.path.join(SOURCE_ROOT_DIR, *paths))
+
+
+def fig2base64(fig, format='png'):
+    """
+    
+    Parameters
+    ----------
+    fig : matplotlib.fig.Figure
+    format : str
+        Eg. png, jpg
+
+    Returns
+    -------
+
+    """
+    import cStringIO
+    import base64
+    str_io = cStringIO.StringIO()
+    fig.savefig(str_io, format=format)
+    str_io.seek(0)
+    res = base64.b64encode(str_io.read())
+    return res
