@@ -187,6 +187,18 @@ def test_remote_data_service_inst_info():
     assert res.at[sec, 'multiplier'] == 1
     assert abs(res.at[sec, 'pricetick'] - 0.01) < 1e-2
     assert res.at[sec, 'buylot'] == 100
+
+
+def test_remote_data_service_index_weight():
+    ds = RemoteDataService()
+    df = ds.get_index_weights(index='000300.SH', trade_date=20140101)
+    assert df.shape[0] == 300
+    assert abs(df['weight'].sum() - 100) < 1.0
+    
+    df = ds.get_index_weights(index='000016.SH', trade_date=20140101)
+    assert df.shape[0] == 50
+    assert abs(df['weight'].sum() - 100) < 1.0
+    
     
 if __name__ == "__main__":
     import time

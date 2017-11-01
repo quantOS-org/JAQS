@@ -434,6 +434,35 @@ class RemoteDataService(DataService):
                           filter=filter_argument,
                           orderby="trade_date")
 
+    def get_index_weights(self, index, trade_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+        
+        Parameters
+        ----------
+        index : str
+            separated by ','
+        trade_date : int
+
+        Returns
+        -------
+        list
+
+        """
+        if index == '000300.SH':
+            index = '399300.SZ'
+            
+        filter_argument = self._dic2url({'index_code': index,
+                                         'trade_date': trade_date})
+    
+        df_io, msg = self.query("lb.indexWeight", fields="",
+                                filter=filter_argument)
+        if msg != '0,':
+            print msg
+        df_io = df_io.set_index('symbol')
+        df_io = df_io.astype({'weight': float})
+        return df_io
+
     def _get_index_comp(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -717,7 +746,7 @@ class RemoteDataService(DataService):
         if msg != '0,':
             print msg
 
-        dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int}
+        dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int, 'inst_type': int}
         cols = set(df_raw.columns)
         dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
         
