@@ -29,6 +29,22 @@ def test_write():
     dv.save_dataview(folder_path=folder_path)
 
 
+def test_write_future():
+    from jaqs.data.dataservice import RemoteDataService
+    
+    ds = RemoteDataService()
+    dv = DataView()
+    
+    secs = 'rb1710.SHF,j1710.DCE'
+    props = {'start_date': 20170401, 'end_date': 20170901, 'symbol': secs,
+             'fields': 'open,close,high,low,volume,oi',
+             'freq': 1, 'all_price': False}
+    
+    dv.init_from_config(props, data_api=ds)
+    dv.prepare_data()
+    assert dv.data_d.shape == (145, 14)
+    
+    
 def test_load():
     dv = DataView()
     folder_path = '../output/prepared/20160601_20170601_freq=1D'
