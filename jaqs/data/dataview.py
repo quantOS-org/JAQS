@@ -724,8 +724,11 @@ class DataView(object):
     
     def _prepare_adj_factor(self):
         """Query and append daily adjust factor for prices."""
-        # TODO if all symbols are index, we do not fetch adj_factor
-        symbol_str = ','.join(self.symbol)
+        mask_stocks = self.data_inst['inst_type'] == 1
+        if mask_stocks.sum() == 0:
+            return
+        symbol_stocks = self.data_inst.loc[mask_stocks].index.values
+        symbol_str = ','.join(symbol_stocks)
         df_adj = self.data_api.get_adj_factor_daily(symbol_str,
                                                     start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
         self.append_df(df_adj, 'adjust_factor', is_quarterly=False)
@@ -778,10 +781,10 @@ class DataView(object):
             print "Query benchmar member info..."
             self._prepare_comp_info()
             
-            group_fields = self._get_fields('group', self.fields)
-            if group_fields:
-                print "Query groups (industry)..."
-                self._prepare_group(group_fields)
+        group_fields = self._get_fields('group', self.fields)
+        if group_fields:
+            print "Query groups (industry)..."
+            self._prepare_group(group_fields)
 
         print "Data has been successfully prepared."
 
@@ -1274,7 +1277,12 @@ class DataView(object):
         else:
             the_data = self.data_d
             
-        multi_idx = pd.MultiIndex.from_product([the_data.columns.levels[0], [field_name]])
+        exist_symbols = the_data.columns.levels[0]
+        if len(df.columns) < len(exist_symbols):
+            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
+            df2.update(df)
+            df = df2
+        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
         df.columns = multi_idx
         
         merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
