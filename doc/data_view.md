@@ -3,6 +3,15 @@
 
 数据视图(DataView)将各种行情数据和参考数据进行了封装，方便用户使用数据。
 
+### DataView做什么
+
+将频繁使用的`DataFrame`操作自动化，使用者操作数据时尽量只考虑业务需求而不是技术实现：
+1. 根据字段名，自动从不同的数据api获取数据
+2. 按时间、标的整理对齐（财务数据按发布日期对齐）
+3. 在已有数据基础上，添加字段、加入自定义数据或根据公式计算新数据
+4. 数据查询
+5. 本地存储
+
 ### 初始化
 
 DataView初始化工作主要包括创建DataView和DataService、初始化配置、数据准备三步。
@@ -34,9 +43,12 @@ ds = RemoteDataService()
 示例代码：
 
 ```python
+dv = DataView()
+ds = RemoteDataService()
+
 secs = '600030.SH,000063.SZ,000001.SZ'
 props = {'start_date': 20160601, 'end_date': 20170601, 'symbol': secs,
-       'fields': 'open,close,high,low,volume,pb,net_assets,ncf',
+       'fields': 'open,close,high,low,volume,pb,net_assets,eps_basic',
        'freq': 1}
 dv.init_from_config(props, data_api=ds)
 ```
@@ -60,7 +72,7 @@ DataView用一个三维的数据结构保存的所需数据，其三维数据轴
 
 #### 根据日期获取数据:
 
-使用get_snapshot()函数来获取某日的数据快照，输入参数见下表：
+使用get_snapshot()函数来获取某日的数据快照（在时间轴切片），输入参数见下表：
 
 |字段|类型|说明|缺省值|
 | ---| ---|---|---|
@@ -79,7 +91,7 @@ snap1 = dv.get_snapshot(20170504, symbol='600030.SH,000063.SZ', fields='close,pb
 
 #### 根据数据字段获取数据
 
-使用get_ts()函数获取某个数据字段的时间序列，输入参数见下表：
+使用get_ts()函数获取某个数据字段的时间序列（在字段轴切片），输入参数见下表：
 
 |字段|类型|说明|缺省值|
 | ---| ---|---|---|
@@ -97,6 +109,10 @@ ts1 = dv.get_ts('close', symbol='600030.SH,000063.SZ',
 ```
 
 ### 数据视图及保存
+
+- 可以读取修改后继续存储
+- 默认覆盖
+
 #### 保存DataView到文件
 
 使用save_dataview()函数将当前数据视图保存到指定文件夹，保存格式为h5文件。函数输入参数如下：
@@ -108,9 +124,16 @@ ts1 = dv.get_ts('close', symbol='600030.SH,000063.SZ',
 
 示例代码：
 ```python
-folder_path = '../output/prepared'
-dv.save_dataview(folder_path=folder_path)
+dv.save_dataview('prepared', 'demo')
 ```
+
+
+    Store data...
+    Dataview has been successfully saved to:
+    /home/user/prepared/demo
+
+    You can load it with load_dataview('/home/user/prepared/demo')
+
 
 #### 读取已经保存的DataView
 利用load_dataview()函数，DataView可以不经初始化，直接读取已经保存的DataView数据。函数输入参数如下所示：
@@ -123,11 +146,18 @@ dv.save_dataview(folder_path=folder_path)
 示例代码：
 ```python
 dv = DataView()
-folder_path = '../output/prepared/20160601_20170601_freq=1D'
-dv.load_dataview(folder=folder_path)
+dv.load_dataview('/home/user/prepared/demo')
 ```
 
+    Dataview loaded successfully.
+
+
 ### 添加数据
+
+- 从DataApi获取更多字段: `dv.add_field('roe')`
+- 加入自定义DataFrame: `dv.append_df(name, df)`
+- 根据公式计算衍生指标: `dv.add_formula(name, formula, is_quarterly=False)`
+
 #### 添加字段
 利用add_field()函数可以添加当前DataView没有包含的数据，输入参数如下：
 
@@ -137,12 +167,11 @@ dv.load_dataview(folder=folder_path)
 |data_api | BaseDataServer |缺省时为None，即利用DataView初始化时传入的DataService添加数据；当DataView是从文件中读取得到时，该DataView没有DataService，需要外部传入一个DataService以添加数据。|None|
 
 示例代码：
-```python
-ds = RemoteDataService()
-dv.add_field('total_share', ds)
-```
+
+.
 
 #### 添加自定义公式数据
+
 利用add_formula()函数可以添加当前DataView添加自定义公式数据字段，输入参数如下所示：
 
 |字段|类型|说明|缺省
@@ -154,9 +183,42 @@ dv.add_field('total_share', ds)
 |data\_api|BaseDataServer|数据服务|None|
 
 示例代码：
+
+
 ```python
-dv.add_formula("myfactor", 'close / open', is_quarterly=False)
+## 日频0/1指标：是否接近涨跌停
+dv.add_formula('limit_reached', 'Abs((open - Delay(close, 1)) / Delay(close, 1)) > 0.095', is_quarterly=False)
+dv.get_ts('limit_reached').iloc[:, 100:].head(2)
 ```
+
+
+
+```python
+## 日频指标：与52周高点的百分比
+dv.add_formula('how_high_52w', 'close_adj / Ts_Max(close_adj, 252)', is_quarterly=False)
+dv.get_ts('how_high_52w').tail().applymap(lambda x: round(100*x, 1))
+```
+
+
+```python
+## 日频指标：量价背离
+dv.add_formula('price_volume_divert', 'Correlation(vwap_adj, volume, 10)', is_quarterly=False)
+dv.get_snapshot(20171009, fields='price_volume_divert')
+```
+
+
+```python
+## 季频指标：eps增长率
+dv.add_formula('eps_growth', 'Return(eps_basic, 4)', is_quarterly=True)
+dv.get_ts('eps_growth', start_date=20160810).head()
+```
+
+
+```python
+ds = RemoteDataService()
+dv.add_field('total_share', ds)
+```
+
 目前支持的公式如下表所示：
 
 |公式|说明|示例|
