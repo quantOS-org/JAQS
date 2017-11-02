@@ -103,6 +103,11 @@ class ORDER_TIME_IN_FORCE(ReprStrEnum):
     IOC = 'ioc'
 
 
+@unique
+class CALENDAR_CONST(ReprIntEnum):
+    TRADE_DAYS_PER_YEAR = 242
+
+
 if __name__ == "__main__":
     """What below are actually unit tests. """
     
