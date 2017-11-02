@@ -172,7 +172,7 @@ dv.add_formula("myfactor", 'close / open', is_quarterly=False)
 |>=|大于等于|close >= open|
 |<=|小于等于|close <= open|
 |&&|逻辑与|(close > open) && (close > vwap)|
-|&&|逻辑或| (close > open) && (close > vwap)|
+|&#124;&#124;|逻辑或| (close > open) &#124;&#124;(close > vwap)|
 |Sin(x)|正弦函数|Sin(close/open) |
 |Cos(x)|余弦函数|Cos(close/open) |
 |Tan(x)|正切函数|Tan(close/open) |
