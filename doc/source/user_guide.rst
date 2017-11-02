@@ -10,3 +10,5 @@
 .. include:: data_view.rst
 
 .. include:: research.rst
+
+.. include:: backtest.rst
