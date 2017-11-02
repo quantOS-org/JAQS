@@ -10,7 +10,7 @@ def test_inst_manager():
     assert inst_obj.market == 'SZ'
     assert inst_obj.symbol == sym
     assert inst_obj.multiplier == 1
-    assert inst_obj.inst_type == '1'
+    assert inst_obj.inst_type == 1
 
 
 if __name__ == "__main__":

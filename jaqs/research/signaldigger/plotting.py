@@ -52,7 +52,7 @@ def plotting_context(context='notebook', font_scale=1.5, rc=None):
     context : str, optional
         Name of seaborn context.
     font_scale : float, optional
-        Scale font by factor font_scale.
+        Scale font by signal font_scale.
     rc : dict, optional
         Config flags.
         By default, {'lines.linewidth': 1.5}
@@ -203,7 +203,7 @@ def plot_information_table(ic_data):
 
 
 def plot_quantile_statistics_table(tb):
-    print("\n\nValue of Factors of Different Quantiles Statistics")
+    print("\n\nValue of signals of Different Quantiles Statistics")
     plot_table(tb)
 
 
@@ -218,7 +218,7 @@ def plot_quantile_returns_bar(mean_ret_by_q,
                               # ylim_percentiles=None,
                               ax=None):
     """
-    Plots mean period wise returns for factor quantiles.
+    Plots mean period wise returns for signal quantiles.
 
     Parameters
     ----------
@@ -243,7 +243,7 @@ def plot_quantile_returns_bar(mean_ret_by_q,
     
     mean_ret_by_q.multiply(DECIMAL_TO_BPS) \
         .plot(kind='bar',
-              title="Mean Return (on symbol, time) By Factor Quantile", ax=ax)
+              title="Mean Return (on symbol, time) By signal Quantile", ax=ax)
     ax.set(xlabel='Quantile', ylabel='Mean Return (bps)',
            ylim=(ymin, ymax))
     
@@ -255,7 +255,7 @@ def plot_quantile_returns_bar(mean_ret_by_q,
 
 def plot_quantile_returns_ts(mean_ret_by_q, ax=None):
     """
-    Plots mean period wise returns for factor quantiles.
+    Plots mean period wise returns for signal quantiles.
 
     Parameters
     ----------
@@ -277,8 +277,8 @@ def plot_quantile_returns_ts(mean_ret_by_q, ax=None):
     ret_wide.index = pd.to_datetime(ret_wide.index, format="%Y%m%d")
     ret_wide = ret_wide.rolling(window=22).mean()
     
-    ret_wide.plot(lw=2, ax=ax, cmap=cm.get_cmap('RdBu'))
-    ax.legend()
+    ret_wide.plot(lw=1.2, ax=ax, cmap=cm.get_cmap('RdBu'))
+    ax.legend(loc='upper left')
     ymin, ymax = ret_wide.min().min(), ret_wide.max().max()
     ax.set(ylabel='Return',
            title="Daily Quantile Return (equal weight within quantile)",
@@ -298,7 +298,7 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
                                                   bandwidth=1,
                                                   ax=None):
     """
-    Plots mean period wise returns for factor quantiles.
+    Plots mean period wise returns for signal quantiles.
 
     Parameters
     ----------
@@ -355,14 +355,11 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
     lower = mean_returns_spread_bps.values - (std_err_bps * bandwidth)
     
     mean_returns_spread_bps.plot(alpha=0.4, ax=ax, lw=0.7, color='navy')
-    mean_returns_spread_bps.rolling(22).mean().plot(color='royalblue',
+    mean_returns_spread_bps.rolling(22).mean().plot(color='green',
                                                     alpha=0.7,
                                                     ax=ax)
-    ax.fill_between(mean_returns_spread.index,
-                    lower,
-                    upper,
-                    alpha=0.3,
-                    color='forestgreen')
+    # ax.fill_between(mean_returns_spread.index, lower, upper,
+    #                 alpha=0.3, color='indianred')
     ax.axhline(0.0, linestyle='-', color='black', lw=1, alpha=0.8)
 
     ax.legend(['mean returns spread', '1 month moving avg'], loc='upper right')
@@ -382,7 +379,7 @@ def plot_cumulative_return(ret, ax=None, title=None):
     Parameters
     ----------
     ret : pd.Series
-        Period wise returns of dollar neutral portfolio weighted by factor
+        Period wise returns of dollar neutral portfolio weighted by signal
         value.
     ax : matplotlib.Axes, optional
         Axes upon which to plot.
@@ -397,12 +394,21 @@ def plot_cumulative_return(ret, ax=None, title=None):
     
     ret = ret.copy()
     
-    cum = pfm.daily_ret_to_cum(ret)
+    cum = ret  # pfm.daily_ret_to_cum(ret)
     cum.index = pd.to_datetime(cum.index, format="%Y%m%d")
     
     cum.plot(ax=ax, lw=3, color='indianred', alpha=1.0)
-    ax.axhline(1.0, linestyle='-', color='black', lw=1)
-
+    ax.axhline(0.0, linestyle='-', color='black', lw=1)
+    
+    metrics = pfm.calc_performance_metrics(cum, cum_return=True, compound=False)
+    ax.text(.85, .30,
+            "Ann.Ret. = {:.1f}%\nAnn.Vol. = {:.1f}%\nSharpe = {:.2f}".format(metrics['ann_ret']*100,
+                                                                           metrics['ann_vol']*100,
+                                                                           metrics['sharpe']),
+            fontsize=12,
+            bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5},
+            transform=ax.transAxes,
+            verticalalignment='top')
     if title is None:
         title = "Cumulative Return"
     ax.set(ylabel='Cumulative Return',
@@ -412,14 +418,14 @@ def plot_cumulative_return(ret, ax=None, title=None):
     return ax
 
 
-def plot_cumulative_returns_by_quantile(quantile_ret_dic, ax=None):
+def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     """
-    Plots the cumulative returns of various factor quantiles.
+    Plots the cumulative returns of various signal quantiles.
 
     Parameters
     ----------
-    quantile_ret_dic : dict of {int: pd.DataFrame}
-        Cumulative returns by factor quantile.
+    quantile_ret : int: pd.DataFrame
+        Cumulative returns by signal quantile.
     ax : matplotlib.Axes, optional
         Axes upon which to plot.
 
@@ -431,14 +437,13 @@ def plot_cumulative_returns_by_quantile(quantile_ret_dic, ax=None):
     if ax is None:
         f, ax = plt.subplots(1, 1, figsize=(18, 6))
     
-    df_ret = pd.concat({key: value['mean'] for key, value in quantile_ret_dic.items()}, axis=1)
-    cum_ret = pfm.daily_ret_to_cum(df_ret)
+    cum_ret = quantile_ret
     cum_ret.index = pd.to_datetime(cum_ret.index, format="%Y%m%d")
     
     cum_ret.plot(lw=2, ax=ax, cmap=cm.get_cmap('RdBu'))
-    ax.axhline(1.0, linestyle='-', color='black', lw=1)
+    ax.axhline(0.0, linestyle='-', color='black', lw=1)
     
-    ax.legend()
+    ax.legend(loc='upper left')
     ymin, ymax = cum_ret.min().min(), cum_ret.max().max()
     ax.set(ylabel='Cumulative Returns',
            title='Cumulative Return of Each Quantile (equal weight within quantile)',
@@ -447,6 +452,16 @@ def plot_cumulative_returns_by_quantile(quantile_ret_dic, ax=None):
            # yticks=np.linspace(ymin, ymax, 5),
            ylim=(ymin, ymax))
     
+    sharpes = ["sharpe_{:d} = {:.2f}".format(col, pfm.calc_performance_metrics(ser, cum_return=True,
+                                                                               compound=False)['sharpe'])
+               for col, ser in cum_ret.iteritems()]
+    ax.text(.02, .30,
+            '\n'.join(sharpes),
+            fontsize=12,
+            bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5},
+            transform=ax.transAxes,
+            verticalalignment='top')
+
     ax.yaxis.set_major_formatter(ScalarFormatter())
     
     return ax
@@ -459,7 +474,7 @@ def plot_cumulative_returns_by_quantile(quantile_ret_dic, ax=None):
 def plot_ic_ts(ic, period, ax=None):
     """
     Plots Spearman Rank Information Coefficient and IC moving
-    average for a given factor.
+    average for a given signal.
 
     Parameters
     ----------
@@ -509,7 +524,7 @@ def plot_ic_ts(ic, period, ax=None):
 
 def plot_ic_hist(ic, period, ax=None):
     """
-    Plots Spearman Rank Information Coefficient histogram for a given factor.
+    Plots Spearman Rank Information Coefficient histogram for a given signal.
 
     Parameters
     ----------

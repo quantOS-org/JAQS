@@ -30,7 +30,7 @@ def save_dataview(data_folder_name):
     dv.save_dataview(folder_path=fileio.join_relative_path('../output/prepared'), sub_folder=data_folder_name)
 
 
-def analyze_factor(data_folder_name):
+def analyze_signal(data_folder_name):
     # --------------------------------------------------------------------------------
     # Step.1 load dataview
     dv = DataView()
@@ -52,23 +52,24 @@ def analyze_factor(data_folder_name):
     mask_all = np.logical_or(mask_sus, np.logical_or(mask_index_member, mask_limit_reached))
 
     # --------------------------------------------------------------------------------
-    # Step.3 get factor, benchmark and price data
+    # Step.3 get signal, benchmark and price data
     # dv.add_formula('illi_daily', '(high - low) * 1000000000 / turnover', is_quarterly=False)
     # dv.add_formula('illi', 'Ewma(illi_daily, 11)', is_quarterly=False)
     
     # dv.add_formula('size', 'Log(float_mv)', is_quarterly=False)
     # dv.add_formula('value', '-1.0/pb', is_quarterly=False)
     # dv.add_formula('liquidity', 'Ts_Mean(volume, 22) / float_mv', is_quarterly=False)
+    dv.add_formula('divert', '- Correlation(vwap_adj, volume, 10)', is_quarterly=False)
     
-    factor = dv.get_ts('close').shift(1, axis=0)  # avoid look-ahead bias
+    signal = dv.get_ts('divert').shift(1, axis=0)  # avoid look-ahead bias
     price = dv.get_ts('close_adj')
     price_bench = dv.data_benchmark
 
     # Step.4 analyze!
-    my_period = 22
+    my_period = 5
     obj = signaldigger.digger.SignalDigger(output_folder=fileio.join_relative_path('../output'),
                                            output_format='pdf')
-    obj.process_factor_before_analysis(factor, price=price,
+    obj.process_signal_before_analysis(signal, price=price,
                                        mask=mask_all,
                                        n_quantiles=5, period=my_period,
                                        benchmark_price=price_bench,
@@ -82,4 +83,4 @@ def analyze_factor(data_folder_name):
 if __name__ == "__main__":
     sub_folder_name = 'guotai_reverse_dv'
     # save_dataview(sub_folder_name)
-    analyze_factor(sub_folder_name)
+    analyze_signal(sub_folder_name)
