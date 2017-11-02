@@ -223,20 +223,21 @@ dv.add_field('total_share', ds)
 
 |公式|说明|示例|
 | ---| ---|---|
-|+|加法运算|close + open|
-|-|减法运算|close - open|
-| * |乘法运算|vwap * volume|
-|/|除法运算|close / open|
-|^|幂函数|close ^ 2|
-|%|取余函数|oi % 10 |
-|==|判断是否相等|close == open|
-|!=|判断是否不等|close != open|
-|>|大于|close > open|
-|<|小于|close < open|
-|>=|大于等于|close >= open|
-|<=|小于等于|close <= open|
-|&&|逻辑与|(close > open) && (close > vwap)|
-|&#124;&#124;|逻辑或| (close > open) &#124;&#124;(close > vwap)|
+| `+` |加法运算|close + open|
+| `-` |减法运算|close - open|
+| `*` |乘法运算|vwap * volume|
+| `/` |除法运算|close / open|
+| `^` |幂函数|close ^ 2|
+| `%` |取余函数|oi % 10 |
+| `==` |判断是否相等|close == open|
+| `!=` |判断是否不等|close != open|
+| `>` |大于|close > open|
+| `<` |小于|close < open|
+| `>=` |大于等于|close >= open|
+| `<=` |小于等于|close <= open|
+| `&&` |逻辑与|(close > open) && (close > vwap)|
+| `||` |逻辑或| (close > open) &#124;&#124;(close > vwap)|
+| `!` |逻辑非|!(close>open)|
 |Sin(x)|正弦函数|Sin(close/open) |
 |Cos(x)|余弦函数|Cos(close/open) |
 |Tan(x)|正切函数|Tan(close/open) |
@@ -246,9 +247,8 @@ dv.add_field('total_share', ds)
 |Ceil(x)|向上取整|Ceil(high) |
 |Floor(x)|向下取整|Floor(low)|
 |Round(x)|四舍五入|Round（close）|
-|-x|对x取负|-close|
-|!|逻辑非|!(close>open)|
 |Sign(x)|取 x 正负号，返回以-1，0和1标志|Sign(close-open)|
+|-x|对x取负|-close|
 |Max(x,y)|取 x 和 y 同位置上的较大值组成新的DataFrame返回|Max(close, open)|
 |Min(x,y)|取 x 和 y 同位置上的较小值组成新的DataFrame返回|Min(close,open)|
 |Delay(x,n)|时间序列函数， n 天前 x 的值|Delay(close,1) 表示前一天收盘价|
