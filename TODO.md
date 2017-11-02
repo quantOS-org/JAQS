@@ -37,10 +37,10 @@
 -[] when fetching data, cache fetched data. So if fail, we do not need to fetch all data again.
 -[x] if data of some symbols is missing, dv.data_d or dv.data_q will be wrong
 -[x] '&&' operator can not be True in isOps2()
--[] when should it fetches price_adj
+-[x] when should it fetches price_adj
 
 # Code Improvement of DataView
--[] improve get, get_quarter_ts methods.
+-[x] improve get, get_quarter_ts methods.
 
 # Latest Plan
 1. single factor pre-process: extreme, standardize, neutral
@@ -54,13 +54,17 @@
 - self defined index; commidity index
 
 # Backtest
--[] do not trade symbols that are not index members
+-[x] do not trade symbols that are not index members
 
 # Analyze
--[] jinja2 search path does not work on Windows
+-[x] jinja2 search path does not work on Windows
 
 # on branch alphabacktest
 -[x] register signal function, no activation needed
 -[x] limit reachers: in re_balance_plan_after_open, set weights to zero
 -[x] index members: in re_balance_plan_before_open, set weights to zero
 -[x] stock selection: use StockSelector class.
+
+# Future
+-[] Python3 support
+-[] pandas api version
