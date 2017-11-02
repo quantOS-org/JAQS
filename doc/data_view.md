@@ -236,7 +236,7 @@ dv.add_field('total_share', ds)
 |>=|大于等于|close >= open|
 |<=|小于等于|close <= open|
 |&&|逻辑与|(close > open) && (close > vwap)|
-|&&|逻辑或| (close > open) && (close > vwap)|
+|&#124;&#124;|逻辑或| (close > open) &#124;&#124;(close > vwap)|
 |Sin(x)|正弦函数|Sin(close/open) |
 |Cos(x)|余弦函数|Cos(close/open) |
 |Tan(x)|正切函数|Tan(close/open) |
@@ -269,14 +269,14 @@ dv.add_field('total_share', ds)
 |Delta(x,n)|时间序列函数，计算 x 当前值与n天前的值的差|Delta(close,5) |
 |Return(x,n,log)|时间序列函数，计算x值n天的增长率，当log为False时，计算线性增长;当log为True时，计算对数增长|Return(close,5,True)计算一周对数收益|
 |Ts_Mean(x，n)|时间序列函数，计算 x 中的值在过去n天的平均值|Ts_Mean(close,5)|
-|Ts_Min(x，n)|时间序列函数，计算 x 中的值在过去n天的最小值|Ts_Mean(close，5)|
-|Ts_Max(x，n)|时间序列函数，计算 x 中的值在过去n天的最大值|Ts_Min(close，5)|
-|Ts_Skewness(x，n)|时间序列函数，计算 x 中的值在过去n天的偏度|Ts_Max(close，5)|
-|Ts_Kurtosis(x，n)|时间序列函数，计算 x 中的值在过去n天的峰度|Ts_Skewness(close，20)|
-|Tail(x，y， n)|如果 x 的值介于 lower 和 upper，则将其设定为 newval|Ts_Kurtosis(close，20)|
+|Ts_Min(x，n)|时间序列函数，计算 x 中的值在过去n天的最小值|Ts_Min(close，5)|
+|Ts_Max(x，n)|时间序列函数，计算 x 中的值在过去n天的最大值|Ts_Max(close，5)|
+|Ts_Skewness(x，n)|时间序列函数，计算 x 中的值在过去n天的偏度|Ts_Skewness(close，20)|
+|Ts_Kurtosis(x，n)|时间序列函数，计算 x 中的值在过去n天的峰度|Ts_Kurtosis(close，20)|
+|Tail(x, lower, upper, newval)|如果 x 的值介于 lower 和 upper，则将其设定为 newval|Tail(close/open, 0.99, 1.01, 1.0)|
 |Step(n)|Step(n) 为每个标的创建一个向量，向量中 n 代表最新日期，n-1 代表前一天，以此类推。|Step(30)|
-|Decay_linear(x,n)|时间序列函数，过去n天的线性衰减函数。Decay_linear(x, n) = (x[date] * n + x[date - 1] * (n - 1) + … + x[date – n -| 1]) / (n + (n - 1) + … + 1)|Decay_linear(close,15)|
-|Decay_exp(x,f,n)|时间序列函数, 过去 n 天的指数衰减函数，其中 f 是平滑因子。这里 f 是平滑因子，可以赋一个小于 1 的值。Decay_exp(x, |f, n) = (x[date] + x[date - 1] * f + … +x[date – n - 1] * (f ^ (n – 1))) / (1 + f + … + f ^ (n - 1))|Decay_exp(close,0.9,10)|
+|Decay_linear(x,n)|时间序列函数，过去n天的线性衰减函数。Decay_linear(x, n) = (x[date] * n + x[date - 1] * (n - 1) + … + x[date – n - 1]) / (n + (n - 1) + … + 1)|Decay_linear(close,15)|
+|Decay_exp(x,f,n)|时间序列函数, 过去 n 天的指数衰减函数，其中 f 是平滑因子。这里 f 是平滑因子，可以赋一个小于 1 的值。Decay_exp(x, f, n) = (x[date] + x[date - 1] * f + … +x[date – n - 1] * (f ^ (n – 1))) / (1 + f + … + f ^ (n - 1))|Decay_exp(close,0.9,10)|
 |Pow(x,y)|幂函数x^y|Pow(close,2)|
 |SignedPower(x,e)|等价于Sign(x) * (Abs(x)^e)|SignedPower(close-open, 0.5)|
 |If(cond,x,y)|cond为True取x的值，反之取y的值|If(close > open, close, open) 表示取open和close的较大值|
