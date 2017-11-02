@@ -21,7 +21,7 @@ A detailed step-by-step description of installation.
    install
 
 
-User Guide
+用户手册
 -------------
 
 一个简洁清晰的入门指南, 涵盖各个功能模块.

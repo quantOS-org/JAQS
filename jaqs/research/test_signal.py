@@ -80,6 +80,6 @@ def analyze_factor(data_folder_name):
 
 
 if __name__ == "__main__":
-    sub_folder_name = 'test_signal'
+    sub_folder_name = 'guotai_reverse_dv'
     # save_dataview(sub_folder_name)
     analyze_factor(sub_folder_name)

@@ -1,8 +1,4 @@
-# 入门指南
-
-本页面给用户提供了一个简洁清晰的入门指南,涵盖各个功能模块
-
-## DataApi 
+## DataApi
 
 本产品提供了金融数据api，方便用户调用接口获取各种数据，通过python的api调用接口，返回DataFrame格式的数据和消息，以下是用法
 
@@ -408,15 +404,3 @@ df, msg = api.query(
 
 结果示例: -->
 
-
-## Dataview
-
-## Research
-
-write research tutorial here
-
-## Strategy
-
-## BackTest
-
-write backtest tutorial here

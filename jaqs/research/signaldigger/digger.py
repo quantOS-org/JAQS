@@ -213,8 +213,8 @@ class SignalDigger(object):
                                     for k, v in period_wise_quantile_ret_stats.items()}
         
         # top quantile minus bottom quantile return ( note: (1 + x)^n ~= 1 + nx )
-        daily_tmb_ret_mean_std = pfm.calc_return_diff_mean_std(daily_quantile_ret_stats[1],
-                                                               daily_quantile_ret_stats[n_quantiles])
+        daily_tmb_ret_mean_std = pfm.calc_return_diff_mean_std(daily_quantile_ret_stats[n_quantiles],
+                                                               daily_quantile_ret_stats[1])
         daily_tmb_ret = daily_tmb_ret_mean_std['mean_diff']
 
         # ----------------------------------------------------------------------------------

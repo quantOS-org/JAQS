@@ -28,7 +28,7 @@ from jaqs.trade.backtest import AlphaBacktestInstance
 from jaqs.trade.gateway import DailyStockSimGateway
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
-sub_folder = 'jli'
+sub_folder = 'test_backtest'
 
 
 def read_props(fp):

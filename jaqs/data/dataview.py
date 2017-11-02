@@ -504,8 +504,7 @@ class DataView(object):
         cols_multi = cols_multi.sort_values()
         merge_final = pd.DataFrame(index=idx, columns=cols_multi, data=np.nan)
 
-        # TODO: this step costs much time for big data
-        merge_final.loc[merge.index, merge.columns] = merge  # index and column of merge, df must be the same
+        merge_final.update(merge)
 
         if merge_final.isnull().sum().sum() > 0:
             print "WARNING: there are NaN values in your data, NO fill."
@@ -534,11 +533,18 @@ class DataView(object):
         """
         if not dic:
             return None
-        for sec, df in dic.viewitems():
-            # df = df.astype({'trade_status': str})
-            dic[sec] = self._process_index(df, self.TRADE_DATE_FIELD_NAME)
+        
+        dic_res = dict()
+        n = len(dic)
+        for i, (sec, df) in enumerate(dic.items()):
+            x = i * 1. / n
+            k = int(10 * x)
+            if x - 0.1 * k < 1. / n:
+                print '.',
+            dic_res[sec] = self._process_index(df, self.TRADE_DATE_FIELD_NAME)
+        print
             
-        res = self._dic_of_df_to_multi_index_df(dic, level_names=['symbol', 'field'])
+        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
         return res
         
     def _preprocess_ref_daily(self, dic, fields):
@@ -556,12 +562,21 @@ class DataView(object):
         """
         if not dic:
             return None
-        for sec, df in dic.viewitems():
+        
+        dic_res = dict()
+        n = len(dic)
+        for i, (sec, df) in enumerate(dic.items()):
+            x = i * 1. / n
+            k = int(10 * x)
+            if x - 0.1 * k < 1. / n:
+                print '.',
+            
             df_mod = self._process_index(df, self.TRADE_DATE_FIELD_NAME)
             df_mod = df_mod.loc[:, self._get_fields('ref_daily', fields)]
-            dic[sec] = df_mod
+            dic_res[sec] = df_mod
+        print
         
-        res = self._dic_of_df_to_multi_index_df(dic, level_names=['symbol', 'field'])
+        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
         return res
 
     def _preprocess_ref_quarterly(self, type_, dic, fields):
@@ -579,14 +594,21 @@ class DataView(object):
         """
         if not dic:
             return None
-        new_dic = dict()
-        for sec, df in dic.viewitems():
+        
+        dic_res = dict()
+        n = len(dic)
+        for i, (sec, df) in enumerate(dic.items()):
+            x = i * 1. / n
+            k = int(10 * x)
+            if x - 0.1 * k < 1. / n:
+                print '.',
             df_mod = df.loc[:, self._get_fields(type_, fields, append=True)]
             df_mod = self._process_index(df_mod, self.REPORT_DATE_FIELD_NAME)
             
-            new_dic[sec] = df_mod
+            dic_res[sec] = df_mod
+        print
     
-        res = self._dic_of_df_to_multi_index_df(new_dic, level_names=['symbol', 'field'])
+        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
         return res
     
     @staticmethod
@@ -703,11 +725,17 @@ class DataView(object):
         # pre-process data
         print "Query data - preprocess..."
         multi_market_daily = self._preprocess_market_daily(dic_market_daily)
+        print '                process market_daily completed.'
         multi_ref_daily = self._preprocess_ref_daily(dic_ref_daily, fields)
+        print '                process ref_daily completed.'
         multi_income = self._preprocess_ref_quarterly('income', dic_income, fields)
+        print '                process income completed.'
         multi_balance_sheet = self._preprocess_ref_quarterly('balance_sheet', dic_balance_sheet, fields)
+        print '                process balance sheet completed.'
         multi_cash_flow = self._preprocess_ref_quarterly('cash_flow', dic_cash_flow, fields)
+        print '                process cash flow completed.'
         multi_fin_ind = self._preprocess_ref_quarterly('fin_indicator', dic_fin_ind, fields)
+        print '                process finiancial indicator completed.'
     
         print "Query data - merge..."
         merge_d = self._merge_data([multi_market_daily, multi_ref_daily],
@@ -724,8 +752,11 @@ class DataView(object):
     
     def _prepare_adj_factor(self):
         """Query and append daily adjust factor for prices."""
-        # TODO if all symbols are index, we do not fetch adj_factor
-        symbol_str = ','.join(self.symbol)
+        mask_stocks = self.data_inst['inst_type'] == 1
+        if mask_stocks.sum() == 0:
+            return
+        symbol_stocks = self.data_inst.loc[mask_stocks].index.values
+        symbol_str = ','.join(symbol_stocks)
         df_adj = self.data_api.get_adj_factor_daily(symbol_str,
                                                     start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
         self.append_df(df_adj, 'adjust_factor', is_quarterly=False)
@@ -778,10 +809,10 @@ class DataView(object):
             print "Query benchmar member info..."
             self._prepare_comp_info()
             
-            group_fields = self._get_fields('group', self.fields)
-            if group_fields:
-                print "Query groups (industry)..."
-                self._prepare_group(group_fields)
+        group_fields = self._get_fields('group', self.fields)
+        if group_fields:
+            print "Query groups (industry)..."
+            self._prepare_group(group_fields)
 
         print "Data has been successfully prepared."
 
@@ -1274,7 +1305,12 @@ class DataView(object):
         else:
             the_data = self.data_d
             
-        multi_idx = pd.MultiIndex.from_product([the_data.columns.levels[0], [field_name]])
+        exist_symbols = the_data.columns.levels[0]
+        if len(df.columns) < len(exist_symbols):
+            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
+            df2.update(df)
+            df = df2
+        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
         df.columns = multi_idx
         
         merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
