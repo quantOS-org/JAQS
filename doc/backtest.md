@@ -147,11 +147,11 @@ obj.process_factor_before_analysis(factor, price=price,
 res = obj.create_full_report()
 ```
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/returns_report.png)
+![returnsreport](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/returns_report.png)
 
 
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/ic_report.png)
+![icreport](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/ic_report.png)
 
 
 #### 利用输出数据做进一步分析
@@ -188,7 +188,7 @@ performance(ser)
 
 
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/further_analysis.png)
+![furtheranalysis](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/further_analysis.png)
 
 
 ### 回测
@@ -305,5 +305,5 @@ test_backtest_analyze()
 
 
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png)
+![analyze](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png)
 

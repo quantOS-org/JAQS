@@ -7,4 +7,4 @@
 -  根据策略模板，编写自己的量化策略
 -  使用回测框架，对策略进行回测和验证
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/framework.png)
+![overview](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/framework.png)

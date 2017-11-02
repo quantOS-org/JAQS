@@ -145,9 +145,9 @@ DataView做什么
                                        )
     res = obj.create_full_report()
 
-|image0|
+|returnsreport|
 
-|image1|
+|icreport|
 
 利用输出数据做进一步分析
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -182,7 +182,7 @@ DataView做什么
     20160105 20171013
     ann. ret = -17.2%; ann. vol = 3.7%, sharpe = -4.63
 
-|image2|
+|furtheranalysis|
 
 回测
 ~~~~
@@ -297,9 +297,9 @@ series）和信号（float series）权重
     generate report...
     HTML report: /home/bliu/pytrade_dir/ipynb/output/jli/report.html
 
-|image3|
+|analyze|
 
-.. |image0| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/returns_report.png
-.. |image1| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/ic_report.png
-.. |image2| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/further_analysis.png
-.. |image3| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png
+.. |returnsreport| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/returns_report.png
+.. |icreport| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/ic_report.png
+.. |furtheranalysis| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/further_analysis.png
+.. |analyze| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png

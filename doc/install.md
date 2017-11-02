@@ -10,19 +10,19 @@
 
 打开上面的网址，选择相应的操作系统，确定要按照的Python版本，一般建议用Python 2.7。
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac.png)
+![anac](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac.png)
 
 
 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda会自动设置PATH环境。
 
 安装完成后，windows下我们可以在系统菜单中看如下程序目录：
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_m.png)
+![anacm](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_m.png)
 
 
 在cmd里执行ipyhont命令，可以调出IPython调试器。
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_ipython.png)
+![anacipython](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_ipython.png)
 
 
 2、安装依赖包
@@ -45,7 +45,7 @@
 
 也可以通过单个安装完成，例如： pip install pytest
 
-需要注意的是，python-snappy和msgpack-python这两个包在Windows上的安装需要比较多的编译依赖,建议从[http://www.lfd.uci.edu/~gohlke/pythonlibs](http://www.lfd.uci.edu/~gohlke/pythonlibs) 下载编译好的包，然后安装:
+需要注意的是，python-snappy和msgpack-python这两个包在Windows上的安装需要比较多的编译依赖,建议从[这个网页](http://www.lfd.uci.edu/~gohlke/pythonlibs)下载编译好的包，然后安装:
 
 	pip install msgpack_python-0.4.8-cp27-cp27m-win_amd64.whl 
 	
@@ -66,11 +66,11 @@
 
 通过源代码安装
 --------
-git clone [https://github.com/quantOS-org/jaqs.git](https://github.com/quantOS-org/jaqs.git) ，进入到源文件目录，执行安装命令：
+`git clone https://github.com/quantOS-org/jaqs.git` ，进入到源文件目录，执行安装命令：
 	
 	$ python setup.py install
 
-或者通过pypi地址[https://pypi.python.org/pypi/jaqs](https://pypi.python.org/pypi/jaqs) 下载,并执行上面安装命令。
+或者通过[pypi地址](https://pypi.python.org/pypi/jaqs)下载,并执行上面安装命令。
 
 代码升级
 --------
@@ -80,4 +80,4 @@ git clone [https://github.com/quantOS-org/jaqs.git](https://github.com/quantOS-o
 
 完成安装以后，执行import确认安装是否成功。
 
-![](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/jaqs_test.png)
+![jaqstest](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/jaqs_test.png)
