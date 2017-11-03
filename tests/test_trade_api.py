@@ -1,7 +1,10 @@
 # encoding: UTF-8
 
-from jaqs.util import fileio
+import pandas as pd
+
 from jaqs.trade.tradeapi import TradeApi
+from jaqs.util import fileio
+
 
 def test_trade_api():
     dic = fileio.read_json(fileio.join_relative_path('etc/trade_config.json'))
@@ -13,123 +16,123 @@ def test_trade_api():
     
     tapi = TradeApi(address, prod_type='jaqs')
 
-    # TradeApiÍ¨¹ı»Øµ÷º¯Êı·½Ê½Í¨ÖªÓÃ»§ÊÂ¼ş¡£ÊÂ¼ş°üÀ¨ÈıÖÖ£º¶©µ¥×´Ì¬¡¢³É½»»Ø±¨¡¢Î¯ÍĞÈÎÎñÖ´ĞĞ×´Ì¬¡£
+    # TradeApié€šè¿‡å›è°ƒå‡½æ•°æ–¹å¼é€šçŸ¥ç”¨æˆ·äº‹ä»¶ã€‚äº‹ä»¶åŒ…æ‹¬ä¸‰ç§ï¼šè®¢å•çŠ¶æ€ã€æˆäº¤å›æŠ¥ã€å§”æ‰˜ä»»åŠ¡æ‰§è¡ŒçŠ¶æ€ã€‚
 
-    # ¶©µ¥×´Ì¬ÍÆËÍ
+    # è®¢å•çŠ¶æ€æ¨é€
     def on_orderstatus(order):
-        print "on_orderstatus:" #, order
-        for key in order:    print "%20s : %s" % (key, str(order[key]))
+        print "on_orderstatus:"  # , order
+        for key in order:
+            print "%20s : %s" % (key, str(order[key]))
         print ""
 
-
-    # ³É½»»Ø±¨ÍÆËÍ
+    # æˆäº¤å›æŠ¥æ¨é€
     def on_trade(trade):
         print "on_trade:"
-        for key in trade:    print "%20s : %s" % (key, str(trade[key]))
+        for key in trade:
+            print "%20s : %s" % (key, str(trade[key]))
         print ""
 
-    # Î¯ÍĞÈÎÎñÖ´ĞĞ×´Ì¬ÍÆËÍ
-    # Í¨³£¿ÉÒÔºöÂÔ¸Ã»Øµ÷º¯Êı
+    # å§”æ‰˜ä»»åŠ¡æ‰§è¡ŒçŠ¶æ€æ¨é€
+    # é€šå¸¸å¯ä»¥å¿½ç•¥è¯¥å›è°ƒå‡½æ•°
     def on_taskstatus(task):
         print "on_taskstatus:"
-        for key in task:    print "%20s : %s" % (key, str(task[key]))
+        for key in task:
+            print "%20s : %s" % (key, str(task[key]))
         print ""
 
     tapi.set_ordstatus_callback(on_orderstatus)
     tapi.set_trade_callback(on_trade)
     tapi.set_task_callback(on_taskstatus)
-    
-    # Ê¹ÓÃÓÃ»§Ãû¡¢ÃÜÂëµÇÂ½£¬ Èç¹û³É¹¦£¬·µ»ØÓÃ»§¿ÉÓÃµÄ²ßÂÔÕÊºÅÁĞ±í
+
+    # ä½¿ç”¨ç”¨æˆ·åã€å¯†ç ç™»é™†ï¼Œ å¦‚æœæˆåŠŸï¼Œè¿”å›ç”¨æˆ·å¯ç”¨çš„ç­–ç•¥å¸å·åˆ—è¡¨
     user_info, msg = tapi.login(username, password)
     print "msg: ", msg
     print "user_info:", user_info
 
-    # Ñ¡ÔñÊ¹ÓÃµÄ²ßÂÔÕÊºÅ
+    # é€‰æ‹©ä½¿ç”¨çš„ç­–ç•¥å¸å·
     #
-    # ¸Ãº¯Êı³É¹¦ºó£¬ÏÂµ¥¡¢²é³Ö²ÖµÈºÍ²ßÂÔÕÊºÅÓĞ¹ØµÄ²Ù×÷¶¼ºÍ¸Ã²ßÂÔÕÊºÅ°ó¶¨¡£
-    # Ã»ÓĞ±ØÒªÃ¿´ÎÏÂµ¥¡¢²éÑ¯¶¼µ÷ÓÃ¸Ãº¯Êı¡£ÖØ¸´µ÷ÓÃ¸Ãº¯Êı¿ÉÒÔÑ¡ÔñĞÂµÄ²ßÂÔÕÊºÅ¡£
+    # è¯¥å‡½æ•°æˆåŠŸåï¼Œä¸‹å•ã€æŸ¥æŒä»“ç­‰å’Œç­–ç•¥å¸å·æœ‰å…³çš„æ“ä½œéƒ½å’Œè¯¥ç­–ç•¥å¸å·ç»‘å®šã€‚
+    # æ²¡æœ‰å¿…è¦æ¯æ¬¡ä¸‹å•ã€æŸ¥è¯¢éƒ½è°ƒç”¨è¯¥å‡½æ•°ã€‚é‡å¤è°ƒç”¨è¯¥å‡½æ•°å¯ä»¥é€‰æ‹©æ–°çš„ç­–ç•¥å¸å·ã€‚
     #
-    # Èç¹û³É¹¦£¬·µ»Ø(strategy_id, msg)
-    # ·ñÔò·µ»Ø (0, err_msg)
+    # å¦‚æœæˆåŠŸï¼Œè¿”å›(strategy_id, msg)
+    # å¦åˆ™è¿”å› (0, err_msg)
     sid, msg = tapi.use_strategy(9111)
     print "msg: ", msg
-    print "sid: ", sid    
+    print "sid: ", sid
 
-    # ²éÑ¯Portfolio
+    # æŸ¥è¯¢Portfolio
     #
-    # ·µ»Øµ±Ç°µÄ²ßÂÔÕÊºÅµÄUniverseÖĞËùÓĞ±êµÄµÄ¾»³Ö²Ö£¬°üÀ¨³Ö²ÖÎª0µÄ±êµÄ¡£
-
+    # è¿”å›å½“å‰çš„ç­–ç•¥å¸å·çš„Universeä¸­æ‰€æœ‰æ ‡çš„çš„å‡€æŒä»“ï¼ŒåŒ…æ‹¬æŒä»“ä¸º0çš„æ ‡çš„ã€‚
+    
     df, msg = tapi.query_account()
     print "msg: ", msg
-    df    
-    
-    # ²éÑ¯µ±Ç°²ßÂÔÕÊºÅµÄËùÓĞ³Ö²Ö
+    df
+
+    # æŸ¥è¯¢å½“å‰ç­–ç•¥å¸å·çš„æ‰€æœ‰æŒä»“
     #
-    # ºÍ query_portfolio½Ó¿Ú²»Ò»Ñù¡£Èç¹ûÄª¸öÆÚ»õºÏÔ¼ Long, ShortÁ½¸ö·½Ïò¶¼ÓĞ³Ö²Ö£¬ÕâÀïÊÇ·µ»ØÁ½Ìõ¼ÇÂ¼
-    # ·µ»ØµÄ size ²»´ø·½Ïò£¬È«²¿Îª Õı
+    # å’Œ query_portfolioæ¥å£ä¸ä¸€æ ·ã€‚å¦‚æœè«ä¸ªæœŸè´§åˆçº¦ Long, Shortä¸¤ä¸ªæ–¹å‘éƒ½æœ‰æŒä»“ï¼Œè¿™é‡Œæ˜¯è¿”å›ä¸¤æ¡è®°å½•
+    # è¿”å›çš„ size ä¸å¸¦æ–¹å‘ï¼Œå…¨éƒ¨ä¸º æ­£
     df, msg = tapi.query_position()
     print "msg: ", msg
     df
 
-    # ÏÂµ¥½Ó¿Ú
+    # ä¸‹å•æ¥å£
     #  (task_id, msg) = place_order(code, action, price, size )
     #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
-    # ·µ»Ø task_id ¿ÉÒÔÓÃ¸Ä task_id
+    # è¿”å› task_id å¯ä»¥ç”¨æ”¹ task_id
     task_id, msg = tapi.place_order("000025.SZ", "Buy", 57, 100)
     print "msg:", msg
     print "task_id:", task_id
 
-    # ²éÑ¯Portfolio
+    # æŸ¥è¯¢Portfolio
     #
-    # ·µ»Øµ±Ç°µÄ²ßÂÔÕÊºÅµÄUniverseÖĞËùÓĞ±êµÄµÄ¾»³Ö²Ö£¬°üÀ¨³Ö²ÖÎª0µÄ±êµÄ¡£
-
+    # è¿”å›å½“å‰çš„ç­–ç•¥å¸å·çš„Universeä¸­æ‰€æœ‰æ ‡çš„çš„å‡€æŒä»“ï¼ŒåŒ…æ‹¬æŒä»“ä¸º0çš„æ ‡çš„ã€‚
+    
     df, msg = tapi.query_portfolio()
     print "msg: ", msg
     df
 
-    # ÅúÁ¿ÏÂµ¥1£ºplace_batch_order
+    # æ‰¹é‡ä¸‹å•1ï¼šplace_batch_order
     #
-    # ·µ»Øtask_id, msg¡£
-    orders = [ 
-        {"security":"600030.SH", "action" : "Buy", "price": 16, "size":1000},
-        {"security":"600519.SH", "action" : "Buy", "price": 320, "size":1000},
-        ]
-
+    # è¿”å›task_id, msgã€‚
+    orders = [{"security": "600030.SH", "action": "Buy", "price": 16, "size": 1000},
+              {"security": "600519.SH", "action": "Buy", "price": 320, "size": 1000},
+              ]
+    
     task_id, msg = tapi.place_batch_order(orders, "", "{}")
     print task_id
-    print msg    
-
+    print msg
+    
     # cancel_order
-    # ³·µ¥
+    # æ’¤å•
     tapi.cancel_order(task_id)
 
-    # ÅúÁ¿ÏÂµ¥2£ºbasket_order
+    # æ‰¹é‡ä¸‹å•2ï¼šbasket_order
     #
-    # ·µ»Øtask_id, msg¡£
-	orders = [ 
-		{"security":"TF1706.CFE", "ref_price": 98.240, "inc_size":10},
-		{"security":"T1706.CFE",  "ref_price": 95.540, "inc_size":-17},
-		]
+    # è¿”å›task_id, msgã€‚
+    orders = [{"security": "TF1706.CFE", "ref_price": 98.240, "inc_size": 10},
+              {"security": "T1706.CFE", "ref_price": 95.540, "inc_size": -17},
+              ]
 
-	task_id, msg = tapi.basket_order(orders, "", "{}")
-	print task_id
-	print msg
+    task_id, msg = tapi.basket_order(orders, "", "{}")
+    print task_id
+    print msg
 
-    #  goal_protfolio
-    #  ²ÎÊı£ºÄ¿±ê³Ö²Ö
-    #  ·µ»Ø£º(result, msg)
-    #     result:  ³É¹¦»òÊ§°Ü
-    #     msg:     ´íÎóÔ­Òò
-    #  ×¢Òâ£ºÄ¿±ê³Ö²ÖÖĞ±ØĞë°üÀ¨ËùÓĞµÄ´úÂëµÄ³Ö²Ö£¬¼´Ê¹²»ĞŞ¸Ä
+    # goal_protfolio
+    # å‚æ•°ï¼šç›®æ ‡æŒä»“
+    # è¿”å›ï¼š(result, msg)
+    #    result:  æˆåŠŸæˆ–å¤±è´¥
+    #    msg:     é”™è¯¯åŸå› 
+    # æ³¨æ„ï¼šç›®æ ‡æŒä»“ä¸­å¿…é¡»åŒ…æ‹¬æ‰€æœ‰çš„ä»£ç çš„æŒä»“ï¼Œå³ä½¿ä¸ä¿®æ”¹
     
-    # ÏÈ²éÑ¯µ±Ç°µÄ³Ö²Ö, 
-    portfolio = ts.query_portfolio()
+    # å…ˆæŸ¥è¯¢å½“å‰çš„æŒä»“,
+    portfolio = tapi.query_portfolio()
     
     goal = pd.DataFrame(portfolio['size'])
     goal['refpx'] = 0.0
     goal['urgency'] = 10
 
-    #  È»ºóĞŞ¸ÄÄ¿±ê³Ö²Ö
+    # ç„¶åä¿®æ”¹ç›®æ ‡æŒä»“
     code = '150131.SZ'
     goal['ref_price'][code] = 0.630
     goal['size'][code] -= 20000
@@ -138,14 +141,14 @@ def test_trade_api():
     goal['refpx'][code] = 4000.2
     goal['size'][code] -= 1
 
-    # ·¢ËÍÇëÇó
-    result, msg = ts.goal_portfolio(goal)
+    # å‘é€è¯·æ±‚
+    result, msg = tapi.goal_portfolio(goal)
     print result, msg
-	
-	# stop_portfolio
-    # ³·µ¥, ³·ÏúËùÓĞportfolio¶©µ¥
-	tapi.stop_portfolio()
 
-    
+    # stop_portfolio
+    # æ’¤å•, æ’¤é”€æ‰€æœ‰portfolioè®¢å•
+    tapi.stop_portfolio()
+
+
 if __name__ == "__main__":
     test_trade_api()
