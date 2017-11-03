@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+import os
+
 import numpy as np
 import pandas as pd
 
@@ -437,8 +439,10 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
         self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
     
-    def save_results(self, folder='../output/'):
+    def save_results(self, folder_path='.'):
+        import os
         import pandas as pd
+        folder_path = os.path.abspath(folder_path)
     
         trades = self.strategy.pm.trades
     
@@ -460,15 +464,14 @@ class AlphaBacktestInstance(BacktestInstance):
         df_trades = pd.DataFrame(ser_list)
         df_trades.index.name = 'index'
     
-        from os.path import join
-        trades_fn = join(folder, 'trades.csv')
-        configs_fn = join(folder, 'configs.json')
+        trades_fn = os.path.join(folder_path, 'trades.csv')
+        configs_fn = os.path.join(folder_path, 'configs.json')
         fileio.create_dir(trades_fn)
     
         df_trades.to_csv(trades_fn)
         fileio.save_json(self.props, configs_fn)
     
-        print ("Backtest results has been successfully saved to:\n" + folder)
+        print ("Backtest results has been successfully saved to:\n" + folder_path)
     
     def show_position_info(self):
         prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}

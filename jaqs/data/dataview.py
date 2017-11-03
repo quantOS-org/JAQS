@@ -1048,18 +1048,18 @@ class DataView(object):
         
         return res
         
-    def load_dataview(self, folder='.'):
+    def load_dataview(self, folder_path='.'):
         """
         Load data from local file.
         
         Parameters
         ----------
-        folder : str, optional
+        folder_path : str, optional
             Folder path to store hd5 file and meta data.
             
         """
-        meta_data = jaqs.util.fileio.read_json(os.path.join(folder, 'meta_data.json'))
-        dic = self._load_h5(os.path.join(folder, 'data.hd5'))
+        meta_data = jaqs.util.fileio.read_json(os.path.join(folder_path, 'meta_data.json'))
+        dic = self._load_h5(os.path.join(folder_path, 'data.hd5'))
         self.data_d = dic.get('/data_d', None)
         self.data_q = dic.get('/data_q', None)
         self._data_benchmark = dic.get('/data_benchmark', None)
@@ -1227,7 +1227,7 @@ class DataView(object):
         
         return res
 
-    def save_dataview(self, folder_path=".", sub_folder=""):
+    def save_dataview(self, folder_path):
         """
         Save data and meta_data_to_store to a single hd5 file.
         Store at output/sub_folder
@@ -1235,13 +1235,9 @@ class DataView(object):
         Parameters
         ----------
         folder_path : str
-        sub_folder : str
+            Path to store your data.
 
         """
-        if not sub_folder:
-            sub_folder = "{:d}_{:d}_freq={:d}D".format(self.start_date, self.end_date, self.freq)
-        
-        folder_path = os.path.join(folder_path, sub_folder)
         abs_folder = os.path.abspath(folder_path)
         meta_path = os.path.join(folder_path, 'meta_data.json')
         data_path = os.path.join(folder_path, 'data.hd5')
