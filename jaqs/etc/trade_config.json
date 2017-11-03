@@ -1,5 +1,5 @@
 {
-  "remote.address": "tcp://data.tushare.org:8910",
+  "remote.address": "tcp://gw.quantos.org:8901",
   "remote.username": "test",
   "remote.password": "123"
 }
