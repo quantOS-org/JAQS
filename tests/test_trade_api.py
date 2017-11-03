@@ -4,7 +4,7 @@ from jaqs.util import fileio
 from jaqs.trade.tradeapi import TradeApi
 
 def test_trade_api():
-    dic = fileio.read_json(fileio.join_relative_path('etc/data_config.json'))
+    dic = fileio.read_json(fileio.join_relative_path('etc/trade_config.json'))
     address = dic.get("remote.address", None)
     username = dic.get("remote.username", None)
     password = dic.get("remote.password", None)
