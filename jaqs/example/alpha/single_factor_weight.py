@@ -24,46 +24,32 @@ from jaqs.data.dataview import DataView
 
 import pandas as pd
 
-def read_props(fp):
-    props = fileio.read_json(fp)
+dataview_dir_path = fileio.join_relative_path('../output/prepared/single_factor_weight')
+backtest_result_dir_path = fileio.join_relative_path('../output/single_factor_weight')
 
-    enum_props = {}
-    for k, v in enum_props.iteritems():
-        props[k] = v.to_enum(props[k])
 
-    return props
-
-def save_dataview(sub_folder='test_dataview'):
+def test_save_dataview():
     ds = RemoteDataService()
     dv = DataView()
 
     props = {'start_date': 20170201, 'end_date': 20171001, 'universe': '000300.SH',
-             'fields': ('float_market_value,sw2,sw1'),
+             'fields': ('float_mv,sw2,sw1'),
              'freq': 1}
 
     dv.init_from_config(props, ds)
     dv.prepare_data()
 
-    factor_formula = 'GroupQuantile(float_market_value, sw1, 10)'
+    factor_formula = 'GroupQuantile(float_mv, sw1, 10)'
     dv.add_formula('gq30', factor_formula, is_quarterly=False)
 
-    dv.save_dataview(folder_path=fileio.join_relative_path('../output/prepared'), sub_folder=sub_folder)
+    dv.save_dataview(folder_path=dataview_dir_path)
 
-def singal_gq30(context, user_options=None):
-    date = context.trade_date
-    dv = context.dataview
-    import numpy as np
-    res = np.power(dv.get_snapshot(date, fields='gq30'), 8)
-    return res
 
-def test_save_dataview():
-    save_dataview(sub_folder=dv_subfolder_name)
 
 def test_alpha_strategy_dataview():
     dv = DataView()
 
-    fullpath = fileio.join_relative_path('../output/prepared', dv_subfolder_name)
-    dv.load_dataview(folder=fullpath)
+    dv.load_dataview(folder_path=dataview_dir_path)
 
     props = {
         "benchmark": "000300.SH",
@@ -84,6 +70,11 @@ def test_alpha_strategy_dataview():
 
     context = model.Context(dataview=dv, gateway=gateway)
 
+    def singal_gq30(context, user_options=None):
+        import numpy as np
+        res = np.power(context.snapshot['gq30'], 8)
+        return res
+    
     signal_model = model.FactorRevenueModel(context)
     signal_model.add_signal('signal_gq30', singal_gq30)
 
@@ -94,15 +85,15 @@ def test_alpha_strategy_dataview():
 
     bt.run_alpha()
 
-    bt.save_results(fileio.join_relative_path('../output/'))
+    bt.save_results(folder_path=backtest_result_dir_path)
+    
 
 def test_backtest_analyze():
     ta = ana.AlphaAnalyzer()
-    data_service = RemoteDataService()
+    dv = DataView()
+    dv.load_dataview(folder_path=dataview_dir_path)
 
-    out_folder = fileio.join_relative_path("../output")
-
-    ta.initialize(data_service, out_folder)
+    ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
 
     print "process trades..."
     ta.process_trades()
@@ -120,23 +111,22 @@ def test_backtest_analyze():
         for symbol in selected_sec:
             df_daily = ta.daily.get(symbol, None)
             if df_daily is not None:
-                ana.plot_trades(df_daily, symbol=symbol, save_folder=out_folder)
+                ana.plot_trades(df_daily, symbol=symbol, save_folder=backtest_result_dir_path)
 
     print "Plot strategy PnL..."
-    ta.plot_pnl(out_folder)
+    ta.plot_pnl(backtest_result_dir_path)
 
     print "generate report..."
     static_folder = fileio.join_relative_path("trade/analyze/static")
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
-                  out_folder=out_folder,
+                  out_folder=backtest_result_dir_path,
                   selected=selected_sec)
 
 
 if __name__ == "__main__":
-    dv_subfolder_name = 'test_dataview'
     t_start = time.time()
 
-    # test_save_dataview()
+    test_save_dataview()
     test_alpha_strategy_dataview()
     test_backtest_analyze()
 
