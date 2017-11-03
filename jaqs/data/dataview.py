@@ -6,6 +6,7 @@ How to add custom (alternative) data:
     
 If you will use this data frequently, you can add define a new method of DataServer, then get data from your DataServer.
 If you want to declare your field in props, instead of append it manually, you will have to modify prepare_data function.
+
 """
 import os
 
@@ -764,6 +765,9 @@ class DataView(object):
     def _prepare_comp_info(self):
         df = self.data_api.get_index_comp_df(self.universe, self.extended_start_date_d, self.end_date)
         self.append_df(df, 'index_member', is_quarterly=False)
+        
+        df_weights = self.data_api.get_index_weights_daily(self.universe, self.extended_start_date_d, self.end_date)
+        self.append_df(df_weights, 'index_weight', is_quarterly=False)
     
     def _prepare_inst_info(self):
         res = self.data_api.query_inst_info(symbol=','.join(self.symbol),
@@ -1082,7 +1086,7 @@ class DataView(object):
         if self.data_d is not None:
             res = self.data_d.index.values
         elif self.data_api is not None:
-            res = self.data_api.get_trade_date(self.extended_start_date_d, self.end_date, is_datetime=False)
+            res = self.data_api.get_trade_date_range(self.extended_start_date_d, self.end_date)
         else:
             raise ValueError("Cannot get dates array when neither of data and data_api exists.")
             

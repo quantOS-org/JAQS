@@ -25,16 +25,16 @@ class Calendar(object):
         else:
             self.data_api = data_api
 
-    def get_trade_date_range(self, begin, end):
+    def get_trade_date_range(self, start_date, end_date):
         """
         Get array of trade dates within given range.
         Return zero size array if no trade dates within range.
         
         Parameters
         ----------
-        begin : int
+        start_date : int
             YYmmdd
-        end : int
+        end_date : int
 
         Returns
         -------
@@ -42,14 +42,14 @@ class Calendar(object):
             dtype = int
 
         """
-        filter_argument = self.data_api._dic2url({'start_date': begin,
-                                                  'end_date': end})
+        filter_argument = self.data_api._dic2url({'start_date': start_date,
+                                                  'end_date': end_date})
 
         df_raw, msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
                                           filter=filter_argument, orderby="")
         if df_raw.empty:
             return np.array([], dtype=int)
-
+        
         trade_dates_arr = df_raw['trade_date'].values.astype(int)
         return trade_dates_arr
 

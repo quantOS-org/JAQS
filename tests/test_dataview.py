@@ -48,7 +48,7 @@ def test_write_future():
 def test_load():
     dv = DataView()
     folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     
     assert dv.start_date == 20160601 and set(dv.symbol) == set('000001.SZ,600030.SH,000063.SZ'.split(','))
 
@@ -68,7 +68,7 @@ def test_load():
 def test_add_field():
     dv = DataView()
     folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -98,7 +98,7 @@ def test_add_formula_directly():
 def test_add_formula():
     dv = DataView()
     folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -154,7 +154,7 @@ def test_q():
 def test_q_get():
     dv = DataView()
     folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     res = dv.get("", 0, 0, 'total_oper_rev')
     assert set(res.index.values) == set(dv.dates[dv.dates >= dv.start_date])
 
@@ -162,7 +162,7 @@ def test_q_get():
 def test_q_add_field():
     dv = DataView()
     folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     nrows, ncols = dv.data_q.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -179,7 +179,7 @@ def test_q_add_field():
 def test_q_add_formula():
     dv = DataView()
     folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder=folder_path)
+    dv.load_dataview(folder_path=folder_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     

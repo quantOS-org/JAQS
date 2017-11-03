@@ -227,6 +227,7 @@ class DataService(Publisher):
 
 class Singleton(type):
     _instances = {}
+    
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
@@ -260,6 +261,7 @@ class RemoteDataService(DataService):
             print "DataAPI login success.".format(address)
         
         self.REPORT_DATE_FIELD_NAME = 'report_date'
+        self._calendar = None
 
     def __del__(self):
         self.api.close()
@@ -316,15 +318,15 @@ class RemoteDataService(DataService):
     def get_suspensions(self):
         return None
 
-    # TODO use Calendar instead
-    def get_trade_date(self, start_date, end_date, symbol=None, is_datetime=False):
-        if symbol is None:
-            symbol = '000300.SH'
-        df, msg = self.daily(symbol, start_date, end_date, fields="close")
-        res = df.loc[:, 'trade_date'].values
-        if is_datetime:
-            res = dtutil.convert_int_to_datetime(res)
-        return res
+    @property
+    def calendar(self):
+        if self._calendar is None:
+            from jaqs.data.calendar import Calendar
+            self._calendar = Calendar()
+        return self._calendar
+    
+    def get_trade_date_range(self, start_date, end_date):
+        return self.calendar.get_trade_date_range(start_date, end_date)
     
     @staticmethod
     def _dic2url(d):
@@ -446,7 +448,7 @@ class RemoteDataService(DataService):
 
         Returns
         -------
-        list
+        pd.DataFrame
 
         """
         if index == '000300.SH':
@@ -463,6 +465,44 @@ class RemoteDataService(DataService):
         df_io = df_io.astype({'weight': float})
         return df_io
 
+    def get_index_weights_daily(self, index, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+        
+        Parameters
+        ----------
+        index : str
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Index is trade_date, columns are symbols.
+
+        """
+        # TODO: temparary api
+        trade_dates = self.get_trade_date_range(start_date, end_date)
+        start_date, end_date = trade_dates[0], trade_dates[-1]
+        td = start_date
+        
+        dic = dict()
+        symbols_set = set()
+        while True:
+            if td > end_date:
+                break
+            df = self.get_index_weights(index, td)
+            symbols_set.update(set(df.index))
+            dic[td] = df['weight']
+            td = dtutil.get_next_period_day(td, 'month', 1)
+        merge = pd.concat(dic, axis=1).T
+        merge = merge.fillna(0.0)  # for those which are not components
+        res = pd.DataFrame(index=trade_dates, columns=sorted(list(symbols_set)), data=np.nan)
+        res.update(merge)
+        res = res.fillna(method='ffill')
+        res = res.loc[start_date: end_date]
+        return res
+    
     def _get_index_comp(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -541,7 +581,7 @@ class RemoteDataService(DataService):
         df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
         
         # df_io.set_index('symbol', inplace=True)
-        dates = self.get_trade_date(start_date=start_date, end_date=end_date, symbol=index)
+        dates = self.get_trade_date_range(start_date=start_date, end_date=end_date)
 
         dic = dict()
         gp = df_io.groupby(by='symbol')
@@ -599,7 +639,7 @@ class RemoteDataService(DataService):
         df_value = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
         df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
 
-        dates_arr = self.get_trade_date(start_date, end_date)
+        dates_arr = self.get_trade_date_range(start_date, end_date)
         df_industry = align.align(df_value, df_ann, dates_arr)
         
         # TODO before industry classification is available, we assume they belong to their first group.
@@ -686,7 +726,7 @@ class RemoteDataService(DataService):
 
         # align to every trade date
         s, e = df_raw.loc[:, 'trade_date'].min(), df_raw.loc[:, 'trade_date'].max()
-        dates_arr = self.get_trade_date(s, e)
+        dates_arr = self.get_trade_date_range(s, e)
         if not len(dates_arr) == len(res_final.index):
             res_final = res_final.reindex(dates_arr)
             

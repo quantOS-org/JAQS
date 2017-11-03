@@ -118,7 +118,7 @@ def test_remote_data_service_industry():
     df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
     df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
     
-    dates_arr = ds.get_trade_date(20140101, 20170505)
+    dates_arr = ds.get_trade_date_range(20140101, 20170505)
     res = align(df_value, df_ann, dates_arr)
     # df_ann = df.pivot(index='in_date', columns='symbol', values='in_date')
     # df_value = df.pivot(index=None, columns='symbol', values='industry1_code')
@@ -198,6 +198,10 @@ def test_remote_data_service_index_weight():
     df = ds.get_index_weights(index='000016.SH', trade_date=20140101)
     assert df.shape[0] == 50
     assert abs(df['weight'].sum() - 100) < 1.0
+    
+    df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
+    assert abs(df.at[20150120, '000001.SZ'] - 1.07) < 1e-2
+    assert df.shape == (236, 321)
     
     
 if __name__ == "__main__":
