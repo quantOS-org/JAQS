@@ -142,7 +142,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
 
-    # test_save_dataview()
+    test_save_dataview()
     test_alpha_strategy_dataview()
     test_backtest_analyze()
 
