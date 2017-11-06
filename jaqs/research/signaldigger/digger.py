@@ -36,6 +36,7 @@ class SignalDigger(object):
         self.returns_report_data = dict()
         self.ic_report_data = dict()
         self.fig_data = dict()
+        self.fig_objs = dict()
 
     def process_signal_before_analysis(self,
                                        signal, price=None, ret=None, benchmark_price=None,
@@ -169,6 +170,8 @@ class SignalDigger(object):
         file_name : str
 
         """
+        
+        self.fig_objs[file_name] = fig
         
         if self.output_format in ['pdf', 'png', 'jpg']:
             fp = os.path.join(self.output_folder, '.'.join([file_name, self.output_format]))
