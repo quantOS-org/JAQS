@@ -275,7 +275,7 @@ def plot_quantile_returns_ts(mean_ret_by_q, ax=None):
     
     ret_wide = pd.concat({k: v['mean'] for k, v in mean_ret_by_q.items()}, axis=1)
     ret_wide.index = pd.to_datetime(ret_wide.index, format="%Y%m%d")
-    ret_wide = ret_wide.rolling(window=22).mean()
+    # ret_wide = ret_wide.rolling(window=22).mean()
     
     ret_wide.plot(lw=1.2, ax=ax, cmap=cm.get_cmap('RdBu'))
     ax.legend(loc='upper left')

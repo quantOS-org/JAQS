@@ -8,6 +8,7 @@ from jaqs.data.dataservice import RemoteDataService
 from jaqs.research import signaldigger
 from jaqs.util import fileio
 
+dataview_folder = fileio.join_relative_path('../output/prepared', 'test_signal')
 
 def save_dataview(data_folder_name):
     ds = RemoteDataService()
@@ -27,15 +28,14 @@ def save_dataview(data_folder_name):
     dv.add_formula('momentum', 'Return(close_adj, 20)', is_quarterly=False)
     # dv.add_formula('size', '', is_quarterly=False)
     
-    dv.save_dataview(folder_path=fileio.join_relative_path('../output/prepared'), sub_folder=data_folder_name)
+    dv.save_dataview(dataview_folder)
 
 
-def analyze_signal(data_folder_name):
+def analyze_signal():
     # --------------------------------------------------------------------------------
     # Step.1 load dataview
     dv = DataView()
-    fullpath = fileio.join_relative_path('../output/prepared', data_folder_name)
-    dv.load_dataview(folder=fullpath)
+    dv.load_dataview(dataview_folder)
 
     # --------------------------------------------------------------------------------
     # Step.2 calculate mask (to mask those ill data points)
@@ -81,6 +81,5 @@ def analyze_signal(data_folder_name):
 
 
 if __name__ == "__main__":
-    sub_folder_name = 'guotai_reverse_dv'
-    # save_dataview(sub_folder_name)
-    analyze_signal(sub_folder_name)
+    save_dataview()
+    analyze_signal()

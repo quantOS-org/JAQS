@@ -265,7 +265,11 @@ class SignalDigger(object):
 
             self.show_fig(gf.fig, 'returns_report')
         
-        self.returns_report_data = {'cum_long_return': cum_long_ret, 'cum_short_return': cum_short_ret}
+        self.returns_report_data = {'period_wise_quantile_ret': period_wise_quantile_ret_stats,
+                                    'cum_quantile_ret': cum_quantile_ret,
+                                    'cum_long_ret': cum_long_ret,
+                                    'cum_short_ret': cum_short_ret,
+                                    'period_wise_tmb_ret': period_wise_tmb_ret}
 
     @plotting.customize
     def create_information_report(self):
@@ -275,7 +279,7 @@ class SignalDigger(object):
         """
         ic = pfm.calc_signal_ic(self.signal_data)
         ic.index = pd.to_datetime(ic.index, format="%Y%m%d")
-        mean_monthly_ic = pfm.mean_information_coefficient(ic, "M")
+        monthly_ic = pfm.mean_information_coefficient(ic, "M")
 
         if self.output_format:
             plotting.plot_information_table(ic)
@@ -292,11 +296,12 @@ class SignalDigger(object):
             plotting.plot_ic_hist(ic, self.period, ax=gf.next_row())
             # plotting.plot_ic_qq(ic, ax=ax_ic_hqq[1::2])
 
-            plotting.plot_monthly_ic_heatmap(mean_monthly_ic, period=self.period, ax=gf.next_row())
+            plotting.plot_monthly_ic_heatmap(monthly_ic, period=self.period, ax=gf.next_row())
         
             self.show_fig(gf.fig, 'information_report')
         
-        self.ic_report_data = {'daily_ic': ic}
+        self.ic_report_data = {'daily_ic': ic,
+                               'monthly_ic': monthly_ic}
 
     @plotting.customize
     def create_full_report(self):
