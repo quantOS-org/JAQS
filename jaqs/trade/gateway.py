@@ -477,7 +477,7 @@ class PortfolioManager(TradeCallback):
             size = self.get_position(sec, ref_date).curr_size
             # TODO PortfolioManager object should not access price
             price = ref_prices[sec]
-            mv_sec = price * size * 100
+            mv_sec = price * size
             if sec in suspensions:
                 market_value_frozen += mv_sec
             else:

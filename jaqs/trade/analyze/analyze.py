@@ -270,7 +270,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             
             res[str(date)] = df_mod
             
-            mv = sum(df_mod.loc[:, 'price'] * df.loc[:, 'position']) * 100.0
+            mv = sum(df_mod.loc[:, 'price'] * df.loc[:, 'position'])
             current_profit = sum(df.loc[:, 'CumProfit'])
             cash = self.configs['init_balance'] + current_profit - mv
             
@@ -284,7 +284,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
-        strategy_value = df_profit.sum(axis=1) * 100 + self.configs['init_balance']
+        strategy_value = df_profit.sum(axis=1) + self.configs['init_balance']
         
         market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
         market_values.columns = ['strat', 'bench']

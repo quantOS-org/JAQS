@@ -222,7 +222,7 @@ def test_backtest_analyze():
     ta.get_daily()
     
     print "calc strategy return..."
-    ta.get_returns()
+    ta.get_returns(consider_commission=False)
     # position change info is huge!
     # print "get position change..."
     # ta.get_pos_change_info()

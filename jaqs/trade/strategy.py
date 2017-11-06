@@ -629,10 +629,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                                                                            sec, price, w))
                 shares_raw = w * turnover / price
                 # shares unit 100
-                shares = int(round(shares_raw / 100., 0))  # TODO cash may be not enough
+                shares = int(round(shares_raw / 100., 0)) * 100  # TODO cash may be not enough
                 # shares_left = shares_raw - shares * 100  # may be negative
                 # cash_left += shares_left * price
-                cash_used += shares * price * 100
+                cash_used += shares * price
                 goal_pos.size = shares
             
             goals.append(goal_pos)
