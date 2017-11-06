@@ -352,6 +352,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                                                            'constraints': None,
                                                                            'initial_value': None})
         self.use_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
+        self.use_pc_method(name='index_weight', func=self.index_weight, options=None)
+        self.use_pc_method(name='market_value_weight', func=self.market_value_weight, options=None)
         
         self._validate_parameters()
         print "AlphaStrategy Initialized."
@@ -363,7 +365,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         elif self.pc_method in ['factor_value_weight']:
             if self.revenue_model is None:
                 raise ValueError("revenue_model must be provided when pc_method = 'factor_value_weight'")
-        elif self.pc_method in ['equal_weight']:
+        elif self.pc_method in ['equal_weight', 'index_weight', 'market_value_weight']:
             pass
         else:
             raise NotImplementedError("pc_method = {:s}".format(self.pc_method))
@@ -462,6 +464,30 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         # discrete
         weights = {k: 1.0 for k in self.ctx.snapshot_sub.index.values}
         return weights, ''
+
+    def market_value_weight(self):
+        snap = self.ctx.snapshot_sub
+        # TODO: pass options, instead of hard-code 'total_mv', 'float_mv'
+        if 'total_mv' in snap.columns:
+            mv = snap['total_mv']
+        elif 'float_mv' in snap.columns:
+            mv = snap['float_mv']
+        else:
+            raise ValueError("market_value_weight is chosen,"
+                             "while no [float_mv] or [total_mv] field found in dataview.")
+        mv = mv.fillna(0.0)
+        weights = mv.to_dict()
+        return weights, ""
+
+    def index_weight(self):
+        snap = self.ctx.snapshot_sub
+        if 'index_weight' not in snap.columns:
+            raise ValueError("index_weight is chosen,"
+                             "while no [index_weight] field found in dataview.")
+        ser_index_weight = snap['index_weight']
+        ser_index_weight.fillna(0.0, inplace=True)
+        weights = ser_index_weight.to_dict()
+        return weights, ""
     
     def factor_value_weight(self):
         def long_only_weight_adjust(w):

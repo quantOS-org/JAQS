@@ -28,27 +28,19 @@ from jaqs.trade.backtest import AlphaBacktestInstance
 from jaqs.trade.gateway import DailyStockSimGateway
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
-sub_folder = 'test_backtest'
 
-
-def read_props(fp):
-    props = fileio.read_json(fp)
-    
-    enum_props = {}
-    for k, v in enum_props.iteritems():
-        props[k] = v.to_enum(props[k])
-        
-    return props
+dataview_dir_path = fileio.join_relative_path('../output/prepared/test_backtest')
+backtest_result_dir_path = fileio.join_relative_path('../output/test_backtest')
 
 
 def save_dataview():
     ds = RemoteDataService()
     dv = DataView()
     
-    props = {'start_date': 20151114, 'end_date': 20170327, 'universe': '000300.SH',
+    props = {'start_date': 20170101, 'end_date': 20171030, 'universe': '000300.SH',
              'fields': ('open,high,low,close,vwap,volume,turnover,'
                         # + 'pb,net_assets,'
-                        + 'eps_basic,oper_exp,tot_profit,int_income'
+                        + 'eps_basic,total_mv,tot_profit,int_income'
                         ),
              'freq': 1}
     
@@ -61,7 +53,7 @@ def save_dataview():
     
     dv.add_formula('total_profit_growth', formula='Return(tot_profit, 4)', is_quarterly=True)
     
-    dv.save_dataview(folder_path=fileio.join_relative_path('../output/prepared'), sub_folder=sub_folder)
+    dv.save_dataview(folder_path=dataview_dir_path)
 
 
 def my_selector(context, user_options=None):
@@ -82,7 +74,7 @@ def my_selector_no_new_stocks(context, user_options=None):
 
 
 def my_factor(context, user_options=None):
-    res = context.snapshot_sub.loc['new_high']
+    res = context.snapshot_sub['new_high']
     return res
 
 
@@ -94,17 +86,16 @@ def test_alpha_strategy_dataview():
     save_dataview()
     
     dv = DataView()
-    fullpath = fileio.join_relative_path('../output/prepared', sub_folder)
-    dv.load_dataview(folder=fullpath)
+    dv.load_dataview(folder_path=dataview_dir_path)
     
     props = {
         "start_date": dv.start_date,
         "end_date": dv.end_date,
     
-        "period": "month",
+        "period": "week",
         "days_delay": 0,
     
-        "init_balance": 1e9,
+        "init_balance": 1e8,
         "position_ratio": 0.7,
         }
 
@@ -120,13 +111,13 @@ def test_alpha_strategy_dataview():
     signal_model.add_signal(name='my_factor', func=my_factor)
     cost_model.consider_cost(name='my_commission', func=my_commission, options={'myrate': 1e-2})
     stock_selector.add_filter(name='total_profit_growth', func=my_selector)
-    stock_selector.add_filter(name='total_profit_growth2', func=my_selector_no_new_stocks)
+    stock_selector.add_filter(name='no_new_stocks', func=my_selector_no_new_stocks)
     
-    # strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
-    #                          cost_model=cost_model, risk_model=risk_model,
-    #                          pc_method='factor_value_weight')
+    strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
+                             cost_model=cost_model, risk_model=risk_model,
+                             pc_method='factor_value_weight')
     # strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
-    strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
+    # strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='market_value_weight')
     # strategy = AlphaStrategy()
     
     bt = AlphaBacktestInstance()
@@ -134,46 +125,42 @@ def test_alpha_strategy_dataview():
     
     bt.run_alpha()
     
-    bt.save_results(fileio.join_relative_path('../output', sub_folder))
+    bt.save_results(folder_path=backtest_result_dir_path)
 
 
 def test_backtest_analyze():
     ta = ana.AlphaAnalyzer()
     
-    fullpath = fileio.join_relative_path('../output/prepared', sub_folder)
     dv = DataView()
-    dv.load_dataview(fullpath)
+    dv.load_dataview(folder_path=dataview_dir_path)
 
-    input_folder = fileio.join_relative_path("../output", sub_folder)
-    output_folder = fileio.join_relative_path("../output", sub_folder)
-    
-    ta.initialize(dataview=dv, file_folder=input_folder)
-    
+    ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
+
     print "process trades..."
     ta.process_trades()
     print "get daily stats..."
     ta.get_daily()
     print "calc strategy return..."
-    ta.get_returns()
+    ta.get_returns(consider_commission=True)
     # position change info is huge!
     # print "get position change..."
-    ta.get_pos_change_info()
+    # ta.get_pos_change_info()
     
-    selected_sec = list(ta.universe)[:3]
+    selected_sec = list(ta.universe)[:2]
     if len(selected_sec) > 0:
         print "Plot single securities PnL"
         for symbol in selected_sec:
             df_daily = ta.daily.get(symbol, None)
             if df_daily is not None:
-                ana.plot_trades(df_daily, symbol=symbol, save_folder=output_folder)
+                ana.plot_trades(df_daily, symbol=symbol, save_folder=backtest_result_dir_path)
     
     print "Plot strategy PnL..."
-    ta.plot_pnl(output_folder)
+    ta.plot_pnl(backtest_result_dir_path)
     
     print "generate report..."
     static_folder = fileio.join_relative_path("trade/analyze/static")
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
-                  out_folder=output_folder,
+                  out_folder=backtest_result_dir_path,
                   selected=selected_sec)
 
 
