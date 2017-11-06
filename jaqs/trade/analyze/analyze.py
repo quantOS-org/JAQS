@@ -96,7 +96,8 @@ class BaseAnalyzer(object):
                     'fill_size': float,
                     'fill_date': int,
                     'fill_time': int,
-                    'fill_no': str}
+                    'fill_no': str,
+                    'commission': float}
         abs_path = os.path.abspath(file_folder)
         trades = pd.read_csv(os.path.join(abs_path, 'trades.csv'), ',', dtype=type_map)
         
@@ -107,7 +108,7 @@ class BaseAnalyzer(object):
     
     def _init_trades(self, df):
         """Add datetime column. """
-        df.loc[:, 'fill_dt'] = df.loc[:, 'fill_date'] + df.loc[:, 'fill_time']
+        df.loc[:, 'fill_dt'] = df.loc[:, 'fill_date'] * 1000000 + df.loc[:, 'fill_time']
         
         res = dict()
         for sec in self.universe:
@@ -199,7 +200,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         
         df.loc[:, 'AvgPosPrice'] = AlphaAnalyzer._get_avg_pos_price(df.loc[:, 'position'].values, fp.values)
         
-        df.loc[:, 'VirtualProfit'] = (df.loc[:, 'CumNetTurnOver'] + df.loc[:, 'position'] * fp)
+        df.loc[:, 'CumProfit'] = (df.loc[:, 'CumNetTurnOver'] + df.loc[:, 'position'] * fp)
         
         return df
     
@@ -208,18 +209,18 @@ class AlphaAnalyzer(BaseAnalyzer):
     
     @staticmethod
     def _get_daily(close, trade):
-        trade_cols = ['BuyVolume', 'SellVolume', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+        trade_cols = ['BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
         trade = trade.loc[:, trade_cols]
         # no duplicate index, avoid Error when concat
         if not trade.index.is_unique:
             gp = trade.groupby(by=trade.index)
             func_last = lambda ser: ser.values[-1]
-            trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum,
+            trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
                             'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
         
         merge = pd.concat([close, trade], axis=1, join='outer')
     
-        cols_nan_to_zero = ['BuyVolume', 'SellVolume']
+        cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
         cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
         merge.loc[:, cols_nan_fill] = merge.loc[:, cols_nan_fill].fillna(method='ffill')
         merge.loc[:, cols_nan_fill] = merge.loc[:, cols_nan_fill].fillna(0)
@@ -228,7 +229,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         
         merge.loc[merge.loc[:, 'AvgPosPrice'] < 1e-5, 'AvgPosPrice'] = merge.loc[:, 'close']
     
-        merge.loc[:, 'VirtualProfit'] = merge.loc[:, 'CumNetTurnOver'] + merge.loc[:, 'position'] * merge.loc[:, 'close']
+        merge.loc[:, 'CumProfit'] = merge.loc[:, 'CumNetTurnOver'] + merge.loc[:, 'position'] * merge.loc[:, 'close']
+        merge.loc[:, 'CumProfitComm'] = merge['CumProfit'] - merge['commission'].cumsum()
         
         return merge
     
@@ -268,16 +270,17 @@ class AlphaAnalyzer(BaseAnalyzer):
             
             res[str(date)] = df_mod
             
-            mv = sum(df_mod.loc[:, 'price'] * df.loc[:, 'position'] * 100.0)
-            current_profit = sum(df.loc[:, 'VirtualProfit'])
+            mv = sum(df_mod.loc[:, 'price'] * df.loc[:, 'position']) * 100.0
+            current_profit = sum(df.loc[:, 'CumProfit'])
             cash = self.configs['init_balance'] + current_profit - mv
             
             account[str(date)] = {'market_value': mv, 'cash': cash}
         self.position_change = res
         self.account = account
             
-    def get_returns(self, compound_return=True):
-        vp_list = {sec: df_profit.loc[:, 'VirtualProfit'] for sec, df_profit in self.daily.viewitems()}
+    def get_returns(self, compound_return=True, consider_commission=True):
+        profit_col_name = 'CumProfitComm' if consider_commission else 'CumProfit'
+        vp_list = {sec: df_profit.loc[:, profit_col_name] for sec, df_profit in self.daily.viewitems()}
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
@@ -362,7 +365,7 @@ class AlphaAnalyzer(BaseAnalyzer):
 
 
 def calc_uat_metrics(t1, symbol):
-    cump1 = t1.loc[:, 'VirtualProfit'].values
+    cump1 = t1.loc[:, 'CumProfit'].values
     profit1 = cump1[-1]
     
     n_trades = t1.loc[:, 'CumVolume'].values[-1] / 2.  # signle
@@ -388,7 +391,7 @@ def plot_trades(df, symbol="", save_folder="."):
     idx = range(len(idx0))
     price = df.loc[:, 'close']
     bv, sv = df.loc[:, 'BuyVolume'].values, df.loc[:, 'SellVolume'].values
-    profit = df.loc[:, 'VirtualProfit'].values
+    profit = df.loc[:, 'CumProfit'].values
     avgpx = df.loc[:, 'AvgPosPrice']
     bv *= .1
     sv *= .1

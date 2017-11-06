@@ -198,6 +198,13 @@ class AlphaBacktestInstance(BacktestInstance):
         
         self.POSITION_ADJUST_NO = 101010
         self.DELIST_ADJUST_NO = 202020
+        
+        self.commission_rate = 20E-4
+    
+    def init_from_config(self, props, strategy, context):
+        super(AlphaBacktestInstance, self).init_from_config(props, strategy, context)
+        
+        self.commission_rate = props.get('comm_rate', 20E-4)
 
     def position_adjust(self):
         """
@@ -320,12 +327,12 @@ class AlphaBacktestInstance(BacktestInstance):
         market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices, all_list)
         cash_available = self.strategy.cash + market_value_float
     
-        cash_use = cash_available * self.strategy.position_ratio
-        cash_unuse = cash_available - cash_use
+        cash_to_use = cash_available * self.strategy.position_ratio
+        cash_unuse = cash_available - cash_to_use
     
         # step3. generate target positions
         # position of those suspended will remain the same (will not be traded)
-        goals, cash_remain = self.strategy.generate_weights_order(self.strategy.weights, cash_use, prices,
+        goals, cash_remain = self.strategy.generate_weights_order(self.strategy.weights, cash_to_use, prices,
                                                                   suspensions=all_list)
         self.strategy.goal_positions = goals
         self.strategy.cash = cash_remain + cash_unuse
@@ -367,15 +374,23 @@ class AlphaBacktestInstance(BacktestInstance):
             else:
                 self.on_new_day(self.ctx.trade_date)
             
-            # return trade indications
+            # Deal with trade indications
             trade_indications = gateway.match(self.univ_price_dic)
             for trade_ind in trade_indications:
                 self.strategy.on_trade_ind(trade_ind)
+                comm = self.calc_commission(trade_ind)
+                trade_ind.commission = comm
+                self.strategy.cash -= comm
             
             self.on_after_market_close()
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
                                                                          len(self.strategy.pm.trades))
+    
+    def calc_commission(self, trade_ind):
+        to = abs(trade_ind.fill_price * trade_ind.fill_size)
+        res = to * self.commission_rate
+        return res
     
     def on_after_market_close(self):
         self.ctx.gateway.on_after_market_close()
@@ -454,7 +469,8 @@ class AlphaBacktestInstance(BacktestInstance):
                     'fill_size': float,
                     'fill_date': int,
                     'fill_time': int,
-                    'fill_no': str}
+                    'fill_no': str,
+                    'commission': float}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
         for key in type_map.keys():

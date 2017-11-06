@@ -44,6 +44,8 @@ class Trade(object):
         self.order_price = 0.0
         self.order_size = 0
         
+        self.commission = 0.0
+        
         self.refquote = None
         self.refcode = ''
         
