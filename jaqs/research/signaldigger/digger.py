@@ -117,14 +117,14 @@ class SignalDigger(object):
         # get masks
         mask_prices = data.isnull()
         # Because we use FORWARD return, if one day's price is broken, the day that is <period> days ago is also broken.
-        mask_prices = np.logical_or(mask_prices, mask_prices.shift(-self.period).fillna(True))
+        mask_prices = np.logical_or(mask_prices, mask_prices.shift(self.period).fillna(True))
         mask_signal = signal.isnull()
 
         mask = np.logical_or(mask, mask_prices)
         mask = np.logical_or(mask, mask_signal)
 
         if price is not None:
-            mask_forward = np.logical_or(mask, mask.shift(-self.period).fillna(True))
+            mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
             mask = np.logical_or(mask, mask_forward)
 
         # ----------------------------------------------------------------------
