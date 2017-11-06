@@ -204,7 +204,7 @@ class AlphaBacktestInstance(BacktestInstance):
     def init_from_config(self, props, strategy, context):
         super(AlphaBacktestInstance, self).init_from_config(props, strategy, context)
         
-        self.commission_rate = props.get('comm_rate', 20E-4)
+        self.commission_rate = props.get('commission_rate', 20E-4)
 
     def position_adjust(self):
         """
