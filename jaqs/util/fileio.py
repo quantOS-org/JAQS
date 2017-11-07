@@ -2,6 +2,7 @@
 import json
 import os
 import errno
+import cPickle as pickle
 
 from jaqs import SOURCE_ROOT_DIR
 
@@ -62,6 +63,47 @@ def save_json(serializable, file_name):
     
     with open(fn, 'w') as f:
         json.dump(serializable, f)
+
+
+def load_pickle(fp):
+    """
+    Read Pickle file. Return None if file not found.
+
+    Parameters
+    ----------
+    fp : str
+        Path of the Pickle file.
+
+    Returns
+    -------
+    object or None
+
+    """
+    content = None
+    try:
+        with open(fp, 'r') as f:
+            content = pickle.load(f)
+    except IOError as e:
+        if e.errno not in (errno.ENOENT, errno.EISDIR, errno.EINVAL):
+            raise
+    return content
+
+
+def save_pickle(obj, file_name):
+    """
+    Save an object to Pickle file.
+
+    Parameters
+    ----------
+    obj : object
+    file_name : str
+
+    """
+    fn = os.path.abspath(file_name)
+    create_dir(fn)
+
+    with open(fn, 'w') as f:
+        pickle.dump(obj, f)
 
 
 def join_relative_path(*paths):
