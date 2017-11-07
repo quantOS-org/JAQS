@@ -82,7 +82,7 @@ class DataView(object):
         self.reference_daily_fields = \
             {"total_mv", "float_mv", "pe", "pb", "pe_ttm", "pcf_ocf", "pcf_ocfttm", "pcf_ncf",
              "pcf_ncfttm", "ps", "ps_ttm", "turnover_ratio", "free_turnover_ratio", "total_share",
-             "float_share", "close", "price_div_dps", "free_share", "np_parent_comp_ttm",
+             "float_share", "price_div_dps", "free_share", "np_parent_comp_ttm",
              "np_parent_comp_lyr", "net_assets", "ncf_oper_ttm", "ncf_oper_lyr", "oper_rev_ttm",
              "oper_rev_lyr", "limit_status"}
         self.fin_stat_income = \
@@ -313,8 +313,11 @@ class DataView(object):
             s.update({'open', 'high', 'close', 'low', 'vwap'})
             
         if append:
-            if field_type == 'market_daily':
-                s.add(self.TRADE_STATUS_FIELD_NAME)
+            s.add('symbol')
+            if field_type == 'market_daily' or field_type == 'ref_daily':
+                s.add('trade_date')
+                if field_type == 'market_daily':
+                    s.add(self.TRADE_STATUS_FIELD_NAME)
             elif (field_type == 'income'
                   or field_type == 'balance_sheet'
                   or field_type == 'cash_flow'
@@ -338,31 +341,17 @@ class DataView(object):
 
         Returns
         -------
-        dic_market_daily : dict
-            {str: DataFrame}
-        dic_ref_daily : dict
-            {str: DataFrame}
-        dic_income : dict
-            {str: DataFrame}
-        dic_cash_flow : dict
-            {str: DataFrame}
-        dic_balance_sheet : dict
-            {str: DataFrame}
-        dic_fin_ind : dict
-            {str: DataFrame}
+        daily_list : list
+        quarterly_list : list
 
         """
         sep = ','
         symbol_str = sep.join(symbol)
         
-        dic_ref_daily = None
-        dic_market_daily = None
-        dic_balance = None
-        dic_cf = None
-        dic_income = None
-        dic_fin_ind = None
-        
         if self.freq == 1:
+            daily_list = []
+            quarterly_list = []
+            
             # TODO : use fields = {field: kwargs} to enable params
             fields_market_daily = self._get_fields('market_daily', fields, append=True)
             if fields_market_daily:
@@ -370,27 +359,28 @@ class DataView(object):
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                      adjust_mode=None, fields=sep.join(fields_market_daily))
+                if msg1 != '0,':
+                    print msg1
+                
                 if self.all_price:
                     adj_cols = ['open', 'high', 'low', 'close', 'vwap']
                     # adjusted prices
                     df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                                  adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
-                    df_daily_adjust = df_daily_adjust.loc[:, adj_cols]
-                    # concat axis = 1
-                    df_daily = df_daily.join(df_daily_adjust, rsuffix='_adj')
                     if msg11 != '0,':
                         print msg11
-                if msg1 != '0,':
-                    print msg1
-                dic_market_daily = self._group_df_to_dict(df_daily, 'symbol')
+                    
+                    df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
+                                        on=['symbol', 'trade_date'], suffixes=('', '_adj'))
+                daily_list.append(df_daily.loc[:, fields_market_daily])
 
-            fields_ref_daily = self._get_fields('ref_daily', fields)
+            fields_ref_daily = self._get_fields('ref_daily', fields, append=True)
             if fields_ref_daily:
                 df_ref_daily, msg2 = self.data_api.query_lb_dailyindicator(symbol_str, self.extended_start_date_d, self.end_date,
                                                                            sep.join(fields_ref_daily))
                 if msg2 != '0,':
                     print msg2
-                dic_ref_daily = self._group_df_to_dict(df_ref_daily, 'symbol')
+                daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
 
             fields_income = self._get_fields('income', fields, append=True)
             if fields_income:
@@ -398,7 +388,7 @@ class DataView(object):
                                                                   sep.join(fields_income), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
-                dic_income = self._group_df_to_dict(df_income, 'symbol')
+                quarterly_list.append(df_income.loc[:, fields_income])
 
             fields_balance = self._get_fields('balance_sheet', fields, append=True)
             if fields_balance:
@@ -406,7 +396,7 @@ class DataView(object):
                                                                    sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
-                dic_balance = self._group_df_to_dict(df_balance, 'symbol')
+                quarterly_list.append(df_balance.loc[:, fields_balance])
 
             fields_cf = self._get_fields('cash_flow', fields, append=True)
             if fields_cf:
@@ -414,7 +404,7 @@ class DataView(object):
                                                               sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
                     print msg3
-                dic_cf = self._group_df_to_dict(df_cf, 'symbol')
+                quarterly_list.append(df_cf.loc[:, fields_cf])
 
             fields_fin_ind = self._get_fields('fin_indicator', fields, append=True)
             if fields_fin_ind:
@@ -423,11 +413,12 @@ class DataView(object):
                                                                    sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg4 != '0,':
                     print msg4
-                dic_fin_ind = self._group_df_to_dict(df_fin_ind, 'symbol')
+                quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
+
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
         
-        return dic_market_daily, dic_ref_daily, dic_income, dic_balance, dic_cf, dic_fin_ind
+        return daily_list, quarterly_list
 
     @staticmethod
     def _process_index(df, index_name='trade_date'):
@@ -631,17 +622,18 @@ class DataView(object):
         Align on date index, concatenate on columns (symbol and fields)
         
         """
-        dfs = [df for df in dfs if df is not None]
-        if not dfs:
-            return None
+        # dfs = [df for df in dfs if df is not None]
         
         merge = pd.concat(dfs, axis=1, join='outer')
         
         # drop duplicated columns. ONE LINE EFFICIENT version
-        merge = merge.loc[:, ~merge.columns.duplicated()]
+        mask_duplicated = merge.columns.duplicated()
+        if np.any(mask_duplicated):
+            # print("Duplicated columns found. Dropped.")
+            merge = merge.loc[:, ~mask_duplicated]
         
-        if merge.isnull().sum().sum() > 0:
-            print "WARNING: nan in final merged data. NO fill"
+        # if merge.isnull().sum().sum() > 0:
+            # print "WARNING: nan in final merged data. NO fill"
             # merge.fillna(method='ffill', inplace=True)
             
         merge = merge.sort_index(axis=1, level=['symbol', 'field'])
@@ -720,36 +712,57 @@ class DataView(object):
         
         # query data
         print "Query data - query..."
-        dic_market_daily, dic_ref_daily, dic_income, dic_balance_sheet, dic_cash_flow, dic_fin_ind = \
-            self._query_data(self.symbol, fields)
+        daily_list, quarterly_list = self._query_data(self.symbol, fields)
         
-        # pre-process data
-        print "Query data - preprocess..."
-        multi_market_daily = self._preprocess_market_daily(dic_market_daily)
-        print '                process market_daily completed.'
-        multi_ref_daily = self._preprocess_ref_daily(dic_ref_daily, fields)
-        print '                process ref_daily completed.'
-        multi_income = self._preprocess_ref_quarterly('income', dic_income, fields)
-        print '                process income completed.'
-        multi_balance_sheet = self._preprocess_ref_quarterly('balance_sheet', dic_balance_sheet, fields)
-        print '                process balance sheet completed.'
-        multi_cash_flow = self._preprocess_ref_quarterly('cash_flow', dic_cash_flow, fields)
-        print '                process cash flow completed.'
-        multi_fin_ind = self._preprocess_ref_quarterly('fin_indicator', dic_fin_ind, fields)
-        print '                process finiancial indicator completed.'
-    
-        print "Query data - merge..."
-        merge_d = self._merge_data([multi_market_daily, multi_ref_daily],
-                                   index_name=self.TRADE_DATE_FIELD_NAME)
-        merge_q = self._merge_data([multi_income, multi_balance_sheet, multi_cash_flow, multi_fin_ind],
-                                   index_name=self.REPORT_DATE_FIELD_NAME)
-    
-        # drop dates that are not trade date
-        if merge_d is not None:
-            trade_dates = self.dates
-            merge_d = merge_d.loc[trade_dates, pd.IndexSlice[:, :]]
+        def process_before_pivot(df, index_name):
+            df = df.astype(dtype={index_name: int})
+            df = df.drop_duplicates(subset=['symbol', index_name])
+            return df
+
+        def pivot_and_sort(df, index_name):
+            df = process_before_pivot(df, index_name)
+            df = df.pivot(index=index_name, columns='symbol')
+            #TODO: name
+            df.columns = df.columns.swaplevel()
+            col_names = ['symbol', 'field']
+            df.columns.names = col_names
+            df = df.sort_index(axis=1, level=col_names)
+            return df
         
-        return merge_d, merge_q
+        multi_daily = None
+        multi_quarterly = None
+        if daily_list:
+            daily_list_pivot = [pivot_and_sort(df, self.TRADE_DATE_FIELD_NAME) for df in daily_list]
+            multi_daily = self._merge_data(daily_list_pivot, self.TRADE_DATE_FIELD_NAME)
+            multi_daily = self.fill_missing_symbols(multi_daily)
+            # drop dates that are not trade date
+            multi_daily = multi_daily.loc[self.dates, pd.IndexSlice[:, :]]
+        if quarterly_list:
+            quarterly_list_pivot = [pivot_and_sort(df, self.REPORT_DATE_FIELD_NAME) for df in quarterly_list]
+            multi_quarterly = self._merge_data(quarterly_list_pivot, self.REPORT_DATE_FIELD_NAME)
+            multi_quarterly = self.fill_missing_symbols(multi_quarterly)
+        
+        return multi_daily, multi_quarterly
+    
+    def fill_missing_symbols(self, df):
+        idx = df.index
+        fields = df.columns.levels[1]
+        
+        if len(fields) * len(self.symbol) > len(df.columns):
+            cols_multi = pd.MultiIndex.from_product([self.symbol, fields], names=['symbol', 'field'])
+            cols_multi = cols_multi.sort_values()
+            df_final = pd.DataFrame(index=idx, columns=cols_multi, data=np.nan)
+        
+            df_final.update(df)
+        
+            # idx_diff = sorted(set(df_final.index) - set(df.index))
+            col_diff = sorted(set(df_final.columns.levels[0].values) - set(df.columns.levels[0].values))
+            print ("WARNING: some data is unavailable: "
+                   # + "\n    At index " + ', '.join(idx_diff)
+                   + "\n    At fields " + ', '.join(col_diff))
+            return df_final
+        else:
+            return df
     
     def _prepare_adj_factor(self):
         """Query and append daily adjust factor for prices."""
@@ -868,7 +881,6 @@ class DataView(object):
         if universe:
             self.universe = universe
             self.symbol = sorted(data_api.get_index_comp(self.universe, self.extended_start_date_d, self.end_date))
-            self.fields.append('index_member')
         else:
             self.symbol = sorted(symbol.split(sep))
     
