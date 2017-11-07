@@ -1275,7 +1275,7 @@ class DataView(object):
         warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
         
         jaqs.util.fileio.create_dir(fp)
-        h5 = pd.HDFStore(fp)
+        h5 = pd.HDFStore(fp, complevel=9, complib='blosc')
         for key, value in dic.viewitems():
             h5[key] = value
         h5.close()
