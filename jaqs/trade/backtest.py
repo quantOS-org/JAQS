@@ -21,8 +21,9 @@ class BacktestInstance(Subscriber):
     """
     Attributes
     ----------
-    last_date : int
-        Last trade date.
+    start_date : int
+    end_date : int
+    
     """
     def __init__(self):
         super(BacktestInstance, self).__init__()
@@ -30,7 +31,6 @@ class BacktestInstance(Subscriber):
         self.strategy = None
         self.start_date = 0
         self.end_date = 0
-        self.last_date = 0
 
         self.props = None
         
@@ -57,7 +57,7 @@ class BacktestInstance(Subscriber):
         self.strategy = strategy
         
         if 'symbol' in props:
-            self.ctx.init_universe(props['universe'])
+            self.ctx.init_universe(props['symbol'])
         elif hasattr(context, 'dataview'):
             self.ctx.init_universe(context.dataview.symbol)
         else:
@@ -191,6 +191,7 @@ class AlphaBacktestInstance(BacktestInstance):
     def __init__(self):
         super(AlphaBacktestInstance, self).__init__()
     
+        self.last_date = 0
         self.last_rebalance_date = 0
         self.current_rebalance_date = 0
         
@@ -507,26 +508,13 @@ class EventBacktestInstance(BacktestInstance):
         self.bar_type = 1
 
     def init_from_config(self, props, strategy, context=None):
-        self.props = props
-        self.ctx = context
-
-        self.ctx.data_api.init_from_config(props)
-        self.ctx.data_api.initialize()
-
+        super(EventBacktestInstance, self).init_from_config(props, strategy, context)
+        
+        # TODO should be consistent with tradeAPI
         self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
-
-        self.start_date = self.props.get("start_date")
-        self.end_date = self.props.get("end_date")
+        
         self.bar_type = props.get("bar_type")
-
-        self.ctx = context
-        self.strategy = strategy
-        self.ctx.universe = props.get("symbol")
-
-        strategy.ctx = self.ctx
-        strategy.init_from_config(props)
-        strategy.initialize(common.RUN_MODE.BACKTEST)
-
+        
         self.pnlmgr = PnlManager()
         self.pnlmgr.setStrategy(strategy)
         self.pnlmgr.initFromConfig(props, self.ctx.data_api)
@@ -534,9 +522,131 @@ class EventBacktestInstance(BacktestInstance):
     def go_next_trade_date(self):
         next_dt = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
         
-        self.last_date = self.ctx.trade_date
         self.ctx.trade_date = next_dt
     
+    def on_new_day(self):
+        self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        self.strategy.on_new_day(self.ctx.trade_date)
+        print 'on_new_day in trade {}'.format(self.ctx.trade_date)
+
+    def _run_bar(self):
+        self.ctx.trade_date = self.start_date
+    
+        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
+            # on new day
+            self.on_new_day()
+            
+            # get quotes data
+            symbols_str = ','.join(self.ctx.universe)
+            df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
+                                                   trade_date=self.ctx.trade_date, freq=self.bar_type)
+            if df_quotes is None:
+                print msg
+                continue
+            
+            df_quotes = df_quotes.sort_values(by='time')
+            quotes_list = Bar.create_from_df(df_quotes)
+        
+            # loop on quotes
+            for quote in quotes_list:
+                self._process_quote_bar_tick(quote)
+            
+            # go next day
+            self.go_next_trade_date()
+    
+    def _run_daily(self):
+        self.ctx.trade_date = self.start_date
+
+        symbols_str = ','.join(self.ctx.universe)
+        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date)
+        df_daily.sort_values(by='trade_date', inplace=True)
+        quotes_list = Bar.create_from_df(df_daily)
+        
+        for quote in quotes_list:
+            # on new day
+            self.ctx.trade_date = quote.trade_date
+            self.on_new_day()
+            
+            # loop on quotes
+            self._process_quote_daily(quote)
+    
+    def _process_quote_daily(self, quote):
+        # on_quote
+        self.strategy.on_quote(quote)
+
+        # match
+        trade_results = self.ctx.gateway.process_quote(quote, freq=self.bar_type)
+
+        # trade indication
+        for trade_ind, status_ind in trade_results:
+            self.strategy.on_trade_ind(trade_ind)
+            self.strategy.on_order_status(status_ind)
+
+    def run(self):
+        if self.bar_type == common.QUOTE_TYPE.DAILY:
+            self._run_daily()
+        
+        elif (self.bar_type == common.QUOTE_TYPE.MIN
+              or self.bar_type == common.QUOTE_TYPE.FIVEMIN
+              or self.bar_type == common.QUOTE_TYPE.QUARTERMIN):
+            self._run_bar()
+        
+        else:
+            raise NotImplementedError("bar_type = {}".format(self.bar_type))
+        
+        print "Backtest done."
+        
+    def _process_quote_bar_tick(self, quote):
+        # match
+        trade_results = self.ctx.gateway.process_quote(quote, freq=self.bar_type)
+        
+        # trade indication
+        for trade_ind, status_ind in trade_results:
+            self.strategy.on_trade_ind(trade_ind)
+            self.strategy.on_order_status(status_ind)
+        
+        # on_quote
+        self.strategy.on_quote(quote)
+
+    def generate_report(self, output_format=""):
+        return self.pnlmgr.generateReport(output_format)
+    
+    def save_results(self, folder_path='.'):
+        import os
+        import pandas as pd
+        folder_path = os.path.abspath(folder_path)
+    
+        trades = self.strategy.pm.trades
+    
+        type_map = {'task_id': str,
+                    'entrust_no': str,
+                    'entrust_action': str,
+                    'symbol': str,
+                    'fill_price': float,
+                    'fill_size': float,
+                    'fill_date': int,
+                    'fill_time': int,
+                    'fill_no': str,
+                    'commission': float}
+        # keys = trades[0].__dict__.keys()
+        ser_list = dict()
+        for key in type_map.keys():
+            v = [t.__getattribute__(key) for t in trades]
+            ser = pd.Series(data=v, index=None, dtype=type_map[key], name=key)
+            ser_list[key] = ser
+        df_trades = pd.DataFrame(ser_list)
+        df_trades.index.name = 'index'
+    
+        trades_fn = os.path.join(folder_path, 'trades.csv')
+        configs_fn = os.path.join(folder_path, 'configs.json')
+        fileio.create_dir(trades_fn)
+    
+        df_trades.to_csv(trades_fn)
+        fileio.save_json(self.props, configs_fn)
+    
+        print ("Backtest results has been successfully saved to:\n" + folder_path)
+    
+    '''
     def run_event(self):
         data_api = self.ctx.data_api
         universe = self.ctx.universe
@@ -550,7 +660,7 @@ class EventBacktestInstance(BacktestInstance):
         
         ee = self.strategy.eventEngine  # TODO event-driven way of lopping, is it proper?
         ee.register(EVENT.CALENDAR_NEW_TRADE_DATE, __extract(self.strategy.on_new_day))
-        ee.register(EVENT.MD_QUOTE, __extract(self.process_quote))
+        ee.register(EVENT.MD_QUOTE, __extract(self._process_quote_bar_tick))
         ee.register(EVENT.MARKET_CLOSE, __extract(self.close_day))
         
         while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
@@ -581,7 +691,6 @@ class EventBacktestInstance(BacktestInstance):
                 ee.process_once()
                 # self.strategy.onSettle()
                 
-                self.last_date = self.ctx.trade_date
             else:
                 # no quotes because of holiday or other issues. We don't update last_date
                 print "in trade.py: function run(): {} quotes is None, continue.".format(self.last_date)
@@ -590,45 +699,4 @@ class EventBacktestInstance(BacktestInstance):
             
             # self.strategy.onTradingEnd()
 
-    def on_new_day(self):
-        self.ctx.gateway.on_new_day(self.ctx.trade_date)
-        self.strategy.on_new_day(self.ctx.trade_date)
-        print 'on_new_day in trade {}'.format(self.ctx.trade_date)
-
-    def run(self):
-        self.ctx.trade_date = self.start_date
-    
-        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
-            self.go_next_trade_date()
-            self.on_new_day()
-            
-            df_quotes, msg = self.ctx.data_api.bar(symbol=self.ctx.universe, start_time=200000, end_time=160000,
-                                                   trade_date=self.ctx.trade_date, freq=self.bar_type)
-            if df_quotes is None:
-                print msg
-                continue
-                
-            df_quotes = df_quotes.sort_values(by='time')
-            quotes_list = Bar.create_from_df(df_quotes)
-            
-            # for idx in df_quotes.index:
-            #     df_row = df_quotes.loc[[idx], :]
-            for quote in quotes_list:
-                self.process_quote(quote)
-        
-        print "Backtest done."
-        
-    def process_quote(self, quote):
-        # match
-        trade_results = self.ctx.gateway.process_quote(quote)
-        
-        # trade indication
-        for tradeInd, statusInd in trade_results:
-            self.strategy.on_trade_ind(tradeInd)
-            self.strategy.on_order_status(statusInd)
-        
-        # on_quote
-        self.strategy.on_quote(quote)
-
-    def generate_report(self, output_format=""):
-        return self.pnlmgr.generateReport(output_format)
+    '''

@@ -745,12 +745,9 @@ class DailyStockSimulator(object):
         self._validate_price(price_dic)
         
         results = []
-        for order in self.__orders.values():  # TODO viewvalues()
+        for order in self.__orders.values():
             symbol = order.symbol
             symbol_dic = price_dic[symbol]
-            if 'vwap' not in symbol_dic:
-                # df.loc[:, 'vwap'] = df.loc[:, 'turnover'] / df.loc[:, 'volume']
-                pass
             
             # get fill price
             if isinstance(order, FixedPriceTypeOrder):
@@ -811,37 +808,31 @@ class OrderBook(object):
         neworder.copy(order)
         self.orders.append(neworder)
     
-    def make_trade(self, quote, freq='1m'):
+    def make_trade(self, quote, freq):
         
         if freq == common.QUOTE_TYPE.TICK:
             # TODO
             return self.makeTickTrade(quote)
         
-        if (freq == common.QUOTE_TYPE.MIN
-            or freq == common.QUOTE_TYPE.FIVEMIN
-            or freq == common.QUOTE_TYPE.QUARTERMIN
-            or freq == common.QUOTE_TYPE.SPECIALBAR):
-            
-            return self.make_trade_bar(quote)
+        elif (freq == common.QUOTE_TYPE.MIN
+              or freq == common.QUOTE_TYPE.FIVEMIN
+              or freq == common.QUOTE_TYPE.QUARTERMIN
+              or freq == common.QUOTE_TYPE.SPECIALBAR):
+            return self._make_trade_bar(quote)
         
-        if freq == common.QUOTE_TYPE.DAILY:
-            # TODO
-            return self.makeDaiylTrade(quote)
+        elif freq == common.QUOTE_TYPE.DAILY:
+            return self._make_trade_bar(quote)
     
-    def make_trade_bar(self, quote):
-        # low = quote.loc[:, 'low'].values[0]
-        # high = quote.loc[:, 'high'].values[0]
-        # quote_time = quote.loc[:, 'time'].values[0]
-        # quote_symbol = quote.loc[:, 'symbol'].values[0]
+    def _make_trade_bar(self, quote):
         low = quote.low
         high = quote.high
+        quote_date = quote.trade_date
         quote_time = quote.time
         quote_symbol = quote.symbol
         
         result = []
         # to be optimized
-        for i in xrange(len(self.orders)):
-            order = self.orders[i]
+        for order in self.orders:
             if quote_symbol != order.symbol:
                 continue
             if order.is_finished:
@@ -850,78 +841,62 @@ class OrderBook(object):
             if order.order_type == common.ORDER_TYPE.LIMIT:
                 if order.entrust_action == common.ORDER_ACTION.BUY and order.entrust_price >= low:
                     trade = Trade()
-                    trade.fill_no = self.next_trade_id()
-                    trade.entrust_no = order.entrust_no
-                    trade.symbol = order.symbol
-                    trade.entrust_action = order.entrust_action
-                    trade.fill_size = order.entrust_size
-                    trade.fill_price = order.entrust_price
-                    trade.fill_date = order.entrust_date
-                    trade.fill_time = quote_time
+                    trade.init_from_order(order)
+                    trade.send_fill_info(order.entrust_price, order.entrust_size,
+                                         quote_date, quote_time,
+                                         self.next_trade_id())
                     
                     order.order_status = common.ORDER_STATUS.FILLED
                     order.fill_size = trade.fill_size
                     order.fill_price = trade.fill_price
                     
-                    orderstatusInd = OrderStatusInd()
-                    orderstatusInd.init_from_order(order)
-                    result.append((trade, orderstatusInd))
-                
-                if order.entrust_action == common.ORDER_ACTION.SELL and order.entrust_price <= high:
+                    orderstatus_ind = OrderStatusInd()
+                    orderstatus_ind.init_from_order(order)
+                    result.append((trade, orderstatus_ind))
+                    
+                elif order.entrust_action == common.ORDER_ACTION.SELL and order.entrust_price <= high:
                     trade = Trade()
-                    trade.fill_no = self.next_trade_id()
-                    trade.entrust_no = order.entrust_no
-                    trade.symbol = order.symbol
-                    trade.entrust_action = order.entrust_action
-                    trade.fill_size = order.entrust_size
-                    trade.fill_price = order.entrust_price
-                    trade.fill_date = order.entrust_date
-                    trade.fill_time = quote_time
+                    trade.init_from_order(order)
+                    trade.send_fill_info(order.entrust_price, order.entrust_size,
+                                         quote_date, quote_time,
+                                         self.next_trade_id())
                     
                     order.order_status = common.ORDER_STATUS.FILLED
                     order.fill_size = trade.fill_size
                     order.fill_price = trade.fill_price
                     
-                    orderstatusInd = OrderStatusInd()
-                    orderstatusInd.init_from_order(order)
-                    result.append((trade, orderstatusInd))
+                    orderstatus_ind = OrderStatusInd()
+                    orderstatus_ind.init_from_order(order)
+                    result.append((trade, orderstatus_ind))
             
-            if order.order_type == common.ORDER_TYPE.STOP:
+            elif order.order_type == common.ORDER_TYPE.STOP:
                 if order.entrust_action == common.ORDER_ACTION.BUY and order.entrust_price <= high:
                     trade = Trade()
-                    trade.fill_no = self.next_trade_id()
-                    trade.entrust_no = order.entrust_no
-                    trade.symbol = order.symbol
-                    trade.entrust_action = order.entrust_action
-                    trade.fill_size = order.entrust_size
-                    trade.fill_price = order.entrust_price
-                    trade.fill_date = order.entrust_date
-                    trade.fill_time = quote_time
+                    trade.init_from_order(order)
+                    trade.send_fill_info(order.entrust_price, order.entrust_size,
+                                         quote_date, quote_time,
+                                         self.next_trade_id())
                     
                     order.order_status = common.ORDER_STATUS.FILLED
                     order.fill_size = trade.fill_size
                     order.fill_price = trade.fill_price
-                    orderstatusInd = OrderStatusInd()
-                    orderstatusInd.init_from_order(order)
-                    result.append((trade, orderstatusInd))
+                    orderstatus_ind = OrderStatusInd()
+                    orderstatus_ind.init_from_order(order)
+                    result.append((trade, orderstatus_ind))
                 
                 if order.entrust_action == common.ORDER_ACTION.SELL and order.entrust_price >= low:
                     trade = Trade()
-                    trade.fill_no = self.next_trade_id()
-                    trade.entrust_no = order.entrust_no
-                    trade.symbol = order.symbol
-                    trade.entrust_action = order.entrust_action
-                    trade.fill_size = order.entrust_size
-                    trade.fill_price = order.entrust_price
-                    trade.fill_date = order.entrust_date
-                    trade.fill_time = quote_time
+                    trade.init_from_order(order)
+                    trade.send_fill_info(order.entrust_price, order.entrust_size,
+                                         quote_date, quote_time,
+                                         self.next_trade_id())
                     
                     order.order_status = common.ORDER_STATUS.FILLED
                     order.fill_size = trade.fill_size
                     order.fill_price = trade.fill_price
-                    orderstatusInd = OrderStatusInd()
-                    orderstatusInd.init_from_order(order)
-                    result.append((trade, orderstatusInd))
+                    orderstatus_ind = OrderStatusInd()
+                    orderstatus_ind.init_from_order(order)
+                    result.append((trade, orderstatus_ind))
         
         return result
     
@@ -973,6 +948,6 @@ class BarSimulatorGateway(BaseGateway):
         self.orderbook.add_order(order)
         self.cb_pm.on_order_rsp(order, True, '')
     
-    def process_quote(self, df_quote, freq='1m'):
+    def process_quote(self, df_quote, freq):
         results = self.orderbook.make_trade(df_quote, freq)
         return results

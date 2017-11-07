@@ -36,7 +36,7 @@ class CtaStrategy(EventDrivenStrategy):
             order = Order()
             order.entrust_action = common.ORDER_ACTION.BUY
             order.order_type = common.ORDER_TYPE.LIMIT
-            order.entrust_date = quote.date
+            order.entrust_date = quote.trade_date
             order.entrust_time = quote.time
             order.symbol = quote.symbol
             order.entrust_size = 10000
@@ -47,7 +47,7 @@ class CtaStrategy(EventDrivenStrategy):
             order = Order()
             order.entrust_action = common.ORDER_ACTION.SELL
             order.order_type = common.ORDER_TYPE.LIMIT
-            order.entrust_date = quote.date
+            order.entrust_date = quote.trade_date
             order.entrust_time = quote.time
             order.symbol = quote.symbol
             order.entrust_size = 5000

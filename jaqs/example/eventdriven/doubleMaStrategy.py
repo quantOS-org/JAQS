@@ -10,8 +10,8 @@ class DoubleMaStrategy(EventDrivenStrategy):
     def __init__(self):
         EventDrivenStrategy.__init__(self)
         self.symbol = ''
-        self.fastN = 14
-        self.slowN = 45
+        self.fastN = 3
+        self.slowN = 8
         self.bar = None
         self.bufferCount = 0
         self.bufferSize = 20
@@ -32,7 +32,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
         pass
     
     def createOrder(self, quote, price, size):
-        order = Order.new_order(quote.symbol, "", price, size, quote.date, quote.time)
+        order = Order.new_order(quote.symbol, "", price, size, quote.trade_date, quote.time)
         order.order_type = common.ORDER_TYPE.LIMIT
         return order
     
@@ -60,7 +60,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
         print 'new day comes ' + str(trade_date)
     
     def on_quote(self, quote):
-        quote_date = quote.date
+        quote_date = quote.trade_date
         p = self.pm.get_position(quote.symbol, quote_date)
         if p is None:
             self.pos = 0
