@@ -59,7 +59,7 @@ class Context(object):
         self.storage = dict()
         
         for member, obj in self.__dict__.viewitems():
-            if member in ['calendar', 'data_api', 'dataview', 'gateway']:
+            if member in ['calendar', '_data_api', '_dataview', '_gateway']:
                 if hasattr(obj, 'register_context'):
                     obj.register_context(self)
 
