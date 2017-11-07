@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 from jaqs.data.calendar import Calendar
+from jaqs.util import fileio
 
 
 class RegisteredFunction(object):
@@ -43,44 +44,62 @@ class Context(object):
             # TODO: hard-code
             calendar = Calendar()
         self.calendar = calendar
-        self.data_api = data_api
-        self.dataview = dataview
-        self.gateway = gateway
-        self.pm = None
 
         self.universe = []
+        self._data_api = data_api
+        self._dataview = dataview
+        
         self.trade_date = 0
         self.snapshot = None
+        
+        self._gateway = gateway
+        
+        self.pm = None
+        
+        self.storage = dict()
         
         for member, obj in self.__dict__.viewitems():
             if member in ['calendar', 'data_api', 'dataview', 'gateway']:
                 if hasattr(obj, 'register_context'):
                     obj.register_context(self)
 
-    def register_calendar(self, calendar):
-        if hasattr(calendar, 'register_context'):
-            calendar.register_context(self)
-        self.calendar = calendar
+    def save_store(self, path):
+        fileio.save_pickle(self.storage, path)
 
-    def register_portfolio_manager(self, portfolio_manager):
-        if hasattr(portfolio_manager, 'register_context'):
-            portfolio_manager.register_context(self)
-        self.pm = portfolio_manager
-        
-    def register_data_api(self, data_api):
-        if hasattr(data_api, 'register_context'):
-            data_api.register_context(self)
-        self.data_api = data_api
-        
-    def register_gateway(self, gateway):
-        if hasattr(gateway, 'register_context'):
-            gateway.register_context(self)
-        self.gateway = gateway
+    def load_store(self, path):
+        s = fileio.load_pickle(path)
+        if s is not None:
+            self.storage = s
     
-    def register_dataview(self, dataview):
-        if hasattr(dataview, 'register_context'):
-            dataview.register_context(self)
-        self.dataview = dataview
+    @property
+    def data_api(self):
+        return self._data_api
+
+    @data_api.setter
+    def data_api(self, value):
+        if hasattr(value, 'register_context'):
+            value.register_context(self)
+        self._data_api = value
+
+    @property
+    def gateway(self):
+        return self._gateway
+
+    @gateway.setter
+    def gateway(self, value):
+        if hasattr(value, 'register_context'):
+            value.register_context(self)
+        self._gateway = value
+
+    @property
+    def dataview(self):
+        return self._dataview
+    
+    @dataview.setter
+    def dataview(self, value):
+        if hasattr(value, 'register_context'):
+            value.register_context(self)
+        self._dataview = value
         
     def init_universe(self, univ):
         """
