@@ -69,6 +69,7 @@ class TradeStat(object):
         self.sell_want_size = 0
 
 
+'''
 class PortfolioManager_RAW(TradeCallback):
     """
     Used to store relevant context of the strategy.
@@ -286,6 +287,9 @@ class PortfolioManager_RAW(TradeCallback):
         return market_value
 
 
+'''
+
+
 class PortfolioManager(TradeCallback):
     """
     Used to store relevant context of the strategy.
@@ -310,10 +314,16 @@ class PortfolioManager(TradeCallback):
         self.positions = {}
         self.holding_securities = set()
         self.tradestat = {}
+        
         self.strategy = strategy
+        self.original_on_order_status = self.strategy.on_order_status
+        self.strategy.on_order_status = self.on_order_status
+        
+        self.original_on_trade_ind = self.strategy.on_trade_ind
+        self.strategy.on_trade_ind = self.on_trade_ind
     
     @staticmethod
-    def _make_position_key(symbol, trade_date=0):
+    def _make_position_key(symbol):
         # return '@'.join(symbol)
         return symbol
     
@@ -350,7 +360,7 @@ class PortfolioManager(TradeCallback):
         new_order.copy(order)  # TODO why copy?
         self.orders[self._make_order_key(order.entrust_no, self.strategy.ctx.trade_date)] = new_order
         
-        position_key = self._make_position_key(order.symbol, self.strategy.ctx.trade_date)
+        position_key = self._make_position_key(order.symbol)
         if position_key not in self.positions:
             position = Position()
             position.symbol = order.symbol
@@ -387,10 +397,12 @@ class PortfolioManager(TradeCallback):
                     tradestat.sell_want_size -= release_size
             else:
                 raise ValueError("order {} does not exist".format(entrust_no))
+
+        self.original_on_order_status(ind)
     
     def set_position(self, symbol, date, ratio=1):
         """Modify latest (thus date might not be necessary) position by a ratio."""
-        pos_key = self._make_position_key(symbol, date)
+        pos_key = self._make_position_key(symbol)
         pos = self.positions.get(pos_key)
         
         pos.curr_size *= ratio
@@ -419,7 +431,7 @@ class PortfolioManager(TradeCallback):
                 order.order_status = common.ORDER_STATUS.ACCEPTED
         
         # change position and trade stats
-        position_key = self._make_position_key(ind.symbol, self.strategy.ctx.trade_date)
+        position_key = self._make_position_key(ind.symbol)
         position = self.positions.get(position_key)
         tradestat = self.tradestat.get(ind.symbol)
         
@@ -447,6 +459,9 @@ class PortfolioManager(TradeCallback):
             self.holding_securities.add(ind.symbol)
         else:
             self.holding_securities.remove(ind.symbol)
+        
+        # hook:
+        self.original_on_trade_ind(ind)
     
     def market_value(self, ref_date, ref_prices, suspensions=None):
         """
@@ -823,21 +838,21 @@ class OrderBook(object):
         elif freq == common.QUOTE_TYPE.DAILY:
             return self._make_trade_bar(quote)
     
-    def _make_trade_bar(self, quote):
-        low = quote.low
-        high = quote.high
-        quote_date = quote.trade_date
-        quote_time = quote.time
-        quote_symbol = quote.symbol
+    def _make_trade_bar(self, quote_dic):
         
         result = []
         # to be optimized
         for order in self.orders:
-            if quote_symbol != order.symbol:
-                continue
             if order.is_finished:
                 continue
-            
+    
+            quote = quote_dic[order.symbol]
+            low = quote.low
+            high = quote.high
+            quote_date = quote.trade_date
+            quote_time = quote.time
+            quote_symbol = quote.symbol
+        
             if order.order_type == common.ORDER_TYPE.LIMIT:
                 if order.entrust_action == common.ORDER_ACTION.BUY and order.entrust_price >= low:
                     trade = Trade()

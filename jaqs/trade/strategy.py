@@ -11,6 +11,7 @@ from jaqs.trade.gateway import PortfolioManager
 from jaqs.data.basic.order import *
 from jaqs.data.basic.position import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
+from jaqs.util import fileio
 
 from jaqs.trade import model
 from jaqs.trade import common
@@ -29,10 +30,10 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         Used to store relevant context of the strategy.
     run_mode : int
         Whether the strategy is under back-testing or live trading.
-    trade_date : int
-        current trading date (may be inconsistent with calendar date).
     pm : trade.PortfolioManger
         Responsible for managing orders, trades and positions.
+    store : dict
+        A dictionary to store variables that will be automatically saved.
 
     Methods
     -------
@@ -44,20 +45,17 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         self.ctx = None
         self.run_mode = common.RUN_MODE.BACKTEST
         
-        self.pm = PortfolioManager(self)
+        self.pm = PortfolioManager(strategy=self)
 
         self.task_id_map = defaultdict(list)
         self.seq_gen = SequenceGenerator()
 
         self.init_balance = 0.0
-    
-    @abc.abstractmethod
+        
     def init_from_config(self, props):
         pass
     
-    def initialize(self, run_mode):
-        self.run_mode = run_mode
-        # self.register_callback()
+    def initialize(self):
         pass
     
     """
@@ -68,8 +66,6 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         gw.register_callback('on_order_status', self.on_trade_ind)
     
     """
-    def on_new_day(self, trade_date):
-        pass
     
     def _get_next_num(self, key):
         """used to generate id for orders and trades."""
@@ -278,7 +274,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         -------
 
         """
-        self.pm.on_trade_ind(ind)
+        pass
 
     def on_order_status(self, ind):
         """
@@ -291,7 +287,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         -------
 
         """
-        self.pm.on_order_status(ind)
+        pass
 
 
 class AlphaStrategy(Strategy, model.FuncRegisterable):
@@ -655,10 +651,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 class EventDrivenStrategy(Strategy, Subscriber):
     def __init__(self):
         
-        Strategy.__init__(self)
-        
-        self.pm = PortfolioManager()
-        self.pm.strategy = self
+        super(EventDrivenStrategy, self).__init__()
         
         # TODO remove
         self.eventEngine = EventEngine()
@@ -668,10 +661,6 @@ class EventDrivenStrategy(Strategy, Subscriber):
         self.eventEngine.register(eventType.EVENT_ORDERSTATUS_IND, self.pm.on_order_status)
     
     @abstractmethod
-    def on_new_day(self, trade_date):
-        pass
-    
-    @abstractmethod
     def on_quote(self, quote):
         pass
     
@@ -679,9 +668,8 @@ class EventDrivenStrategy(Strategy, Subscriber):
     def on_cycle(self):
         pass
     
-    def initialize(self, runmode):
-        if runmode == common.RUN_MODE.REALTIME:
-            self.subscribe_events()
+    def initialize(self):
+        pass
     
     def subscribe_events(self):
         universe = self.ctx.universe
