@@ -19,17 +19,23 @@ class Bar(object):
     
     @classmethod
     def create_from_df(cls, df):
-        row_dic_list = [row.to_dict() for idx, row in df.iterrows()]
         bar_list = []
-        for row_dic in row_dic_list:
+        for _, row in df.iterrows():
             bar = cls()
-            bar.__dict__.update(row_dic)
+            dic = row.to_dict()
+            bar.__dict__.update(dic)
             bar_list.append(bar)
         return bar_list
-    
+
+    @classmethod
+    def create_from_dict(cls, dic):
+        bar = cls()
+        bar.__dict__.update(dic)
+        return bar
+
     def __repr__(self):
-        return "{0.trade_date:8d}-{0.time:8d} " \
-               "{0.volume:5f} of " \
+        return "{0.trade_date:8d}-{0.time:6d} " \
+               "{0.volume:13.2f} of " \
                "{0.symbol:10s}@{0.close:.3f}".format(self)
 
     def __str__(self):
