@@ -1,6 +1,10 @@
 # encoding: utf-8
 
 from jaqs.data.dataview import DataView
+from jaqs.util import fileio
+
+daily_path = fileio.join_relative_path('../output/tests/test_dataview_d')
+quarterly_path = fileio.join_relative_path('../output/tests/test_dataview_q')
 
 
 def test_write():
@@ -25,8 +29,7 @@ def test_write():
     map directly to c-types [inferred_type->mixed,key->block1_values] [items->[('000001.SZ', 'int_income'), ('000001.SZ', 'less_handling_chrg_comm_exp'), ('000001.SZ', 'net_int_income'), ('000001.SZ', 'oper_exp'), ('000001.SZ', 'symbol'), ('000063.SZ', 'int_income'), ('000063.SZ', 'less_handling_chrg_comm_exp'), ('000063.SZ', 'net_int_income'), ('000063.SZ', 'oper_exp'), ('000063.SZ', 'symbol'), ('600030.SH', 'int_income'), ('600030.SH', 'less_handling_chrg_comm_exp'), ('600030.SH', 'net_int_income'), ('600030.SH', 'oper_exp'), ('600030.SH', 'symbol')]]
     """
     
-    folder_path = '../output/prepared'
-    dv.save_dataview(folder_path=folder_path)
+    dv.save_dataview(folder_path=daily_path)
 
 
 def test_write_future():
@@ -47,8 +50,7 @@ def test_write_future():
     
 def test_load():
     dv = DataView()
-    folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=daily_path)
     
     assert dv.start_date == 20160601 and set(dv.symbol) == set('000001.SZ,600030.SH,000063.SZ'.split(','))
 
@@ -67,8 +69,7 @@ def test_load():
 
 def test_add_field():
     dv = DataView()
-    folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=daily_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -97,8 +98,7 @@ def test_add_formula_directly():
 
 def test_add_formula():
     dv = DataView()
-    folder_path = '../output/prepared/20160601_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=daily_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -147,22 +147,19 @@ def test_q():
     
     dv.init_from_config(props, data_api=ds)
     dv.prepare_data()
-    folder_path = '../output/prepared'
-    dv.save_dataview(folder_path=folder_path)
+    dv.save_dataview(folder_path=quarterly_path)
 
 
 def test_q_get():
     dv = DataView()
-    folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=quarterly_path)
     res = dv.get("", 0, 0, 'total_oper_rev')
     assert set(res.index.values) == set(dv.dates[dv.dates >= dv.start_date])
 
 
 def test_q_add_field():
     dv = DataView()
-    folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=quarterly_path)
     nrows, ncols = dv.data_q.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
@@ -179,7 +176,7 @@ def test_q_add_field():
 def test_q_add_formula():
     dv = DataView()
     folder_path = '../output/prepared/20160609_20170601_freq=1D'
-    dv.load_dataview(folder_path=folder_path)
+    dv.load_dataview(folder_path=quarterly_path)
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     

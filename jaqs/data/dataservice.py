@@ -9,7 +9,7 @@ from jaqs.util import fileio
 from jaqs.trade.pubsub import Publisher
 from jaqs.data.dataapi import DataApi
 from jaqs.data import align
-from jaqs.util import dtutil
+import jaqs.util as jutil
 
 
 class DataService(Publisher):
@@ -494,7 +494,7 @@ class RemoteDataService(DataService):
             df = self.get_index_weights(index, td)
             symbols_set.update(set(df.index))
             dic[td] = df['weight']
-            td = dtutil.get_next_period_day(td, 'month', 1)
+            td = jutil.get_next_period_day(td, 'month', 1)
         merge = pd.concat(dic, axis=1).T
         merge = merge.fillna(0.0)  # for those which are not components
         res = pd.DataFrame(index=trade_dates, columns=sorted(list(symbols_set)), data=np.nan)
@@ -596,12 +596,6 @@ class RemoteDataService(DataService):
         
         return res
 
-    @staticmethod
-    def _group_df_to_dict(df, by):
-        gp = df.groupby(by=by)
-        res = {key: value for key, value in gp}
-        return res
-    
     def get_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
@@ -623,7 +617,7 @@ class RemoteDataService(DataService):
         """
         df_raw = self.get_industry_raw(symbol, type_=type_, level=level)
         
-        dic_sec = self._group_df_to_dict(df_raw, by='symbol')
+        dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
                    for sec, df in dic_sec.viewitems()}
 
@@ -712,7 +706,7 @@ class RemoteDataService(DataService):
         """
         df_raw = self.get_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
     
-        dic_sec = self._group_df_to_dict(df_raw, by='symbol')
+        dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
                    for sec, df in dic_sec.viewitems()}
         
