@@ -1,6 +1,7 @@
 # encoding: UTF-8
 
 from jaqs.data.dataservice import RemoteDataService
+import jaqs.util as jutil
 
 
 def test_remote_data_service_daily():
@@ -112,7 +113,7 @@ def test_remote_data_service_industry():
     # df_ann = df_ann.unstack(level='symbol')
     
     from jaqs.data.dataview import DataView
-    dic_sec = DataView._group_df_to_dict(df, by='symbol')
+    dic_sec = jutil.group_df_to_dict(df, by='symbol')
     dic_sec = {sec: df.reset_index() for sec, df in dic_sec.viewitems()}
     
     df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)

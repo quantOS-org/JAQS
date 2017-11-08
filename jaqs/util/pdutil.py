@@ -38,3 +38,7 @@ def fillinf(df):
     return df.replace([np.inf, -np.inf], np.nan)
 
 
+def group_df_to_dict(df, by):
+    gp = df.groupby(by=by)
+    res = {key: value for key, value in gp}
+    return res
