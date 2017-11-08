@@ -187,7 +187,8 @@ class PnlManager(object):
         begindate = self.calendar.get_last_trade_date(self.start_date)
         enddate = self.calendar.get_next_trade_date(self.end_date)
         for symbol in self.universe:
-            df, msg = self.data_api.daily(symbol, start_date=begindate, end_date=enddate, fields="")
+            df, msg = self.data_api.daily(symbol, start_date=begindate, end_date=enddate, fields="",
+                                          adjust_mode='post')
             for i in range(0, len(df.index)):
                 date = (df['trade_date'][i])
                 close = df['close'][i]

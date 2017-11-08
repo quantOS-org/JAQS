@@ -571,7 +571,8 @@ class EventBacktestInstance(BacktestInstance):
         from collections import defaultdict
         
         symbols_str = ','.join(self.ctx.universe)
-        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date)
+        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date,
+                                                adjust_mode='post')
         if msg != '0,':
             print msg
         if df_daily is None or df_daily.empty:
