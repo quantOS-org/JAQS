@@ -15,6 +15,7 @@ from jaqs.data.basic.marketdata import Bar
 from jaqs.data.basic.trade import Trade
 from jaqs.util import dtutil
 from jaqs.util import fileio
+import jaqs.util as jutil
 
 
 class BacktestInstance(Subscriber):
@@ -65,7 +66,6 @@ class BacktestInstance(Subscriber):
         
         strategy.ctx = self.ctx
         strategy.init_from_config(props)
-        strategy.initialize(common.RUN_MODE.BACKTEST)
 
 
 '''
@@ -524,58 +524,83 @@ class EventBacktestInstance(BacktestInstance):
         
         self.ctx.trade_date = next_dt
     
-    def on_new_day(self):
+    def on_new_day(self, date):
+        self.ctx.trade_date = date
         self.ctx.gateway.on_new_day(self.ctx.trade_date)
-        self.strategy.on_new_day(self.ctx.trade_date)
         print 'on_new_day in trade {}'.format(self.ctx.trade_date)
-
-    def _run_bar(self):
-        self.ctx.trade_date = self.start_date
     
-        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
-            # on new day
-            self.on_new_day()
-            
-            # get quotes data
-            symbols_str = ','.join(self.ctx.universe)
-            df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
-                                                   trade_date=self.ctx.trade_date, freq=self.bar_type)
-            if df_quotes is None:
-                print msg
-                continue
-            
-            df_quotes = df_quotes.sort_values(by='time')
-            quotes_list = Bar.create_from_df(df_quotes)
+    def on_after_market_close(self):
+        pass
+
+    def _create_time_symbol_bars(self, date):
+        from collections import defaultdict
         
-            # loop on quotes
-            for quote in quotes_list:
-                self._process_quote_bar_tick(quote)
+        # query quotes data
+        symbols_str = ','.join(self.ctx.universe)
+        df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
+                                               trade_date=date, freq=self.bar_type)
+        if msg != '0,':
+            print msg
+        if df_quotes is None or df_quotes.empty:
+            return dict()
+    
+        # create nested dict
+        quotes_list = Bar.create_from_df(df_quotes)
+        
+        dic = defaultdict(dict)
+        for quote in quotes_list:
+            dic[quote.date * 1000000 + quote.time][quote.symbol] = quote
+        return dic
+        
+    def _run_bar(self):
+        """Quotes of different symbols will be aligned into one dictionary."""
+        trade_dates = self.ctx.calendar.get_trade_date_range(self.start_date, self.end_date)
+
+        for trade_date in trade_dates:
+            self.on_new_day(trade_date)
             
-            # go next day
-            self.go_next_trade_date()
+            quotes_dic = self._create_time_symbol_bars(trade_date)
+            for dt in sorted(quotes_dic.keys()):
+                quote_by_symbol = quotes_dic.get(dt)
+                self._process_quote_bar(quote_by_symbol)
+            
+            self.on_after_market_close()
     
     def _run_daily(self):
-        self.ctx.trade_date = self.start_date
-
+        """Quotes of different symbols will be aligned into one dictionary."""
+        from collections import defaultdict
+        
         symbols_str = ','.join(self.ctx.universe)
         df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date)
-        df_daily.sort_values(by='trade_date', inplace=True)
-        quotes_list = Bar.create_from_df(df_daily)
+        if msg != '0,':
+            print msg
+        if df_daily is None or df_daily.empty:
+            return dict()
         
+        # create nested dict
+        quotes_list = Bar.create_from_df(df_daily)
+
+        dic = defaultdict(dict)
         for quote in quotes_list:
-            # on new day
-            self.ctx.trade_date = quote.trade_date
-            self.on_new_day()
+            dic[quote.trade_date][quote.symbol] = quote
+        
+        dates = sorted(dic.keys())
+        for i in range(len(dates) - 1):
+            d1, d2 = dates[i], dates[i + 1]
+            self.on_new_day(d2)
             
-            # loop on quotes
-            self._process_quote_daily(quote)
+            quote1 = dic.get(d1)
+            quote2 = dic.get(d2)
+            self._process_quote_daily(quote1, quote2)
+            
+            self.on_after_market_close()
     
-    def _process_quote_daily(self, quote):
+    def _process_quote_daily(self, quote_yesterday, quote_today):
         # on_quote
-        self.strategy.on_quote(quote)
+        self.strategy.on_quote(quote_yesterday)
 
         # match
-        trade_results = self.ctx.gateway.process_quote(quote, freq=self.bar_type)
+        trade_results = self.ctx.gateway.process_quote(quote_today, freq=self.bar_type)
 
         # trade indication
         for trade_ind, status_ind in trade_results:
@@ -596,9 +621,9 @@ class EventBacktestInstance(BacktestInstance):
         
         print "Backtest done."
         
-    def _process_quote_bar_tick(self, quote):
+    def _process_quote_bar(self, quotes_dic):
         # match
-        trade_results = self.ctx.gateway.process_quote(quote, freq=self.bar_type)
+        trade_results = self.ctx.gateway.process_quote(quotes_dic, freq=self.bar_type)
         
         # trade indication
         for trade_ind, status_ind in trade_results:
@@ -606,7 +631,7 @@ class EventBacktestInstance(BacktestInstance):
             self.strategy.on_order_status(status_ind)
         
         # on_quote
-        self.strategy.on_quote(quote)
+        self.strategy.on_quote(quotes_dic)
 
     def generate_report(self, output_format=""):
         return self.pnlmgr.generateReport(output_format)
@@ -660,7 +685,7 @@ class EventBacktestInstance(BacktestInstance):
         
         ee = self.strategy.eventEngine  # TODO event-driven way of lopping, is it proper?
         ee.register(EVENT.CALENDAR_NEW_TRADE_DATE, __extract(self.strategy.on_new_day))
-        ee.register(EVENT.MD_QUOTE, __extract(self._process_quote_bar_tick))
+        ee.register(EVENT.MD_QUOTE, __extract(self._process_quote_bar))
         ee.register(EVENT.MARKET_CLOSE, __extract(self.close_day))
         
         while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
