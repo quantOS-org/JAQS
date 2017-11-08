@@ -57,41 +57,52 @@ def test_trade_api():
     # 如果成功，返回(strategy_id, msg)
     # 否则返回 (0, err_msg)
     sid, msg = tapi.use_strategy(1)
-    print "msg: ", msg
-    print "sid: ", sid    
+    assert msg == '0,'
+    print "sid: ", sid
 
     # 查询Portfolio
     #
     # 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 
     df, msg = tapi.query_account()
-    print "msg: ", msg
-    print df    
+    assert msg == '0,'
+    print df
     
     # 查询当前策略帐号的所有持仓
     #
     # 和 query_portfolio接口不一样。如果莫个期货合约 Long, Short两个方向都有持仓，这里是返回两条记录
     # 返回的 size 不带方向，全部为 正
     df, msg = tapi.query_position()
-    print "msg: ", msg
+    assert msg == '0,'
     print df
-
-    # 下单接口
-    #  (task_id, msg) = place_order(code, action, price, size )
-    #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
-    # 返回 task_id 可以用改 task_id
-    task_id, msg = tapi.place_order("000025.SZ", "Buy", 57, 100)
-    print "msg:", msg
-    print "task_id:", task_id
+    
+    # Query Universe
+    df_univ, msg = tapi.query_universe()
 
     # 查询Portfolio
     #
     # 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 
-    df, msg = tapi.query_portfolio()
-    print "msg: ", msg
-    print df
+    df_portfolio, msg = tapi.query_portfolio()
+    assert msg == '0,'
+    assert len(df_univ) == len(df_portfolio)
 
+    # 下单接口
+    #  (task_id, msg) = place_order(code, action, price, size )
+    #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
+    # 返回 task_id 可以用改 task_id
+    task_id, msg = tapi.place_order("000718.SZ", "Buy", 57, 100)
+    assert msg == '0,'
+    print "task_id:", task_id
+    
+    df_order, msg = tapi.query_order(task_id=task_id)
+    assert msg == '0,'
+    print df_order
+    
+    df_trade, msg = tapi.query_trade(task_id=task_id)
+    assert msg == '0,'
+    print df_trade
+    
     # 批量下单1：place_batch_order
     #
     # 返回task_id, msg。
@@ -100,7 +111,7 @@ def test_trade_api():
         {"security":"600519.SH", "action" : "Buy", "price": 320, "size":1000},
         ]
 
-    task_id, msg = tapi.place_batch_order(orders, "", "{}")
+    task_id, msg = tapi.place_batch_order(orders, "", dict())
     print task_id
     print msg    
 
@@ -116,7 +127,7 @@ def test_trade_api():
         {"security":"601997.SH",  "ref_price": 14.540, "inc_size":20000},
         ]
 
-    task_id, msg = tapi.basket_order(orders, "", "{}")
+    task_id, msg = tapi.basket_order(orders, "", {})
     print task_id
     print msg
 
@@ -146,13 +157,13 @@ def test_trade_api():
     goal.loc[code, 'ref_price'] = 14.40
     goal.loc[code, 'size'] += 10000
 
-    # 发送请求
-    result, msg = tapi.goal_portfolio(goal)
-    print result, msg
-    
     # stop_portfolio
     # 撤单, 撤销所有portfolio订单
     tapi.stop_portfolio()
+
+    # 发送请求
+    result, msg = tapi.goal_portfolio(goal)
+    print result, msg
     
 if __name__ == "__main__":
     test_trade_api()
