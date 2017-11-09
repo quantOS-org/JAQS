@@ -328,6 +328,7 @@ class BaseAnalyzer(object):
     
         plt.tight_layout()
         fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
+        plt.close()
 
     def gen_report(self, source_dir, template_fn, out_folder='.', selected=None):
         """
