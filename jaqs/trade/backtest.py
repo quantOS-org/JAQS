@@ -9,7 +9,7 @@ from jaqs.data.calendar import Calendar
 from jaqs.trade import common
 from jaqs.trade.analyze.pnlreport import PnlManager
 from jaqs.trade.event.eventEngine import Event
-from jaqs.trade.event.eventType import EVENT
+from jaqs.trade.event.eventtype import EVENT
 from jaqs.trade.pubsub import Subscriber
 from jaqs.data.basic.marketdata import Bar
 from jaqs.data.basic.trade import Trade

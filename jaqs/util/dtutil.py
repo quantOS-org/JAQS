@@ -2,7 +2,6 @@
 import datetime
 import numpy as np
 import pandas as pd
-from pandas.tseries import offsets as offsets
 
 
 def get_next_period_day(current, period, n=1, extra_offset=0):
@@ -27,12 +26,12 @@ def get_next_period_day(current, period, n=1, extra_offset=0):
     """
     current_dt = convert_int_to_datetime(current)
     if period == 'day':
-        offset = offsets.BDay()  # move to next business day
+        offset = pd.tseries.offsets.BDay()  # move to next business day
         # offset = offsets.Day
     elif period == 'week':
-        offset = offsets.Week(weekday=0)  # move to next Monday
+        offset = pd.tseries.offsets.Week(weekday=0)  # move to next Monday
     elif period == 'month':
-        offset = offsets.BMonthBegin()  # move to first business day of next month
+        offset = pd.tseries.offsets.BMonthBegin()  # move to first business day of next month
         # offset = offsets.MonthBegin
     else:
         raise NotImplementedError("Frequency as {} not support".format(period))
@@ -40,7 +39,7 @@ def get_next_period_day(current, period, n=1, extra_offset=0):
     
     next_dt = current_dt + offset
     if extra_offset:
-        next_dt = next_dt + extra_offset * offsets.BDay()
+        next_dt = next_dt + extra_offset * pd.tseries.offsets.BDay()
     nxt = convert_datetime_to_int(next_dt)
     return nxt
 

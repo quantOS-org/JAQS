@@ -203,8 +203,8 @@ def test_remote_data_service_index_weight():
     df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
     assert abs(df.at[20150120, '000001.SZ'] - 1.07) < 1e-2
     assert df.shape == (236, 321)
-    
-    
+
+
 if __name__ == "__main__":
     import time
     t_start = time.time()

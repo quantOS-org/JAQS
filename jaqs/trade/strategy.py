@@ -17,7 +17,7 @@ from jaqs.trade import model
 from jaqs.trade import common
 from jaqs.trade.event import EventEngine
 from jaqs.trade.pubsub import Subscriber
-from jaqs.trade.event import eventType
+from jaqs.trade.event import eventtype
 
 
 class Strategy(with_metaclass(abc.ABCMeta)):
@@ -287,6 +287,9 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         -------
 
         """
+        pass
+    
+    def on_order_rsp(self, rsp):
         pass
 
 
@@ -647,17 +650,17 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         return positions
 
 
-class EventDrivenStrategy(Strategy, Subscriber):
+class EventDrivenStrategy(Strategy):
     def __init__(self):
         
         super(EventDrivenStrategy, self).__init__()
         
         # TODO remove
-        self.eventEngine = EventEngine()
-        self.eventEngine.register(eventType.EVENT_TIMER, self.on_cycle)
-        self.eventEngine.register(eventType.EVENT_MD_QUOTE, self.on_quote)
-        self.eventEngine.register(eventType.EVENT_TRADE_IND, self.pm.on_trade_ind)
-        self.eventEngine.register(eventType.EVENT_ORDERSTATUS_IND, self.pm.on_order_status)
+        # self.eventEngine = EventEngine()
+        # self.eventEngine.register(eventtype.EVENT_TIMER, self.on_cycle)
+        # self.eventEngine.register(eventtype.EVENT_MD_QUOTE, self.on_quote)
+        # self.eventEngine.register(eventtype.EVENT_TRADE_IND, self.pm.on_trade_ind)
+        # self.eventEngine.register(eventtype.EVENT_ORDERSTATUS_IND, self.pm.on_order_status)
     
     @abstractmethod
     def on_quote(self, quote):
@@ -669,21 +672,3 @@ class EventDrivenStrategy(Strategy, Subscriber):
     
     def initialize(self):
         pass
-    
-    def subscribe_events(self):
-        universe = self.ctx.universe
-        data_server = self.ctx.dataserver
-        for i in xrange(len(universe)):
-            self.subscribe(data_server, universe[i])
-    
-    def subscribe(self, publisher, topic):
-        publisher.add_subscriber(self, topic)
-    
-    def start(self):
-        self.eventEngine.start(False)
-    
-    def stop(self):
-        self.eventEngine.stop()
-    
-    def register_event(self, event):
-        self.eventEngine.put(event)

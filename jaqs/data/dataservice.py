@@ -6,13 +6,14 @@ import numpy as np
 import pandas as pd
 
 from jaqs.util import fileio
-from jaqs.trade.pubsub import Publisher
+# from jaqs.trade.pubsub import Publisher
+from jaqs.trade.event import EVENT_TYPE, Event
 from jaqs.data.dataapi import DataApi
 from jaqs.data import align
 import jaqs.util as jutil
 
 
-class DataService(Publisher):
+class DataService(object):
     """
     Abstract base class providing both historic and live data
     from various data sources.
@@ -36,19 +37,15 @@ class DataService(Publisher):
 
     """
     def __init__(self, name=""):
-        Publisher.__init__(self)
         
         if name:
             self.source_name = name
         else:
             self.source_name = str(self.__class__.__name__)
+        
+        self.ctx = None
     
-    def init_from_config(self, props):
-        pass
-    
-    def initialize(self):
-        pass
-    
+    '''
     def subscribe(self, targets, callback):
         """
         Subscribe real time market data, including bar and tick,
@@ -71,6 +68,10 @@ class DataService(Publisher):
             else:
                 func = callback['on_bar']
             self.add_subscriber(func, target)
+    
+    '''
+    def register_context(self, context):
+        self.ctx = context
     
     @abstractmethod
     def quote(self, symbol, fields=""):
@@ -244,32 +245,57 @@ class RemoteDataService(DataService):
     
     def __init__(self):
         DataService.__init__(self)
-
-        dic = fileio.read_json(fileio.join_relative_path('etc/data_config.json'))
-        address = dic.get("remote.address", None)
-        username = dic.get("remote.username", None)
-        password = dic.get("remote.password", None)
-        if address is None or username is None or password is None:
-            raise ValueError("no address, username or password available!")
         
-        self.api = DataApi(address, use_jrpc=False)
-        self.api.set_timeout(60)
-        r, msg = self.api.login(username=username, password=password)
-        if not r:
-            print msg
-        else:
-            print "DataAPI login success.".format(address)
+        self.data_api = None
         
         self.REPORT_DATE_FIELD_NAME = 'report_date'
-        self._calendar = None
+        self.calendar = None
+        
+        self.init_from_config({})
 
     def __del__(self):
-        self.api.close()
+        self.data_api.close()
+
+    def init_from_config(self, props):
+        if self.data_api is not None:
+            self.data_api.close()
+            
+        def get_from_list_of_dict(l, key, default=None):
+            res = None
+            for dic in l:
+                res = dic.get(key, None)
+                if res is not None:
+                    break
+            if res is None:
+                res = default
+            return res
+        
+        props_default = fileio.read_json(fileio.join_relative_path('etc/data_config.json'))
+        dic_list = [props, props_default]
+        
+        address = get_from_list_of_dict(dic_list, "remote.address", "")
+        username = get_from_list_of_dict(dic_list, "remote.username", "")
+        password = get_from_list_of_dict(dic_list, "remote.password", "")
+        if address is None or username is None or password is None:
+            raise ValueError("no address, username or password available!")
+        time_out = get_from_list_of_dict(dic_list, "timeout", 60)
     
+        self.data_api = DataApi(address, use_jrpc=False)
+        self.data_api.set_timeout(timeout=time_out)
+        r, msg = self.data_api.login(username=username, password=password)
+        if not r:
+            print("DataAPI login failed: msg = {}".format(msg))
+        else:
+            print "DataAPI login success : {}@{}".format(username, address)
+        
+        self.calendar = Calendar(self.data_api)
+
+    # -----------------------------------------------------------------------------------
+    # Basic APIs
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):
-        df, err_msg = self.api.daily(symbol=symbol, start_date=start_date, end_date=end_date,
-                                     fields=fields, adjust_mode=adjust_mode, data_format="")
+        df, err_msg = self.data_api.daily(symbol=symbol, start_date=start_date, end_date=end_date,
+                                          fields=fields, adjust_mode=adjust_mode, data_format="")
         # trade_status performance warning
         # TODO there will be duplicate entries when on stocks' IPO day
         df = df.drop_duplicates()
@@ -278,9 +304,9 @@ class RemoteDataService(DataService):
     def bar(self, symbol,
             start_time=200000, end_time=160000, trade_date=None,
             freq='1m', fields=""):
-        df, msg = self.api.bar(symbol=symbol, fields=fields,
-                               start_time=start_time, end_time=end_time, trade_date=trade_date,
-                               freq='1m', data_format="")
+        df, msg = self.data_api.bar(symbol=symbol, fields=fields,
+                                    start_time=start_time, end_time=end_time, trade_date=trade_date,
+                                    freq='1m', data_format="")
         return df, msg
     
     def query(self, view, filter="", fields="", **kwargs):
@@ -312,19 +338,11 @@ class RemoteDataService(DataService):
             view does not change. fileds can be any field predefined in reference data api.
 
         """
-        df, msg = self.api.query(view, fields=fields, filter=filter, data_format="", **kwargs)
+        df, msg = self.data_api.query(view, fields=fields, filter=filter, data_format="", **kwargs)
         return df, msg
-    
-    def get_suspensions(self):
-        return None
 
-    @property
-    def calendar(self):
-        if self._calendar is None:
-            from jaqs.data.calendar import Calendar
-            self._calendar = Calendar()
-        return self._calendar
-    
+    # -----------------------------------------------------------------------------------
+    # Convenient Functions
     def get_trade_date_range(self, start_date, end_date):
         return self.calendar.get_trade_date_range(start_date, end_date)
     
@@ -788,3 +806,174 @@ class RemoteDataService(DataService):
         
         res = df_raw.set_index('symbol')
         return res
+    
+    # -----------------------------------------------------------------------------------
+    # subscribe for real time trading
+    def subscribe(self, symbols):
+        """
+        
+        Parameters
+        ----------
+        symbols : str
+            Separated by ,
+
+        """
+        self.data_api.subscribe(symbols, func=self.mkt_data_callback)
+
+    def mkt_data_callback(self, key, quote):
+        e = Event(EVENT_TYPE.MARKET_DATA)
+        # print quote
+        e.dic = {'quote': quote}
+        self.ctx.instance.put(e)
+
+
+class Calendar(object):
+    """
+    A calendar for manage trade date.
+    
+    Attributes
+    ----------
+    data_api :
+
+    """
+    
+    def __init__(self, data_api=None):
+        if data_api is not None:
+            self.data_api = data_api
+        else:
+            props = jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
+            
+            address = props.get("remote.address", "")
+            username = props.get("remote.username", "")
+            password = props.get("remote.password", "")
+            if address is None or username is None or password is None:
+                raise ValueError("no address, username or password available!")
+            time_out = props.get("timeout", 60)
+            
+            self.data_api = DataApi(address, use_jrpc=False)
+            self.data_api.set_timeout(timeout=time_out)
+            r, msg = self.data_api.login(username=username, password=password)
+            if not r:
+                print("DataAPI login failed: msg = {}".format(msg))
+            else:
+                print "DataAPI login success : {}@{}".format(username, address)
+    
+    @staticmethod
+    def _dic2url(d):
+        """
+        Convert a dict to str like 'k1=v1&k2=v2'
+        
+        Parameters
+        ----------
+        d : dict
+
+        Returns
+        -------
+        str
+
+        """
+        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
+        return '&'.join(l)
+    
+    def get_trade_date_range(self, start_date, end_date):
+        """
+        Get array of trade dates within given range.
+        Return zero size array if no trade dates within range.
+        
+        Parameters
+        ----------
+        start_date : int
+            YYmmdd
+        end_date : int
+
+        Returns
+        -------
+        trade_dates_arr : np.ndarray
+            dtype = int
+
+        """
+        filter_argument = self._dic2url({'start_date': start_date,
+                                         'end_date': end_date})
+        
+        df_raw, msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
+                                          filter=filter_argument, orderby="")
+        if df_raw.empty:
+            return np.array([], dtype=int)
+        
+        trade_dates_arr = df_raw['trade_date'].values.astype(int)
+        return trade_dates_arr
+    
+    def get_last_trade_date(self, date):
+        """
+        
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        res : int
+
+        """
+        dt = jutil.convert_int_to_datetime(date)
+        delta = pd.Timedelta(weeks=2)
+        dt_old = dt - delta
+        date_old = jutil.convert_datetime_to_int(dt_old)
+        
+        dates = self.get_trade_date_range(date_old, date)
+        mask = dates < date
+        res = dates[mask][-1]
+        
+        return res
+    
+    def is_trade_date(self, date):
+        """
+        Check whether date is a trade date.
+
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        bool
+
+        """
+        dates = self.get_trade_date_range(date, date)
+        return len(dates) > 0
+    
+    def get_next_trade_date(self, date):
+        """
+        
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        res : int
+
+        """
+        dt = jutil.convert_int_to_datetime(date)
+        delta = pd.Timedelta(weeks=2)
+        dt_new = dt + delta
+        date_new = jutil.convert_datetime_to_int(dt_new)
+        
+        dates = self.get_trade_date_range(date, date_new)
+        mask = dates > date
+        res = dates[mask][0]
+        
+        return res
+
+
+
+
+
+
+
+
+
+
+
+
+

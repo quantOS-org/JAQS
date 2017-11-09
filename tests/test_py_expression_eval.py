@@ -176,7 +176,7 @@ if __name__ == "__main__":
     
     df, msg = ds.daily("000001.SH, 600030.SH, 000300.SH", start_date=20170801, end_date=20170820,
                        fields="open,high,low,close,vwap,preclose")
-    ds.api.close()
+    ds.data_api.close()
     
     multi_index_names = ['trade_date', 'symbol']
     df_multi = df.set_index(multi_index_names, drop=False)

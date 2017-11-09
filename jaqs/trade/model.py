@@ -2,7 +2,7 @@
 
 import numpy as np
 import pandas as pd
-from jaqs.data.calendar import Calendar
+from jaqs.data.dataservice import Calendar
 from jaqs.util import fileio
 
 
@@ -39,27 +39,29 @@ class Context(object):
         Add new securities.
 
     """
-    def __init__(self, calendar=None, data_api=None, dataview=None, gateway=None):
-        if calendar is None:
-            # TODO: hard-code
+    def __init__(self, data_api=None, dataview=None, gateway=None, instance=None):
+        # TODO: should also support get calendar from dataview
+        if data_api is None:
             calendar = Calendar()
+        else:
+            calendar = data_api.calendar
         self.calendar = calendar
 
         self.universe = []
         self._data_api = data_api
         self._dataview = dataview
+        self._gateway = gateway
+        self.instance = instance
         
         self.trade_date = 0
         self.snapshot = None
-        
-        self._gateway = gateway
         
         self.pm = None
         
         self.storage = dict()
         
         for member, obj in self.__dict__.viewitems():
-            if member in ['calendar', '_data_api', '_dataview', '_gateway']:
+            if member in ['calendar', '_data_api', '_dataview', '_gateway', 'instance']:
                 if hasattr(obj, 'register_context'):
                     obj.register_context(self)
 
