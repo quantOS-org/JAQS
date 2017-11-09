@@ -7,17 +7,17 @@ import time
 #    if log_dir:
 #        jrpc.set_log_dir(log_dir)
 
-#class DataApiCallback:
-#    """DataApi Callback
-#
-#    def on_quote(quote):
-#        pass
-#        
-#    def on_connection()
-#    """
-#
-#    def __init__(self):
-#        self.on_quote = None
+class DataApiCallback:
+    """DataApi Callback
+
+    def on_quote(quote):
+        pass
+        
+    def on_connection()
+    """
+
+    def __init__(self):
+        self.on_quote = None
 
 class DataApi:
 
@@ -40,7 +40,7 @@ class DataApi:
 
     """
     
-    def __init__(self, addr="tcp://140.207.224.19:8910", use_jrpc=False):
+    def __init__(self, addr="tcp://data.tushare.org:8910", use_jrpc=False):
         """Create DataApi client.
         
         If use_jrpc, try to load the C version of JsonRpc. If failed, use pure
@@ -57,7 +57,7 @@ class DataApi:
         if not self._remote:
             self._remote = jrpc_py.JRpcClient()
 
-        # self._remote.on_rpc_callback = self._on_rpc_callback
+        self._remote.on_rpc_callback = self._on_rpc_callback
         self._remote.on_disconnected = self._on_disconnected
         self._remote.on_connected    = self._on_connected
         self._remote.connect(addr)
@@ -77,6 +77,7 @@ class DataApi:
         self._timeout = 20
 
     def login(self, username, password):
+
         """
         Login before using data api.
 
@@ -136,17 +137,26 @@ class DataApi:
         """
         self._timeout = timeout
 
-    
-    # def quote(self, symbol, fields="", data_format="", **kwargs):        
+    def set_data_format(self, format):
+        """Set queried data format.
         
-    #     r, msg = self._call_rpc("jsq.query",
-    #                             self._get_format(data_format, "pandas"),
-    #                             "Quote",
-    #                             _index_column = "symbol",
-    #                             symbol   = str(symbol),
-    #                             fields   = fields,
-    #                             **kwargs)
-    #     return (r, msg)   
+        Available formats are:
+            ""        -- Don't convert data, usually the type is map
+            "pandas"  -- Convert table likely data to DataFrame
+        """
+        self._data_format = format
+    def set_heartbeat(self, interval, timeout):
+        self._remote.set_hearbeat_options(interval, timeout)
+    def quote(self, symbol, fields="", data_format="", **kwargs):        
+      
+        r, msg = self._call_rpc("jsq.query",
+                                self._get_format(data_format, "pandas"),
+                                "Quote",
+                                _index_column = "symbol",
+                                symbol   = str(symbol),
+                                fields   = fields,
+                                **kwargs)
+        return (r, msg)   
     
 
     def bar(self, symbol, start_time=200000, end_time=160000, 
@@ -270,7 +280,7 @@ class DataApi:
 
 
     def daily(self, symbol, start_date, end_date, 
-        adjust_mode = None, fields="",
+        adjust_mode = None, freq = "1d", fields="",
         data_format="", **kwargs ) :
 
         """
@@ -326,6 +336,7 @@ class DataApi:
                               begin_date     = begin_date,
                               end_date       = end_date,
                               adjust_mode    = adjust_mode,                             
+                              freq           = freq,                            
                               **kwargs)
 
     def query(self, view, filter="", fields="", data_format="", **kwargs ) :
@@ -364,9 +375,48 @@ class DataApi:
                                filter = filter,
                                **kwargs)
 
+    def subscribe(self, symbol, func=None, fields="", data_format=""):
+        """Subscribe securites
+      
+        This function adds new securities to subscribed list on the server. If
+        success, return subscribed codes.
+      
+        If securities is empty, return current subscribed codes.
+        """
+        r, msg = self._check_session()
+        if not r:
+            return (r, msg)
+
+        if func:
+            self._on_jsq_callback = func
+      
+        rpc_params = {"symbol"   : symbol,
+                      "fields"   : fields }
+
+        cr = self._remote.call("jsq.subscribe", rpc_params)
+      
+        rsp, msg = utils.extract_result(cr, data_format="", class_name="SubRsp")
+        if not rsp:
+            return (rsp, msg)
+
+        new_codes = [ x.strip() for x in symbol.split(',') if x ]
+      
+        self._subscribed_set = self._subscribed_set.union( set(new_codes) )
+        self._schema_id     = rsp['schema_id']
+        self._schema        = rsp['schema']
+        self._sub_hash      = rsp['sub_hash']
+        return (rsp['securities'], msg)
+      
+
+    def unsubscribe(self, security):
+        """Unsubscribe securities.
+
+        Unscribe codes and return list of subscribed code.
+        """
+        assert False, "NOT IMPLEMENTED"
+							   
     def __del__(self):
         self._remote.close()
-    
 
     def _on_disconnected(self):
         """JsonRpc callback"""
@@ -381,7 +431,7 @@ class DataApi:
         self._connected = True
 
         self._do_login()
-        # self._do_subscribe()
+        self._do_subscribe()
 
         if self._callback:
             self._callback("connection", True)
@@ -405,6 +455,8 @@ class DataApi:
         else:
             return default_format
     
+    def set_callback(self, callback):
+        self._callback = callback
 
     def _convert_quote_ind(self, quote_ind):
         """Convert original quote_ind to a map.
@@ -412,59 +464,41 @@ class DataApi:
         The original quote_ind contains field index instead of field name!
         """
         
-        if quote_ind != self._schema_id:
+        if quote_ind['schema_id'] != self._schema_id:
             return None
 
-        indicators = quote_ind.indicators
-        values     = quote_ind.values
+        indicators = quote_ind['indicators']
+        values     = quote_ind['values']
 
         max_index = len(self._schema)
 
         quote = {}
         for i in xrange(len(indicators)):
             if indicators[i] < max_index: 
-                quote[self._schema[indicators[i]].name] = values[i]
+                quote[self._schema[indicators[i]]['name']] = values[i]
             else:
                 quote[str(indicators[i])] =  values[i]
 
         return quote
 
-    # def _on_rpc_callback(self, method, data):
-    #     #print "_on_rpc_callback:", method, data
+    def _on_rpc_callback(self, method, data):
+        #print "_on_rpc_callback:", method, data
 
-    #     try:
-    #         if method == "jsq.quote_ind":
-    #             if self._callback:
-    #                 q = self._convert_quote_ind(data)
-    #                 if q :
-    #                     self._callback("quote", q)
+        try:
+            if method == "jsq.quote_ind":
+                if self._on_jsq_callback:
+                    q = self._convert_quote_ind(data)
+                    if q :
+                        self._on_jsq_callback("quote", q)
 
-    #         elif method == ".sys.heartbeat":
-    #             if 'sub_hash' in data:
-    #                 if self._sub_hash and self._sub_hash != data['sub_hash']:
-    #                     print "sub_hash is not same", self._sub_hash, data['sub_hash']
-    #                     self._do_subscribe()
+            elif method == ".sys.heartbeat":
+                if 'sub_hash' in data:
+                    if self._sub_hash and self._sub_hash != data['sub_hash']:
+                        print "sub_hash is not same", self._sub_hash, data['sub_hash']
+                        self._do_subscribe()
 
-    #     except Exception as e:
-    #         print "Can't load jrpc", e.message
-    
-
-    def _do_login(self):
-        # Shouldn't check connected flag here. ZMQ is a mesageq queue!
-        # if !self._connected :
-        #    return (False, "-1,no connection")
-
-        if self._username and self._password:
-            rpc_params = { "username" : self._username,
-                           "password" : self._password }
-
-            cr = self._remote.call("auth.login", rpc_params)
-            r, msg = utils.extract_result(cr, data_format="", class_name="UserInfo")
-            self._loggined = r
-            return (r, msg)
-        else:
-            self._loggined = None
-            return (False, "-1,empty username or password")        
+        except Exception as e:
+            print "Can't load jrpc", e.message
     
     def _call_rpc(self, method, data_format, data_class, **kwargs):
 
@@ -484,71 +518,46 @@ class DataApi:
         
         return utils.extract_result(cr, data_format=data_format, index_column=index_column, class_name=data_class)
 
-     
+    def _do_login(self):
+        # Shouldn't check connected flag here. ZMQ is a mesageq queue!
+        # if !self._connected :
+        #    return (False, "-1,no connection")
+
+        if self._username and self._password:
+            rpc_params = { "username" : self._username,
+                           "password" : self._password }
+
+            cr = self._remote.call("auth.login", rpc_params)
+            r, msg = utils.extract_result(cr, data_format="", class_name="UserInfo")
+            self._loggined = r
+            return (r, msg)
+        else:
+            self._loggined = None
+            return (False, "-1,empty username or password")        
     
-    # def _do_subscribe(self):
-    #     """Subscribe again when reconnected or hash_code is not same"""
-    #     if not self._subscribed_set: return
+    def _do_subscribe(self):
+        """Subscribe again when reconnected or hash_code is not same"""
+        if not self._subscribed_set: return
 
-    #     codes = list(self._subscribed_set)
-    #     codes.sort()
-        
-    #     # XXX subscribe with default fields!
-    #     rpc_params = {"symbol"   : ",".join(codes),
-    #                   "fields"   : "" }
+        codes = list(self._subscribed_set)
+        codes.sort()
+      
+        # XXX subscribe with default fields!
+        rpc_params = {"symbol"   : ",".join(codes),
+                      "fields"   : "" }
 
-    #     cr = self._remote.call("jsq.subscribe", rpc_params)
-        
-    #     rsp, msg = utils.extract_result(cr, data_format="", class_name="SubRsp")
-    #     if not rsp:
-    #         #return (rsp, msg)
-    #         return
+        cr = self._remote.call("jsq.subscribe", rpc_params)
+      
+        rsp, msg = utils.extract_result(cr, data_format="", class_name="SubRsp")
+        if not rsp:
+            #return (rsp, msg)
+            return
 
-    #     self._schema_id     = rsp['schema_id']
-    #     self._schema        = rsp['schema']
-    #     self._sub_hash      = rsp['sub_hash']
-    #     #return (rsp.securities, msg)
+        self._schema_id     = rsp['schema_id']
+        self._schema        = rsp['schema']
+        self._sub_hash      = rsp['sub_hash']
+        #return (rsp.securities, msg)
 
-    # def subscribe(self, symbol, func=None, fields="", data_format=""):
-    #     """Subscribe securites
-        
-    #     This function adds new securities to subscribed list on the server. If
-    #     success, return subscribed codes.
-        
-    #     If securities is empty, return current subscribed codes.
-    #     """
-    #     r, msg = self._check_session()
-    #     if not r:
-    #         return (r, msg)
-
-    #     if func:
-    #         self._on_jsq_callback = func
-        
-    #     rpc_params = {"symbol"   : symbol,
-    #                   "fields"   : fields }
-
-    #     cr = self._remote.call("jsq.subscribe", rpc_params)
-        
-    #     rsp, msg = utils.extract_result(cr, data_format="", class_name="SubRsp")
-    #     if not rsp:
-    #         return (rsp, msg)
-
-    #     new_codes = [ x.strip() for x in symbol.split(',') if x ]
-        
-    #     self._subscribed_set = self._subscribed_set.union( set(new_codes) )
-    #     self._schema_id     = rsp['schema_id']
-    #     self._schema        = rsp['schema']
-    #     self._sub_hash      = rsp['sub_hash']
-    #     return (rsp['securities'], msg)
-        
-
-    # def unsubscribe(self, security):
-    #     """Unsubscribe securities.
-
-    #     Unscribe codes and return list of subscribed code.
-    #     """
-    #     assert False, "NOT IMPLEMENTED"
-    
 
 
     
