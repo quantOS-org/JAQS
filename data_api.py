@@ -405,10 +405,10 @@ class DataApi:
         self._schema_id     = rsp['schema_id']
         self._schema        = rsp['schema']
         self._sub_hash      = rsp['sub_hash']
-        return (rsp['securities'], msg)
+        return (rsp['symbols'], msg)
       
 
-    def unsubscribe(self, security):
+    def unsubscribe(self, symbol):
         """Unsubscribe securities.
 
         Unscribe codes and return list of subscribed code.
@@ -488,7 +488,7 @@ class DataApi:
             if method == "jsq.quote_ind":
                 if self._on_jsq_callback:
                     q = self._convert_quote_ind(data)
-                    if q :
+                    if q:
                         self._on_jsq_callback("quote", q)
 
             elif method == ".sys.heartbeat":
