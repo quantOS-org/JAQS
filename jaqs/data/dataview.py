@@ -916,11 +916,12 @@ class DataView(object):
     def _prepare_benchmark(self):
         df_bench, msg = self.data_api.daily(self.universe,
                                             start_date=self.extended_start_date_d, end_date=self.end_date,
-                                            adjust_mode=self.adjust_mode, fields='close')
+                                            adjust_mode=self.adjust_mode, fields='trade_date,symbol,close,vwap,volume,turnover')
         if msg != '0,':
             raise ValueError("msg = {:s}".format(msg))
         
-        df_bench = self._process_index_co(df_bench, self.TRADE_DATE_FIELD_NAME)
+        # TODO: we want more than just close price of benchmark
+        df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
         return df_bench
 
     # --------------------------------------------------------------------------------------------------------
