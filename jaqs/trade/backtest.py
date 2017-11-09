@@ -36,6 +36,8 @@ class BacktestInstance(Subscriber):
         self.props = None
         
         self.ctx = None
+        
+        self.commission_rate = 0.0
     
     def init_from_config(self, props, strategy, context):
         """
@@ -66,6 +68,11 @@ class BacktestInstance(Subscriber):
         
         strategy.ctx = self.ctx
         strategy.init_from_config(props)
+
+    def calc_commission(self, trade_ind):
+        to = abs(trade_ind.fill_price * trade_ind.fill_size)
+        res = to * self.commission_rate
+        return res
 
 
 '''
@@ -388,11 +395,6 @@ class AlphaBacktestInstance(BacktestInstance):
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
                                                                          len(self.strategy.pm.trades))
     
-    def calc_commission(self, trade_ind):
-        to = abs(trade_ind.fill_price * trade_ind.fill_size)
-        res = to * self.commission_rate
-        return res
-    
     def on_after_market_close(self):
         self.ctx.gateway.on_after_market_close()
         
@@ -449,7 +451,7 @@ class AlphaBacktestInstance(BacktestInstance):
         return list(merge.loc[merge.loc[:, 'limit'], :].index.values)
     
     def on_new_day(self, date):
-        self.strategy.on_new_day(date)
+        # self.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
         
         self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
@@ -506,6 +508,8 @@ class EventBacktestInstance(BacktestInstance):
         
         self.pnlmgr = None
         self.bar_type = 1
+        
+        self.commission_rate = 1E-4
 
     def init_from_config(self, props, strategy, context=None):
         super(EventBacktestInstance, self).init_from_config(props, strategy, context)
@@ -514,6 +518,8 @@ class EventBacktestInstance(BacktestInstance):
         self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
         
         self.bar_type = props.get("bar_type")
+        
+        self.commission_rate = props.get('commission_rate', 20E-4)
         
         self.pnlmgr = PnlManager()
         self.pnlmgr.setStrategy(strategy)
@@ -605,8 +611,14 @@ class EventBacktestInstance(BacktestInstance):
 
         # trade indication
         for trade_ind, status_ind in trade_results:
+            comm = self.calc_commission(trade_ind)
+            trade_ind.commission = comm
+            # self.strategy.cash -= comm
+            
             self.strategy.on_trade_ind(trade_ind)
             self.strategy.on_order_status(status_ind)
+
+            self.on_after_market_close()
 
     def run(self):
         if self.bar_type == common.QUOTE_TYPE.DAILY:
@@ -628,6 +640,10 @@ class EventBacktestInstance(BacktestInstance):
         
         # trade indication
         for trade_ind, status_ind in trade_results:
+            comm = self.calc_commission(trade_ind)
+            trade_ind.commission = comm
+            # self.strategy.cash -= comm
+    
             self.strategy.on_trade_ind(trade_ind)
             self.strategy.on_order_status(status_ind)
         
