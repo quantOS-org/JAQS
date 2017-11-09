@@ -377,8 +377,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         -------
 
         """
-        self.pm.on_trade_ind(ind)
-        # print str(ind)
+        pass
         
     def use_pc_method(self, name, func, options=None):
         self._register_func(name, func, options)
