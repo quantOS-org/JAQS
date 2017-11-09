@@ -189,10 +189,10 @@ class PnlManager(object):
         for symbol in self.universe:
             df, msg = self.data_api.daily(symbol, start_date=begindate, end_date=enddate, fields="",
                                           adjust_mode='post')
-            for i in range(0, len(df.index)):
-                date = (df['trade_date'][i])
-                close = df['close'][i]
-                if self.close_prices.has_key(date) == False:
+            for idx, row in df.iterrows():
+                date = row['trade_date']
+                close = row['close']
+                if not self.close_prices.has_key(date):
                     self.close_prices[date] = {}
                 self.close_prices[date][symbol] = close
     
@@ -251,7 +251,7 @@ class PnlManager(object):
             
             pre_close = pre_close_prices.get(code, 0.0)
             close = cur_close_prices.get(code, 0.0)
-            inst = self.instmgr.get_intruments(code)
+            inst = self.instmgr.get_instrument(code)
             mult = inst.multiplier
             hold_pnl = hold_size * mult * (close - pre_close)
             pnl += hold_pnl
@@ -321,7 +321,7 @@ class PnlManager(object):
         for code, trades in trade_map.viewitems():
             position = 0
             close = close_prices.get(code, 0.0)
-            inst = self.instmgr.get_intruments(code)
+            inst = self.instmgr.get_instrument(code)
             tax_rate = 0.0
             commission_rate = 0.0
             

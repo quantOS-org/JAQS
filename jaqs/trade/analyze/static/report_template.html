@@ -36,7 +36,7 @@
 {% for key, value in metrics.items() %}
 <tr>
   <td>{{key}}</td>
-  <td>{{value | round_if_float(2) }}</td>
+  <td>{{value | round_if_float(3) }}</td>
 </tr>
 {% endfor %}
 </table>

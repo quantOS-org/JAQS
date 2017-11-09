@@ -15,17 +15,12 @@ from jaqs.trade.gateway import BarSimulatorGateway
 backtest_result_dir_path = fileio.join_relative_path('../output/event_driven')
 
 
-def test_double_ma():
-    # prop_file_path = fileio.join_relative_path("etc/backtest.json")
-    # print prop_file_path
-    # prop_file = open(prop_file_path, 'r')
-    
-    # props = json.load(prop_file)
+def test_spread_trading():
     props = {"symbol": "rb1710.SHF,hc1710.SHF",
              "start_date": 20170510,
              "end_date": 20170930,
              "bar_type": "MIN",
-             "init_balance": 1e7,
+             "init_balance": 2e4,
              "future_commission_rate": 0.00002,
              "stock_commission_rate": 0.0001,
              "stock_tax_rate": 0.0000}
@@ -56,7 +51,7 @@ def test_double_ma():
 
 
 def test_backtest_analyze():
-    ta = ana.AlphaAnalyzer()
+    ta = ana.EventAnalyzer()
     
     ds = RemoteDataService()
     
@@ -67,7 +62,7 @@ def test_backtest_analyze():
     print "get daily stats..."
     ta.get_daily()
     print "calc strategy return..."
-    ta.get_returns(consider_commission=True)
+    ta.get_returns(consider_commission=False)
     # position change info is huge!
     # print "get position change..."
     # ta.get_pos_change_info()
@@ -91,6 +86,6 @@ def test_backtest_analyze():
 
 
 if __name__ == "__main__":
-    test_double_ma()
-    # test_backtest_analyze()
+    test_spread_trading()
+    test_backtest_analyze()
     print "test success."
