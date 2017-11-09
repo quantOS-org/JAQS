@@ -15,9 +15,9 @@ def test_remote_data_service_daily():
     
     rb = res.loc[res.loc[:, 'symbol'] == 'rb1710.SHF', :]
     stk = res.loc[res.loc[:, 'symbol'] == '600662.SH', :]
-    assert set(rb.columns) == {'close', 'code', 'high', 'low', 'oi', 'open', 'settle', 'symbol',
+    assert set(rb.columns) == {'close', 'code', 'high', 'low', 'oi', 'open', 'settle', 'symbol', 'freq',
                                'trade_date', 'trade_status', 'turnover', 'volume', 'vwap'}
-    assert rb.shape == (4, 13)
+    assert rb.shape == (4, 14)
     assert rb.loc[:, 'volume'].values[0] == 189616
     assert stk.loc[:, 'volume'].values[0] == 7174813
 
@@ -30,7 +30,7 @@ def test_remote_data_service_daily_quited():
                         start_date=20140828, end_date=20170831,
                         adjust_mode=None)
     assert msg == '0,'
-    assert res.shape == (175, 13)
+    assert res.shape == (175, 14)
 
 
 def test_remote_data_service_bar():

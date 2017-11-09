@@ -23,14 +23,14 @@ class Instrument(object):
 
 
 class InstManager(object):
-    def __init__(self):
+    def __init__(self, inst_type="", symbol=""):
         self.data_api = RemoteDataService()
         self.inst_map = {}
-        self.load_instruments()
+        self.load_instruments(inst_type=inst_type, symbol=symbol)
     
-    def load_instruments(self):
+    def load_instruments(self, inst_type="", symbol=""):
         fields = ['symbol', 'inst_type', 'market', 'status', 'multiplier', 'list_date', 'delist_date']
-        res = self.data_api.query_inst_info(symbol='', fields=','.join(fields), inst_type="")
+        res = self.data_api.query_inst_info(symbol=symbol, fields=','.join(fields), inst_type=inst_type)
         res = res.reset_index()
 
         dic_of_dic = res.to_dict(orient='index')
@@ -42,5 +42,5 @@ class InstManager(object):
             self.inst_map[k] = inst
         print
     
-    def get_intruments(self, code):
+    def get_instrument(self, code):
         return self.inst_map.get(code, None)

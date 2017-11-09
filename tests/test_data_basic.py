@@ -7,7 +7,7 @@ def test_inst_manager():
     mgr = InstManager()
     mgr.load_instruments()
     sym = '000001.SZ'
-    inst_obj = mgr.get_intruments(sym)
+    inst_obj = mgr.get_instrument(sym)
     assert inst_obj.market == 'SZ'
     assert inst_obj.symbol == sym
     assert inst_obj.multiplier == 1

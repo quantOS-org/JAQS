@@ -23,8 +23,8 @@ def test_data_api():
     # err_code, err_msg = msg.split(',')
     assert msg == '0,'
     assert msg2 == '0,'
-    assert daily.shape == (248, 8)
-    assert daily2.shape == (124, 8)
+    assert daily.shape == (248, 9)
+    assert daily2.shape == (124, 9)
     
     df, msg = api.bar(symbol="600030.SH", trade_date=20170904, freq='1m', start_time=90000, end_time=150000)
     print df.columns
