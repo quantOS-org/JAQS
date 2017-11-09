@@ -74,6 +74,7 @@ class DataView(object):
                             'askvolume1', 'askvolume2', 'askvolume3', 'askvolume4', 'askvolume5',
                             'bidvolume1', 'bidvolume2', 'bidvolume3', 'bidvolume4', 'bidvolume5'}
         # fields map
+        # TODO: 'freq' is not in market_daily_fields yet.
         self.market_daily_fields = \
             {'open', 'high', 'low', 'close', 'volume', 'turnover', 'vwap', 'oi', 'trade_status',
              'open_adj', 'high_adj', 'low_adj', 'close_adj', 'vwap_adj', 'index_member', 'index_weight'}
