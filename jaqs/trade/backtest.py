@@ -533,6 +533,7 @@ class EventBacktestInstance(BacktestInstance):
     def on_new_day(self, date):
         self.ctx.trade_date = date
         self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        self.strategy.initialize()
         print 'on_new_day in trade {}'.format(self.ctx.trade_date)
     
     def on_after_market_close(self):
