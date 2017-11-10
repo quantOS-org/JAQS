@@ -84,7 +84,7 @@ print "msg: ", msg
 print df
 ```
 
-### 下单接口
+### 单标的下单
 task_id, msg = place_order(code, action, price, size )
 action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
 返回 task_id
@@ -95,8 +95,73 @@ print "msg:", msg
 print "task_id:", task_id
 ```
 
-### cancel_order
-撤单接口
+### 撤单
+cancel_order(task_id)
 ```python
 tapi.cancel_order(task_id)
+```
+
+### 查询委托
+返回委托信息
+```python
+df, msg = tapi.query_order(task_id = task_id, format = 'pandas')
+```
+
+### 查询成交
+返回成交信息
+```python
+df, msg = tapi.query_trade(task_id = task_id, format = 'pandas')
+```
+
+### 目标持仓下单
+```python
+#  goal_protfolio
+#  参数：目标持仓
+#  返回：(result, msg)
+#     result:  成功或失败
+#     msg:     错误原因
+#  注意：目标持仓中必须包括所有的代码的持仓，即使不修改
+
+# 先查询当前的持仓, 
+portfolio, msg = tapi.query_portfolio()
+print "msg", msg
+print "portfolio", portfolio
+```
+
+### portfolio撤单
+```python
+# stop_portfolio
+# 撤单, 撤销所有portfolio订单
+tapi.stop_portfolio()
+````
+
+### 批量下单(1)
+place_batch_order，指定绝对size和交易类型
+```python
+# place_batch_order
+# 返回task_id, msg。
+orders = [ 
+    {"security":"600030.SH", "action" : "Buy", "price": 16, "size":1000},
+    {"security":"600519.SH", "action" : "Buy", "price": 320, "size":1000},
+    ]
+
+task_id, msg = tapi.place_batch_order(orders, "", "{}")
+print task_id
+print msg    
+```
+
+### 批量下单(2)
+basket_order，指定变化量，不指定交易方向，由系统根据正负号来确定
+```python
+# 批量下单2：basket_order
+#
+# 返回task_id, msg。
+orders = [ 
+    {"security":"601857.SH", "ref_price": 8.40, "inc_size":1000},
+    {"security":"601997.SH",  "ref_price": 14.540, "inc_size":20000},
+    ]
+
+task_id, msg = tapi.basket_order(orders, "", "{}")
+print task_id
+print msg
 ```
