@@ -27,6 +27,69 @@ api.login("demo", "666666") # 示例账户，用户需要改为自己注册的�
 
 ### 行情数据获取
 
+#### 获取实时行情
+使用quote()函数查询最新市场行情。
+
+输入参数：
+
+|字段	| 类型		|说明												|缺省值|
+| --- | --- | --- | ---|
+|symbol	| string	|标的代码，支持多标的查询 							|不可缺省|
+|fields	| string	|需要返回字段，多字段以','隔开；为""时返回所有字段	|""|
+
+使用示例：
+```python
+df,msg = api.quote("000001.SH, cu1709.SHF", fields="open,high,low,last,volume")
+```
+
+输出字段：
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| symbol | string | 标的代码 |
+| code | string | 交易所原始代码 |
+| date | int | 自然日,YYYYMMDD格式，如20170823 |
+| time | int | 时间，精确到毫秒，如14:21:05.330记为142105330 |
+| trade\_date | int | YYYYMMDD格式，如20170823 |
+| open | double | 开盘价 |
+| high | double | 最高价 |
+| low | double | 最低价 |
+| last | double | 最新价 |
+| close | double | 收盘价 |
+| volume | double | 成交量（总） |
+| turnover | double | 成交金额（总） |
+| vwap | double | 截止到行情时间的日内成交均价 |
+| oi | double | 持仓总量 |
+| settle | double | 今结算价 |
+| iopv | double | 净值估值 |
+| limit\_up | double | 涨停价 |
+| limit\_down | double | 跌停价 |
+| preclose | double | 昨收盘价 |
+| presettle | double | 昨结算价 |
+| preoi | double | 昨持仓 |
+| askprice1 | double | 申卖价1 |
+| askprice2 | double | 申卖价2 |
+| askprice3 | double | 申卖价3 |
+| askprice4 | double | 申卖价4 |
+| askprice5 | double | 申卖价5 |
+| bidprice1 | double | 申买价1 |
+| bidprice2 | double | 申买价2 |
+| bidprice3 | double | 申买价3 |
+| bidprice4 | double | 申买价4 |
+| bidprice5 | double | 申买价5 |
+| askvolume1 | double | 申卖量1 |
+| askvolume2 | double | 申卖量2 |
+| askvolume3 | double | 申卖量3 |
+| askvolume4 | double | 申卖量4 |
+| askvolume5 | double | 申卖量5 |
+| bidvolume1 | double | 申买量1 |
+| bidvolume2 | double | 申买量2 |
+| bidvolume3 | double | 申买量3 |
+| bidvolume4 | double | 申买量4 |
+| bidvolume5 | double | 申买量5 |
+
+
+
 #### 获取日线行情
 代码示例：
 ```python
