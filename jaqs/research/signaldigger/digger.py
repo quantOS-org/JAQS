@@ -269,7 +269,8 @@ class SignalDigger(object):
                                     'cum_quantile_ret': cum_quantile_ret,
                                     'cum_long_ret': cum_long_ret,
                                     'cum_short_ret': cum_short_ret,
-                                    'period_wise_tmb_ret': period_wise_tmb_ret}
+                                    'period_wise_tmb_ret': period_wise_tmb_ret,
+                                    'cum_tmb_ret': cum_tmb_ret}
 
     @plotting.customize
     def create_information_report(self):
