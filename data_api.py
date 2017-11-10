@@ -72,6 +72,7 @@ class DataApi:
         self._callback = None
         self._schema = []
         self._schema_id = 0
+        self._schema_map = {}
         self._sub_hash = ""
         self._subscribed_set = set()
         self._timeout = 20
@@ -375,7 +376,7 @@ class DataApi:
                                filter = filter,
                                **kwargs)
 
-    def subscribe(self, symbol, func=None, fields="", data_format=""):
+    def subscribe(self, symbol, func=None, fields=""):
         """Subscribe securites
       
         This function adds new securities to subscribed list on the server. If
@@ -405,16 +406,16 @@ class DataApi:
         self._schema_id     = rsp['schema_id']
         self._schema        = rsp['schema']
         self._sub_hash      = rsp['sub_hash']
+        self._make_schema_map()
         return (rsp['symbols'], msg)
       
-
     def unsubscribe(self, symbol):
         """Unsubscribe securities.
 
         Unscribe codes and return list of subscribed code.
         """
         assert False, "NOT IMPLEMENTED"
-							   
+    
     def __del__(self):
         self._remote.close()
 
@@ -475,7 +476,7 @@ class DataApi:
         quote = {}
         for i in xrange(len(indicators)):
             if indicators[i] < max_index: 
-                quote[self._schema[indicators[i]]['name']] = values[i]
+                quote[self._schema_map[indicators[i]]['name']] = values[i]
             else:
                 quote[str(indicators[i])] =  values[i]
 
@@ -488,7 +489,7 @@ class DataApi:
             if method == "jsq.quote_ind":
                 if self._on_jsq_callback:
                     q = self._convert_quote_ind(data)
-                    if q:
+                    if q :
                         self._on_jsq_callback("quote", q)
 
             elif method == ".sys.heartbeat":
@@ -518,6 +519,11 @@ class DataApi:
         
         return utils.extract_result(cr, data_format=data_format, index_column=index_column, class_name=data_class)
 
+    def _make_schema_map(self):
+        self._schema_map = {}
+        for schema in self._schema:
+            self._schema_map[schema['id']] = schema
+			
     def _do_login(self):
         # Shouldn't check connected flag here. ZMQ is a mesageq queue!
         # if !self._connected :
@@ -558,6 +564,7 @@ class DataApi:
         self._sub_hash      = rsp['sub_hash']
         #return (rsp.securities, msg)
 
+        self._make_schema_map()
 
 
     
