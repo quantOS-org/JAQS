@@ -26,7 +26,7 @@ class TradeApi:
                 False    -- Use pure python version
             prod_type:
                 "jaqs"   -- jrpc_msgpack_wth_snappy
-                "tzts"   -- jrpc_msgpack
+                "jzts"   -- jrpc_msgpack
         """
 
         self._remote = None
@@ -95,7 +95,7 @@ class TradeApi:
 
         elif method == "oms.internal_order_ind":
             if self._data_format == "obj":
-                data = utils._to_obj("QuoteOrder", data)
+                data = utils.to_obj("QuoteOrder", data)
 
             if self._internal_order_callback:
                 self._internal_order_callback(data)
@@ -278,7 +278,7 @@ class TradeApi:
         if result is None, message contains error information
         """
 
-        if not orders or not (type(orders) == list or type(orders) == tuple):
+        if not orders or not isinstance(orders, [list, tuple]):
             return (None, "empty order")
 
         if isinstance(orders[0],  EntrustOrder):
@@ -310,7 +310,7 @@ class TradeApi:
         if result is None, message contains error information
         """
 
-        if not orders or not (type(orders) == list or type(orders) == tuple):
+        if not orders or not isinstance(orders, [list, tuple]):
             return (None, "empty order")
 
         if isinstance(orders[0],  EntrustOrder):

@@ -33,7 +33,7 @@ def _error_to_str(error):
 
 def to_obj(class_name, data):
     try:
-        if type(data) == list or type(data) == tuple:
+        if isinstance(data, [list, tuple]):
             result = []
             for d in data:
                 result.append( namedtuple(class_name, d.keys())(*d.values()) )
@@ -68,11 +68,11 @@ def extract_result(cr, format="", index_column=None, class_name=""):
 
         elif format == "obj" and cr['result'] and class_name:
             r = cr['result']
-            if type(r) == list or type(r) == tuple:
+            if isinstance(r, [list, tuple]):
                 result = []
                 for d in r:
                     result.append( namedtuple(class_name, d.keys())(*d.values()) )
-            elif type(r) == dict :
+            elif isinstance(data, [dict]):
                 result = namedtuple(class_name, r.keys())(*r.values())
             else:
                 result = r
