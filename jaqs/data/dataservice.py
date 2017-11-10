@@ -279,9 +279,10 @@ class RemoteDataService(DataService):
         if address is None or username is None or password is None:
             raise ValueError("no address, username or password available!")
         time_out = get_from_list_of_dict(dic_list, "timeout", 60)
-    
+
         self.data_api = DataApi(address, use_jrpc=False)
         self.data_api.set_timeout(timeout=time_out)
+        print("{}@{} login...".format(username, address))
         r, msg = self.data_api.login(username=username, password=password)
         if not r:
             print("DataAPI login failed: msg = {}".format(msg))

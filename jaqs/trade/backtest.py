@@ -5,11 +5,8 @@ import os
 import numpy as np
 import pandas as pd
 
-from jaqs.data.calendar import Calendar
 from jaqs.trade import common
 from jaqs.trade.analyze.pnlreport import PnlManager
-from jaqs.trade.event.eventEngine import Event
-from jaqs.trade.event.eventtype import EVENT
 from jaqs.trade.pubsub import Subscriber
 from jaqs.data.basic.marketdata import Bar
 from jaqs.data.basic.trade import Trade
@@ -136,7 +133,7 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
             df_dic = self.strategy.get_univ_prices()  # access data
             trade_indications = gateway.match(df_dic, self.ctx.trade_date)
             for trade_ind in trade_indications:
-                self.strategy.on_trade_ind(trade_ind)
+                self.strategy.on_trade(trade_ind)
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.trade_days),
                                                                          len(self.strategy.pm.trades))
@@ -249,7 +246,7 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
                 trade_ind.send_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
                 
-                self.strategy.on_trade_ind(trade_ind)
+                self.strategy.on_trade(trade_ind)
 
     def delist_adjust(self):
         df_inst = self.ctx.dataview.data_inst
@@ -280,7 +277,7 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.send_fill_info(price=last_close_price, size=pos,
                                      date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
     
-            self.strategy.on_trade_ind(trade_ind)
+            self.strategy.on_trade(trade_ind)
 
     def re_balance_plan_before_open(self):
         """
@@ -385,7 +382,7 @@ class AlphaBacktestInstance(BacktestInstance):
             # Deal with trade indications
             trade_indications = gateway.match(self.univ_price_dic)
             for trade_ind in trade_indications:
-                self.strategy.on_trade_ind(trade_ind)
+                self.strategy.on_trade(trade_ind)
                 comm = self.calc_commission(trade_ind)
                 trade_ind.commission = comm
                 self.strategy.cash -= comm
@@ -506,7 +503,7 @@ class EventBacktestInstance(BacktestInstance):
     def __init__(self):
         super(EventBacktestInstance, self).__init__()
         
-        self.pnlmgr = None
+        # self.pnlmgr = None
         self.bar_type = 1
         
         self.commission_rate = 1E-4
@@ -521,9 +518,9 @@ class EventBacktestInstance(BacktestInstance):
         
         self.commission_rate = props.get('commission_rate', 20E-4)
         
-        self.pnlmgr = PnlManager()
-        self.pnlmgr.setStrategy(strategy)
-        self.pnlmgr.initFromConfig(props, self.ctx.data_api)
+        # self.pnlmgr = PnlManager()
+        # self.pnlmgr.setStrategy(strategy)
+        # self.pnlmgr.initFromConfig(props, self.ctx.data_api)
     
     def go_next_trade_date(self):
         next_dt = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
@@ -616,7 +613,7 @@ class EventBacktestInstance(BacktestInstance):
             trade_ind.commission = comm
             # self.strategy.cash -= comm
             
-            self.strategy.on_trade_ind(trade_ind)
+            self.strategy.on_trade(trade_ind)
             self.strategy.on_order_status(status_ind)
 
             self.on_after_market_close()
@@ -645,14 +642,16 @@ class EventBacktestInstance(BacktestInstance):
             trade_ind.commission = comm
             # self.strategy.cash -= comm
     
-            self.strategy.on_trade_ind(trade_ind)
+            self.strategy.on_trade(trade_ind)
             self.strategy.on_order_status(status_ind)
         
         # on_quote
         self.strategy.on_quote(quotes_dic)
 
+    '''
     def generate_report(self, output_format=""):
         return self.pnlmgr.generateReport(output_format)
+    '''
     
     def save_results(self, folder_path='.'):
         import os

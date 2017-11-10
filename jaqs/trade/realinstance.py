@@ -49,16 +49,24 @@ class RealInstance(EventEngine):
     def register_context(self, context=None):
         self.ctx = context
 
+    # -------------------------------------------------------------------------------------------
+    # Run
     def run(self):
         """
-        market_data are from DataService;
-        trade&order indications are from TradeApi.
+        Listen to certain events and run the EventEngine.
+        Events include:
+            1. market_data are from DataService
+            2. trades & orders indications are from TradeApi.
+            3. etc.
 
         """
+
         self.register(EVENT_TYPE.MARKET_DATA, self.on_quote)
+        
+        self.register(EVENT_TYPE.TASK_STATUS_IND, self.on_task_status)
         self.register(EVENT_TYPE.ORDER_RSP, self.on_order_rsp)
-        self.register(EVENT_TYPE.TRADE_IND, self.on_trade_ind)
-        self.register(EVENT_TYPE.ORDER_STATUS_IND, self.on_order_status_ind)
+        self.register(EVENT_TYPE.TRADE_IND, self.on_trade)
+        self.register(EVENT_TYPE.ORDER_STATUS_IND, self.on_order_status)
         
         self.start(timer=False)
     
@@ -71,16 +79,20 @@ class RealInstance(EventEngine):
         rsp = event.dic['rsp']
         self.strategy.on_order_rsp(rsp)
 
-    def on_trade_ind(self, event):
+    def on_trade(self, event):
         ind = event.dic['ind']
-        self.strategy.on_trade_ind(ind)
+        self.strategy.on_trade(ind)
 
-    def on_order_status_ind(self, event):
+    def on_order_status(self, event):
         ind = event.dic['ind']
-        self.strategy.on_order_rsp(ind)
+        self.strategy.on_order_status(ind)
+
+    def on_task_status(self, event):
+        ind = event.dic['ind']
+        self.strategy.on_task_status(ind)
 
 
-def test_remote_data_service_mkt_data_callback():
+def remote_data_service_mkt_data_callback():
     import time
     from jaqs.data.dataservice import RemoteDataService
     from jaqs.trade import model
@@ -94,23 +106,26 @@ def test_remote_data_service_mkt_data_callback():
     
     gateway.trade_api.use_strategy(3)
     df_univ, msg = gateway.trade_api.query_universe()
+    print("Universe:")
     print(df_univ)
     
     context = model.Context(data_api=ds, gateway=gateway, instance=ins)
 
     # order dependent is not good! we should make it not dependent or hard-code the order
-    props = {'symbol': '000001.SZ,rb1801.SHF'}
+    # props = {'symbol': 'hc1801.SHF,rb1801.SHF'}
+    props = {'symbol': 'IF1712.CFE,CFCICA.JZ'}
     ins.init_from_config(props, strat)
     ins.run()
     gateway.run()
     
-    # ds.subscribe('CFCICA.JZ')
+    # ds.subscribe('CFCICA.JZ,000001.SZ')
+    # ds.subscribe('rb1710.SHF')
     ds.subscribe(props['symbol'])
     time.sleep(1000)
 
 
 if __name__ == "__main__":
-    test_remote_data_service_mkt_data_callback()
+    remote_data_service_mkt_data_callback()
 
     
     

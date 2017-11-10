@@ -135,7 +135,7 @@ def test_remote_data_service_industry():
     
     
 def test_remote_data_service_industry_df():
-    from jaqs.data.calendar import Calendar
+    from jaqs.data.dataservice import Calendar
     cal = Calendar()
     
     ds = RemoteDataService()

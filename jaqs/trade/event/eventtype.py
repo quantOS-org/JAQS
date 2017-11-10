@@ -17,9 +17,25 @@ from jaqs.trade import common
 class EVENT_TYPE(common.ReprStrEnum):
     TIMER = 'timer'  # 计时器事件，每隔1秒发送一次
     MARKET_DATA = 'market_data'  # 行情事件
-    
+
+    ORDER_RSP = 'order_rsp'
+    TASK_STATUS_IND = 'task_callback'
     TRADE_IND = 'trade_ind'  # 成交回报
     ORDER_STATUS_IND = 'order_status_ind'  # 状态回报
-    ORDER_RSP = 'order_rsp'
     
     PLACE_ORDER = 'place_order'
+    CANCEL_ORDER = 'cancel_order'
+    
+    QUERY_ACCOUNT = 'query_account'
+    QUERY_UNIVERSE = 'query_universe'
+    QUERY_PORTFOLIO = 'query_portfolio'
+    QUERY_POSITION = 'query_position'
+    QUERY_ORDER = 'query_order'
+    QUERY_TASK = 'query_task'
+    QUERY_TRADE = 'query_trade'
+    
+    GOAL_PORTFOLIO = 'goal_portfolio'
+    STOP_PORTFOLIO = 'stop_portfolio'
+    
+    TRADE_API_DISCONNECTED = 'trade_api_disconnected'
+    TRADE_API_CONNECTED = 'trade_api_connected'

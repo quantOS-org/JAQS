@@ -32,28 +32,18 @@ class SpreadStrategy(EventDrivenStrategy):
     def on_cycle(self):
         pass
     
-    def createOrder(self, quote, price, size):
+    def create_order(self, quote, price, size):
         order = Order.new_order(quote.symbol, "", price, size, quote.trade_date, quote.time)
         order.order_type = common.ORDER_TYPE.LIMIT
         return order
     
     def buy(self, quote, price, size):
-        order = self.createOrder(quote, price, size)
+        order = self.create_order(quote, price, size)
         order.entrust_action = common.ORDER_ACTION.BUY
         self.ctx.gateway.send_order(order, '', '')
     
     def sell(self, quote, price, size):
-        order = self.createOrder(quote, price, size)
-        order.entrust_action = common.ORDER_ACTION.SELL
-        self.ctx.gateway.send_order(order, '', '')
-    
-    def cover(self, quote, price, size):
-        order = self.createOrder(quote, price, size)
-        order.entrust_action = common.ORDER_ACTION.BUY
-        self.ctx.gateway.send_order(order, '', '')
-    
-    def short(self, quote, price, size):
-        order = self.createOrder(quote, price, size)
+        order = self.create_order(quote, price, size)
         order.entrust_action = common.ORDER_ACTION.SELL
         self.ctx.gateway.send_order(order, '', '')
     
@@ -84,6 +74,6 @@ class SpreadStrategy(EventDrivenStrategy):
         elif (spread - mean) < -self.threshold:
             self.long_spread(q1, q2)
     
-    def on_trade_ind(self, ind):
+    def on_trade(self, ind):
         print(ind)
         print(self.pm.get_position(self.s1))

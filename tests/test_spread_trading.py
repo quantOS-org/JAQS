@@ -34,17 +34,17 @@ def test_spread_trading():
     strategy = SpreadStrategy()
     gateway = BarSimulatorGateway()
     data_service = RemoteDataService()
-
-    context = model.Context(data_api=data_service, gateway=gateway)
-    
     bt = EventBacktestInstance()
+
+    context = model.Context(data_api=data_service, gateway=gateway, instance=bt)
+    
     bt.init_from_config(props, strategy, context=context)
     
     bt.run()
     
     bt.save_results(folder_path=backtest_result_dir_path)
     
-    report = bt.generate_report(output_format="plot")
+    # report = bt.generate_report(output_format="plot")
     # print report.trades[:100]
     # for pnl in report.daily_pnls:
     #     print pnl.date, pnl.trade_pnl, pnl.hold_pnl,pnl.total_pnl, pnl.positions.get('600030.SH')

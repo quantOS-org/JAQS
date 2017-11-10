@@ -11,8 +11,12 @@ from jaqs.data.basic.position import Position
 from jaqs.data.basic.trade import Trade
 from jaqs.util.sequence import SequenceGenerator
 import jaqs.util as jutil
+from jaqs.trade.event import EVENT_TYPE, EventEngine, Event
+from jaqs.trade.tradeapi import TradeApi
+from jaqs.data.basic import OrderRsp, OrderStatusInd, Trade, TaskInd
 
 
+'''
 class OrderStatusInd(object):
     def __init__(self):
         self.entrust_no = ''
@@ -46,18 +50,19 @@ class OrderStatusInd(object):
         self.fill_size = order.fill_size
         self.fill_price = order.fill_price
 
+'''
 
 class TradeCallback(with_metaclass(abc.ABCMeta)):
     @abstractmethod
-    def on_trade_ind(self, trade):
+    def on_trade(self, ind):
         pass
     
     @abstractmethod
-    def on_order_status(self, orderstatus):
+    def on_order_status(self, ind):
         pass
     
     @abstractmethod
-    def on_order_rsp(self, order, result, msg):
+    def on_order_rsp(self, rsp):
         pass
 
 
@@ -206,7 +211,7 @@ class PortfolioManager_RAW(TradeCallback):
         pos.init_size *= ratio
         self.positions[pos_key] = pos
         
-    def on_trade_ind(self, ind):
+    def on_trade(self, ind):
         entrust_no = ind.entrust_no
         
         order = self.orders.get(self._make_order_key(entrust_no, self.strategy.ctx.trade_date), None)
@@ -320,8 +325,11 @@ class PortfolioManager(TradeCallback):
         self.original_on_order_status = self.strategy.on_order_status
         self.strategy.on_order_status = self.on_order_status
         
-        self.original_on_trade_ind = self.strategy.on_trade_ind
-        self.strategy.on_trade_ind = self.on_trade_ind
+        self.original_on_trade = self.strategy.on_trade
+        self.strategy.on_trade = self.on_trade
+
+        self.original_on_order_rsp = self.strategy.on_order_rsp
+        self.strategy.on_order_rsp = self.on_order_rsp
     
     @staticmethod
     def _make_position_key(symbol):
@@ -332,9 +340,8 @@ class PortfolioManager(TradeCallback):
     def _make_order_key(entrust_id, trade_date):
         return '@'.join((str(entrust_id), str(trade_date)))
     
-    def on_order_rsp(self, order, result, msg):
-        if result:
-            self.add_order(order)
+    def on_order_rsp(self, rsp):
+        self.original_on_order_rsp(rsp)
     
     def get_position(self, symbol, date=0):
         key = self._make_position_key(symbol)
@@ -410,7 +417,7 @@ class PortfolioManager(TradeCallback):
         pos.init_size *= ratio
         self.positions[pos_key] = pos
     
-    def on_trade_ind(self, ind):
+    def on_trade(self, ind):
         # record trades
         self.trades.append(ind)
 
@@ -462,7 +469,7 @@ class PortfolioManager(TradeCallback):
             self.holding_securities.remove(ind.symbol)
         
         # hook:
-        self.original_on_trade_ind(ind)
+        self.original_on_trade(ind)
     
     def market_value(self, ref_date, ref_prices, suspensions=None):
         """
@@ -522,37 +529,13 @@ class BaseGateway(object):
         super(BaseGateway, self).__init__()
         
         self.callback = None
-        self.cb_on_trade_ind = None
+        self.cb_on_trade = None
         self.cb_on_order_status = None
-        self.cb_pm = None
         self.ctx = None
     
     @abstractmethod
     def init_from_config(self, props):
         pass
-    
-    def register_callback(self, type_, callback):
-        '''
-        
-        Parameters
-        ----------
-        type_
-        callback
-
-        Returns
-        -------
-
-        '''
-        '''
-        if type_ == 'on_trade_ind':
-            self.cb_on_trade_ind = callback
-        elif type_ == 'on_order_status':
-            self.cb_on_order_status = callback
-        '''
-        if type_ == 'portfolio manager':
-            self.cb_pm = callback
-        else:
-            raise NotImplementedError("callback of type {}".format(type_))
     
     def register_context(self, context=None):
         self.ctx = context
@@ -622,10 +605,6 @@ class BaseGateway(object):
 
         """
         pass
-    
-
-from jaqs.trade.event import EVENT_TYPE, EventEngine, Event
-from jaqs.trade.tradeapi import TradeApi
 
 
 class RealGateway(BaseGateway, EventEngine):
@@ -642,9 +621,16 @@ class RealGateway(BaseGateway, EventEngine):
         self.init_from_config({})
         
     def init_from_config(self, props):
+        """
+        Instantiate TradeAPI and login.
+        
+        Parameters
+        ----------
+        props : dict
+
+        """
         if self.trade_api is not None:
-            pass
-            # self.trade_api.close()
+            self.trade_api.close()
     
         def get_from_list_of_dict(l, key, default=None):
             res = None
@@ -664,55 +650,151 @@ class RealGateway(BaseGateway, EventEngine):
         password = get_from_list_of_dict(dic_list, "remote.password", "")
         if address is None or username is None or password is None:
             raise ValueError("no address, username or password available!")
-        # time_out = get_from_list_of_dict(dic_list, "timeout", 60)
     
         tapi = TradeApi(address)
-        tapi.set_ordstatus_callback(self.on_order_status_ind)
-        tapi.set_trade_callback(self.on_trade_ind)
-        tapi.set_task_callback(self.on_task_callback)
+        self.set_trade_api_callbacks(tapi)
 
         # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
-        print("{}@{}".format(username, address))
+        print("{}@{} login...".format(username, address))
         user_info, msg = tapi.login(username, password)
-        print "msg: ", msg
-        print "user_info:", user_info
+        print("Login msg: {:s}".format(msg))
+        print("Login user info: {:s}".format(user_info))
+        print()
         self.trade_api = tapi
-        
-        # self.data_api.set_timeout(timeout=time_out)
-        
-    def on_place_order(self, event):  # security, action, price, size, algo="", algo_param={}, userdata=""):
-        print("Gateway got your order!")
-        d = event.dic
-        self.trade_api.place_order(d['symbol'],
-                                   d['action'],
-                                   d['price'],
-                                   d['size'],
-                                   d['algo'],
-                                   d['algo_param'])
     
-    def on_order_rsp(self, event):
-        self.ctx.instance.put(event)
+    # -------------------------------------------------------------------------------------------
+    # On TradeAPI Callback: put a corresponding event to RealInstance
 
-    def on_trade_ind(self, event):
-        self.ctx.instance.put(event)
+    def set_trade_api_callbacks(self, trade_api):
+        trade_api.set_task_callback(self.on_task_status)
+        trade_api.set_ordstatus_callback(self.on_order_status)
+        trade_api.set_trade_callback(self.on_trade)
+        trade_api.set_connection_callback(self.on_connection_callback)
 
-    def on_order_status_ind(self, event):
-        self.ctx.instance.put(event)
+    def on_trade(self, ind_dic):
+        """
         
-    def on_task_callback(self, what):
-        print(what)
+        Parameters
+        ----------
+        ind_dic : dict
 
+        """
+        # print("\nGateway on trade: ")
+        # print(ind_dic)
+        if 'security' in ind_dic:
+            ind_dic['symbol'] = ind_dic.pop('security')
+        
+        ind = Trade.create_from_dict(ind_dic)
+        
+        e = Event(EVENT_TYPE.TRADE_IND)
+        e.dic['ind'] = ind
+        self.ctx.instance.put(e)
+
+    def on_order_status(self, ind_dic):
+        """
+        
+        Parameters
+        ----------
+        ind_dic : dict
+
+        """
+        # print("\nGateway on order status: ")
+        # print(ind_dic)
+        if 'security' in ind_dic:
+            ind_dic['symbol'] = ind_dic.pop('security')
+        
+        ind = OrderStatusInd.create_from_dict(ind_dic)
+        
+        e = Event(EVENT_TYPE.ORDER_STATUS_IND)
+        e.dic['ind'] = ind
+        self.ctx.instance.put(e)
+        
+    def on_task_status(self, ind_dic):
+        # print("\nGateway on task ind: ")
+        # print(ind_dic)
+        ind = TaskInd.create_from_dict(ind_dic)
+
+        e = Event(EVENT_TYPE.TASK_STATUS_IND)
+        e.dic['ind'] = ind
+        self.ctx.instance.put(e)
+
+    def on_connection_callback(self, connected):
+        """
+        
+        Parameters
+        ----------
+        connected : bool
+
+        """
+        if connected:
+            print("TradeAPI connected.")
+            event_type = EVENT_TYPE.TRADE_API_CONNECTED
+        else:
+            print("TradeAPI disconnected.")
+            event_type = EVENT_TYPE.TRADE_API_DISCONNECTED
+        e = Event(event_type)
+        self.ctx.instance.put(e)
+
+    # -------------------------------------------------------------------------------------------
+    # Run
     def run(self):
         """
-        place order, cancel order and query from RealInstance.
+        Listen to certain events and run the EventEngine.
+        Events include:
+            1. placement & cancellation of orders
+            2. query of universe, account, position and portfolio
+            3. etc.
 
         """
         self.register(EVENT_TYPE.PLACE_ORDER, self.on_place_order)
-        self.register(EVENT_TYPE.ORDER_RSP, self.on_order_rsp)
-        self.register(EVENT_TYPE.TRADE_IND, self.on_trade_ind)
-        self.register(EVENT_TYPE.ORDER_STATUS_IND, self.on_order_status_ind)
-    
+        self.register(EVENT_TYPE.CANCEL_ORDER, self.on_call_trade_api)
+        
+        self.register(EVENT_TYPE.QUERY_ACCOUNT, self.on_call_trade_api)
+        
+        self.register(EVENT_TYPE.TRADE_IND, self.on_trade)
+        self.register(EVENT_TYPE.ORDER_STATUS_IND, self.on_order_status)
+        
         self.start(timer=False)
+        
+    def on_call_trade_api(self, event):  # security, action, price, size, algo="", algo_param={}, userdata=""):
+        # print("Gateway got your order!")
+        
+        # event types and trade_api functions are one-to-one corresponded
+        api_map = {EVENT_TYPE.QUERY_ACCOUNT: self.trade_api.query_account,
+                   EVENT_TYPE.QUERY_UNIVERSE: self.trade_api.query_universe,
+                   EVENT_TYPE.QUERY_POSITION: self.trade_api.query_position,
+                   EVENT_TYPE.QUERY_PORTFOLIO: self.trade_api.query_portfolio,
+                   EVENT_TYPE.QUERY_TASK: self.trade_api.query_task,
+                   EVENT_TYPE.QUERY_TRADE: self.trade_api.query_trade,
+                   EVENT_TYPE.QUERY_ORDER: self.trade_api.query_order,
+            }
+        
+        func = api_map.get(event.type_, None)
+        if func is None:
+            print("{} not recgonized. Ignore.".format(event))
+            return
+        
+        args = event.dic.get('args', None)
+        func(args)
+    
+    def on_place_order(self, event):
+        d = event.dic
+        order = d['order']
+        task_id, msg = self.trade_api.place_order(order.symbol, order.entrust_action,
+                                                  order.entrust_price, order.entrust_size,
+                                                  d['algo'], d['algo_param'])
+        
+        # this rsp is generated by gateway itself
+        print(type(task_id), type(order.entrust_no))
+        if task_id is None or task_id == 0:  # placement of order failed
+            rsp = OrderRsp(entrust_no=order.entrust_no, msg=msg)
+        else:
+            rsp = OrderRsp(entrust_no=order.entrust_no, msg=msg, task_id=task_id)
+        
+        e = Event(EVENT_TYPE.ORDER_RSP)
+        e.dic['rsp'] = rsp
+        self.ctx.instance.put(e)
+
 
 class DailyStockSimGateway(BaseGateway):
     def __init__(self):
@@ -1058,7 +1140,11 @@ class BarSimulatorGateway(BaseGateway):
     
     def send_order(self, order, algo, param):
         self.orderbook.add_order(order)
-        self.cb_pm.on_order_rsp(order, True, '')
+        # TODO: no consistence between backtest and real time trading
+        rsp = OrderRsp(order.entrust_no, task_id=1, msg="")
+        if rsp.task_id:
+            self.ctx.instance.strategy.pm.add_order(order)
+        self.ctx.instance.strategy.on_order_rsp(rsp)
     
     def process_quote(self, df_quote, freq):
         results = self.orderbook.make_trade(df_quote, freq)

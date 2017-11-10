@@ -22,9 +22,6 @@ class CtaStrategy(EventDrivenStrategy):
         self.symbol = props.get('symbol')
         self.init_balance = props.get('init_balance')
     
-    def initialize(self, runmode):
-        pass
-    
     def on_cycle(self):
         pass
     
@@ -55,9 +52,6 @@ class CtaStrategy(EventDrivenStrategy):
             self.ctx.gateway.send_order(order, '', '')
             print 'send order %s: %s %s %f' % (order.entrust_no, order.symbol, order.entrust_action, order.entrust_price)
     
-    def on_new_day(self, trade_date):
-        print 'new day comes ' + str(trade_date)
-
 
 def test_cta():
     prop_file_path = fileio.join_relative_path("etc/backtest.json")
@@ -75,8 +69,6 @@ def test_cta():
     data_service = RemoteDataService()
     
     context = model.Context()
-    context.register_data_api(data_service)
-    context.register_gateway(gateway)
     
     backtest = EventBacktestInstance()
     backtest.init_from_config(props, strategy, context=context)

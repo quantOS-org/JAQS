@@ -324,13 +324,25 @@ class EventEngine2(object):
 
 ########################################################################
 class Event:
-    """事件对象"""
-
-    #----------------------------------------------------------------------
+    """
+    Event is a class used to represent an event happended.
+    
+    Attributes
+    ----------
+    type_ : str
+    dic : dict
+    
+    """
     def __init__(self, type_=None):
         """Constructor"""
         self.type_ = type_      # 事件类型
         self.dic = {}         # 字典用于保存具体的事件数据
+        
+    def __repr__(self):
+        "Event [{0:s}] with data {1:}".format(self.type_, self.dic.keys()[:10])
+
+    def __str__(self):
+        return self.__repr__()
 
 
 #----------------------------------------------------------------------

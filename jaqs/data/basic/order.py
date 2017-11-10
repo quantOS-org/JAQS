@@ -45,7 +45,7 @@ class Order(object):
     """
     
     def __init__(self):
-        self.task_id = ""
+        self.task_id = 0
         self.entrust_no = ""
         
         self.symbol = ""
@@ -82,8 +82,8 @@ class Order(object):
 
     def __repr__(self):
         return "{0.entrust_date:8d}({0.entrust_time:8d}) " \
-               "{0.entrust_action:6s} {0.entrust_size:5d} of " \
-               "{0.symbol:10s}@{0.entrust_price:.3f}".format(self)
+               "{0.entrust_action:6s} {0.symbol:10s}@{0.entrust_price:.3f}" \
+               "  size = {0.fill_size} / {0.entrust_size}".format(self)
 
     def __str__(self):
         return self.__repr__()
@@ -181,6 +181,86 @@ class VwapOrder(Order):
     @property
     def time_range(self):
         return self.start, self.end
+
+
+class OrderStatusInd(object):
+    def __init__(self):
+        self.ba_id = 0
+        self.sa_id = 0
+        
+        self.task_id = 0
+        self.entrust_no = ''
+        
+        self.algo = ''
+        self.batch_no = 0
+        self.order_seq = 0
+        
+        self.symbol = ''
+        
+        self.entrust_action = ''
+        self.entrust_price = 0.0
+        self.entrust_size = 0
+        self.entrust_date = 0
+        self.entrust_time = 0
+        
+        self.order_status = ''
+        
+        self.fill_size = 0
+        self.fill_price = 0.0
+        self.commission = 0.0
+        
+        self.is_finished = False
+    
+    def init_from_order(self, order):
+        self.entrust_no = order.entrust_no
+        
+        self.symbol = order.symbol
+        
+        self.entrust_action = order.entrust_action
+        self.entrust_price = order.entrust_price
+        self.entrust_size = order.entrust_size
+        self.entrust_date = order.entrust_date
+        self.entrust_time = order.entrust_time
+        
+        self.order_status = order.order_status
+        
+        self.fill_size = order.fill_size
+        self.fill_price = order.fill_price
+
+    @classmethod
+    def create_from_dict(cls, dic):
+        ind = cls()
+        ind.__dict__.update(dic)
+        return ind
+    
+    def __repr__(self):
+        return "{0.order_status:8s}  |  " \
+               "{0.entrust_date:8d}({0.entrust_time:8d}) " \
+               "{0.entrust_action:6s} {0.symbol:10s}@{0.entrust_price:.3f}" \
+               "  size = {0.entrust_size}".format(self)
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class OrderRsp(object):
+    def __init__(self, entrust_no="", msg="", task_id=0):
+        self.msg = msg
+        self.entrust_no = entrust_no
+        self.task_id = task_id
+
+    @classmethod
+    def create_from_dict(cls, dic):
+        rsp = cls()
+        rsp.__dict__.update(dic)
+        return rsp
+    
+    def __repr__(self):
+        return "entrust_no = {0.entrust_no:s}  |  task_id = {0.task_id:d}" \
+               "\nmsg = {0.msg:s}".format(self)
+
+    def __str__(self):
+        return self.__repr__()
 
 
 if __name__ == "__main__":
