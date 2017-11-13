@@ -10,7 +10,7 @@ import jaqs.trade.analyze.analyze as ana
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.example.eventdriven.spread import SpreadStrategy
 from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.gateway import BarSimulatorGateway
+from jaqs.trade.gateway import BacktestTradeApi
 
 backtest_result_dir_path = fileio.join_relative_path('../output/event_driven')
 
@@ -31,12 +31,17 @@ def test_spread_trading():
     for k, v in enum_props.iteritems():
         props[k] = v.to_enum(props[k])
     
-    strategy = SpreadStrategy()
-    gateway = BarSimulatorGateway()
+    bt_tapi = BacktestTradeApi()
     data_service = RemoteDataService()
+
+    strategy = SpreadStrategy()
+    from jaqs.trade.portfoliomanager import PortfolioManager
+    pm = PortfolioManager(strategy=strategy)
+    
     bt = EventBacktestInstance()
 
-    context = model.Context(data_api=data_service, gateway=gateway, instance=bt)
+    context = model.Context(data_api=data_service, trade_api=bt_tapi, gateway=bt_tapi, instance=bt)
+    context.pm = pm
     
     bt.init_from_config(props, strategy, context=context)
     

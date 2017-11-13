@@ -9,7 +9,7 @@ from jaqs.trade import common
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.example.eventdriven.doubleMaStrategy import DoubleMaStrategy
 from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.gateway import BarSimulatorGateway
+from jaqs.trade.gateway import BacktestTradeApi
 
 
 def test_double_ma():
@@ -25,7 +25,7 @@ def test_double_ma():
     
     # strategy   = CtaStrategy()
     strategy = DoubleMaStrategy()
-    gateway = BarSimulatorGateway()
+    gateway = BacktestTradeApi()
     data_service = RemoteDataService()
 
     context = model.Context(data_api=data_service, gateway=gateway)

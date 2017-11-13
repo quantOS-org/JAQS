@@ -33,9 +33,9 @@ class ReprStrEnum(str, ReprEnum):
 @unique
 class QUOTE_TYPE(ReprStrEnum):
     TICK = '0'
-    MIN = '1m'
-    FIVEMIN = '5m'
-    QUARTERMIN = '15m'
+    MIN = '1M'
+    FIVEMIN = '5M'
+    QUARTERMIN = '15M'
     DAILY = '1d'
     SPECIALBAR = '-1'
 
@@ -85,6 +85,20 @@ class ORDER_ACTION(ReprStrEnum):
     SELLYESTERDAY = "SellYesterday"
     COVERYESTERDAY = "CoverYesterday"
     COVERTODAY = "CoverToday"
+    
+    @classmethod
+    def is_positive(cls, action):
+        return (action == cls.BUY
+                or action == cls.COVER
+                or action == cls.COVERYESTERDAY
+                or action == cls.COVERTODAY)
+
+    @classmethod
+    def is_negative(cls, action):
+        return (action == cls.SELL
+                or action == cls.SHORT
+                or action == cls.SELLTODAY
+                or action == cls.SELLYESTERDAY)
 
 
 @unique

@@ -94,3 +94,13 @@ def shift(date, n_weeks=0):
     if is_int:
         res = convert_datetime_to_int(res)
     return res
+
+
+def combine_date_time(date, time):
+    return date * 1000000 + time
+
+
+def split_date_time(dt):
+    date = dt // 1000000
+    time = dt % 1000000
+    return date, time

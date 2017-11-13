@@ -32,28 +32,13 @@ class SpreadStrategy(EventDrivenStrategy):
     def on_cycle(self):
         pass
     
-    def create_order(self, quote, price, size):
-        order = Order.new_order(quote.symbol, "", price, size, quote.trade_date, quote.time)
-        order.order_type = common.ORDER_TYPE.LIMIT
-        return order
-    
-    def buy(self, quote, price, size):
-        order = self.create_order(quote, price, size)
-        order.entrust_action = common.ORDER_ACTION.BUY
-        self.ctx.gateway.send_order(order, '', '')
-    
-    def sell(self, quote, price, size):
-        order = self.create_order(quote, price, size)
-        order.entrust_action = common.ORDER_ACTION.SELL
-        self.ctx.gateway.send_order(order, '', '')
-    
     def long_spread(self, quote1, quote2):
-        self.buy(quote1, quote1.close, 1)
-        self.sell(quote2, quote2.close, 1)
+        self.ctx.trade_api.place_order(quote1.symbol, common.ORDER_ACTION.BUY, quote1.close + 1, 1)
+        self.ctx.trade_api.place_order(quote2.symbol, common.ORDER_ACTION.SELL, quote2.close - 1, 1)
 
     def short_spread(self, quote1, quote2):
-        self.buy(quote2, quote2.close, 1)
-        self.sell(quote1, quote1.close, 1)
+        self.ctx.trade_api.place_order(quote2.symbol, common.ORDER_ACTION.BUY, quote2.close + 1, 1)
+        self.ctx.trade_api.place_order(quote1.symbol, common.ORDER_ACTION.SELL, quote1.close - 1, 1)
 
     def on_quote(self, quote_dic):
         q1 = quote_dic.get(self.s1)
@@ -76,4 +61,4 @@ class SpreadStrategy(EventDrivenStrategy):
     
     def on_trade(self, ind):
         print(ind)
-        print(self.pm.get_position(self.s1))
+        print(self.ctx.pm.get_position(ind.symbol))

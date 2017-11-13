@@ -37,8 +37,8 @@ class Position(object):
 
     """
     
-    def __init__(self):
-        self.symbol = ""
+    def __init__(self, symbol=""):
+        self.symbol = symbol
         
         self.side = ""
         self.cost_price = 0.0

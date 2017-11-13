@@ -19,6 +19,7 @@ class EVENT_TYPE(common.ReprStrEnum):
     MARKET_DATA = 'market_data'  # 行情事件
 
     ORDER_RSP = 'order_rsp'
+    TASK_RSP = 'task_rsp'
     TASK_STATUS_IND = 'task_callback'
     TRADE_IND = 'trade_ind'  # 成交回报
     ORDER_STATUS_IND = 'order_status_ind'  # 状态回报

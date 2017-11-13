@@ -29,8 +29,8 @@ class DoubleMaStrategy(EventDrivenStrategy):
         pass
     
     def create_order(self, quote, price, size):
-        order = Order.new_order(quote.symbol, "", price, size, quote.trade_date, quote.time)
-        order.order_type = common.ORDER_TYPE.LIMIT
+        order = Order.new_order(quote.symbol, "", price, size, quote.trade_date, quote.time,
+                                order_type=common.ORDER_TYPE.LIMIT)
         return order
     
     def buy(self, quote, price, size):
@@ -56,7 +56,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
     def on_quote(self, quote_dic):
         quote = quote_dic.values()[0]
         quote_date = quote.trade_date
-        p = self.pm.get_position(quote.symbol, quote_date)
+        p = self.ctx.pm.get_position(quote.symbol)
         if p is None:
             self.pos = 0
         else:

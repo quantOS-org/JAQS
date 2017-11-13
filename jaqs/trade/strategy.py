@@ -7,7 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 
-from jaqs.trade.gateway import PortfolioManager
+from jaqs.trade.portfoliomanager import PortfolioManager
 from jaqs.data.basic.order import *
 from jaqs.data.basic.position import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
@@ -43,9 +43,10 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         self.ctx = None
         # self.run_mode = common.RUN_MODE.BACKTEST
         
-        self.pm = PortfolioManager(strategy=self)
+        # self.ctx.pm = PortfolioManager(strategy=self)
+        # self.pm = self.ctx.pm
 
-        self.task_id_map = defaultdict(list)
+        # self.task_id_map = defaultdict(list)
         self.seq_gen = SequenceGenerator()
 
         self.init_balance = 0.0
@@ -221,16 +222,20 @@ class Strategy(with_metaclass(abc.ABCMeta)):
     # -------------------------------------------------------------------------------------------
     # Portfolio Order
 
-    def goal_portfolio(self, goals):
+    def goal_portfolio(self, positions, algo="", algo_param=None):
         """
         Let the system automatically generate orders according to portfolio positions goal.
         If there are uncome orders of any symbol in the strategy universe, this order will be rejected. #TODO not impl
 
         Parameters
         -----------
-        goals : list of GoalPosition
+        positions : list of GoalPosition
             This must include positions of all securities in the strategy universe.
             Use former value if there is no change.
+        algo : str, optional
+            The algorithm to be used. If None then use default algorithm.
+        algo_param : dict, optional
+            Parameters of the algorithm. Default {}.
 
         Returns
         --------
@@ -246,7 +251,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         for goal in goals:
             sec, goal_size = goal.symbol, goal.size
             if sec in self.pm.holding_securities:
-                curr_size = self.pm.get_position(sec, self.ctx.trade_date).curr_size
+                curr_size = self.pm.get_position(sec).curr_size
             else:
                 curr_size = 0
             diff_size = goal_size - curr_size
@@ -365,8 +370,25 @@ class Strategy(with_metaclass(abc.ABCMeta)):
 
         """
         pass
-    
+
+    def on_task_rsp(self, rsp):
+        """
+        
+        Parameters
+        ----------
+        rsp
+
+        """
+        pass
+
     def on_task_status(self, ind):
+        """
+        
+        Parameters
+        ----------
+        rsp
+
+        """
         pass
 
 
@@ -691,7 +713,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             goal_pos.symbol = sec
             
             if sec in suspensions:
-                current_pos = self.pm.get_position(sec, self.ctx.trade_date)
+                current_pos = self.ctx.pm.get_position(sec)
                 goal_pos.size = current_pos.curr_size if current_pos is not None else 0
             elif abs(w) < 1e-8:
                 # order.entrust_size = 0
@@ -701,7 +723,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 if not (np.isfinite(price) and np.isfinite(w)):
                     raise ValueError("NaN or Inf encountered! \n"
                                      "trade_date={}, symbol={}, price={}, weight={}".format(self.ctx.trade_date,
-                                                                                           sec, price, w))
+                                                                                            sec, price, w))
                 shares_raw = w * turnover / price
                 # shares unit 100
                 shares = int(round(shares_raw / 100., 0)) * 100  # TODO cash may be not enough
@@ -716,14 +738,14 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         return goals, cash_left
     
     def liquidate_all(self):
-        for sec in self.pm.holding_securities:
-            curr_size = self.pm.get_position(sec, self.ctx.trade_date).curr_size
+        for sec in self.ctx.pm.holding_securities:
+            curr_size = self.ctx.pm.get_position(sec).curr_size
             self.place_order(sec, common.ORDER_ACTION.SELL, 1e-3, curr_size)
     
     def query_portfolio(self):
         positions = []
-        for sec in self.pm.holding_securities:
-            positions.append(self.pm.get_position(sec, self.ctx.trade_date))
+        for sec in self.ctx.pm.holding_securities:
+            positions.append(self.ctx.pm.get_position(sec))
         return positions
 
 
@@ -742,102 +764,3 @@ class EventDrivenStrategy(Strategy):
     
     def initialize(self):
         pass
-    
-    # ----------------------------------------------------------------------------------------
-    # place & cancel
-    
-    def place_order(self, symbol, action, price, size, algo="", algo_param=None):
-        if algo_param is None:
-            algo_param = dict()
-            
-        # this order object is not for TradeApi, but for strategy itself to remember the order
-        order = Order.new_order(symbol, action, price, size, self.ctx.trade_date, 0)
-        order.entrust_no = self._get_next_num('entrust_no')
-        
-        self.task_id_map[order.task_id].append(order.entrust_no)
-        
-        self.pm.add_order(order)
-        
-        e = Event(EVENT_TYPE.PLACE_ORDER)
-        e.dic['order'] = order
-        e.dic['algo'] = algo
-        e.dic['algo_param'] = algo_param
-        self.ctx.gateway.put(e)
-    
-    def cancel_order(self, entrust_no):
-        e = Event(EVENT_TYPE.CANCEL_ORDER)
-        e.dic['entrust_no'] = entrust_no
-        self.ctx.gateway.put(e)
-    
-    # ----------------------------------------------------------------------------------------
-    # PMS
-    
-    def goal_portfolio(self, goals):
-        o
-        
-        kjkj
-        pass
-
-    # ----------------------------------------------------------------------------------------
-    # query account, universe, position, portfolio
-
-    def query_account(self):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_ACCOUNT)
-        e.dic['args'] = args
-
-    def query_universe(self):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_UNIVERSE)
-        e.dic['args'] = args
-        
-    def query_position(self, mode="all", symbols=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_POSITION)
-        e.dic['args'] = args
-
-    def query_portfolio(self):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_PORTFOLIO)
-        e.dic['args'] = args
-
-    # ----------------------------------------------------------------------------------------
-    # query task, order, trade
-    
-    def query_task(self, task_id=-1):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_TASK)
-        e.dic['args'] = args
-        
-    def query_order(self, task_id=-1):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_ORDER)
-        e.dic['args'] = args
-        
-    def query_trade(self, task_id=-1):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_TRADE)
-        e.dic['args'] = args
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

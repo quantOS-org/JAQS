@@ -39,7 +39,7 @@ class Context(object):
         Add new securities.
 
     """
-    def __init__(self, data_api=None, dataview=None, gateway=None, instance=None):
+    def __init__(self, data_api=None, trade_api=None, dataview=None, gateway=None, instance=None):
         # TODO: should also support get calendar from dataview
         if data_api is None:
             calendar = Calendar()
@@ -49,6 +49,7 @@ class Context(object):
 
         self.universe = []
         self._data_api = data_api
+        self._trade_api = trade_api
         self._dataview = dataview
         self._gateway = gateway
         self.instance = instance
@@ -61,9 +62,10 @@ class Context(object):
         self.storage = dict()
         
         for member, obj in self.__dict__.viewitems():
-            if member in ['calendar', '_data_api', '_dataview', '_gateway', 'instance']:
-                if hasattr(obj, 'register_context'):
-                    obj.register_context(self)
+            if hasattr(obj, 'ctx'):
+                if member in ['calendar', '_data_api', '_trade_api',
+                              '_dataview', '_gateway', 'instance']:
+                    obj.ctx = self
 
     def save_store(self, path):
         fileio.save_pickle(self.storage, path)
@@ -83,6 +85,16 @@ class Context(object):
             value.register_context(self)
         self._data_api = value
 
+    @property
+    def trade_api(self):
+        return self._trade_api
+
+    @trade_api.setter
+    def trade_api(self, value):
+        if hasattr(value, 'ctx'):
+            value.ctx = self
+        self._trade_api = value
+    
     @property
     def gateway(self):
         return self._gateway

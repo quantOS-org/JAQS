@@ -99,7 +99,7 @@ class PnlManager(object):
     def generateStatisticReport(self, pnls):
         report = PnlReport()
         report.daily_pnls = pnls
-        report.trades = self.tradeToDataframe(self.strategy.pm.trades)
+        report.trades = self.tradeToDataframe(self.ctx.pm.trades)
         win_count = 0
         i = 0
         pre_value = self.strategy.init_balance
@@ -130,7 +130,7 @@ class PnlManager(object):
         return report
     
     def generateReport(self, output_format=""):
-        daily_pnls = self.calcPnl(self.strategy.pm.trades)
+        daily_pnls = self.calcPnl(self.ctx.pm.trades)
         report = self.generateStatisticReport(daily_pnls)
         print "Total PNL: %f" % (report.total_pnl)
         print "Total trade number: %d" % (report.trade_count)

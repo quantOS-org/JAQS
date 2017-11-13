@@ -65,6 +65,7 @@ class RealInstance(EventEngine):
         
         self.register(EVENT_TYPE.TASK_STATUS_IND, self.on_task_status)
         self.register(EVENT_TYPE.ORDER_RSP, self.on_order_rsp)
+        self.register(EVENT_TYPE.TASK_RSP, self.on_task_rsp)
         self.register(EVENT_TYPE.TRADE_IND, self.on_trade)
         self.register(EVENT_TYPE.ORDER_STATUS_IND, self.on_order_status)
         
@@ -79,6 +80,10 @@ class RealInstance(EventEngine):
         rsp = event.dic['rsp']
         self.strategy.on_order_rsp(rsp)
 
+    def on_task_rsp(self, event):
+        rsp = event.dic['rsp']
+        self.strategy.on_task_rsp(rsp)
+    
     def on_trade(self, event):
         ind = event.dic['ind']
         self.strategy.on_trade(ind)
@@ -97,12 +102,18 @@ def remote_data_service_mkt_data_callback():
     from jaqs.data.dataservice import RemoteDataService
     from jaqs.trade import model
     from jaqs.example.eventdriven.realtrade import RealStrategy
-    from jaqs.trade.gateway import RealGateway
+    from jaqs.trade.gateway import RealGateway, RealTimeTradeApi
     
     ds = RemoteDataService()
-    ins = RealInstance()
-    gateway = RealGateway()
+    tapi = RealTimeTradeApi()
+
     strat = RealStrategy()
+    from jaqs.trade.portfoliomanager import PortfolioManager
+    pm = PortfolioManager(strategy=strat)
+    
+    gateway = RealGateway()
+    
+    ins = RealInstance()
     
     gateway.trade_api.use_strategy(3)
     df_univ, msg = gateway.trade_api.query_universe()
@@ -110,10 +121,12 @@ def remote_data_service_mkt_data_callback():
     print(df_univ)
     
     context = model.Context(data_api=ds, gateway=gateway, instance=ins)
+    context.pm = pm
 
     # order dependent is not good! we should make it not dependent or hard-code the order
-    # props = {'symbol': 'hc1801.SHF,rb1801.SHF'}
-    props = {'symbol': 'IF1712.CFE,CFCICA.JZ'}
+    props = {'symbol': 'hc1801.SHF,CFCICA.JZ'}
+    # props = {'symbol': '000001.SZ,600001.SH'}
+    # props = {'symbol': 'CFCICA.JZ,600001.SH'}
     ins.init_from_config(props, strat)
     ins.run()
     gateway.run()

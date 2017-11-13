@@ -10,7 +10,7 @@ from jaqs.trade import common
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.trade.strategy import EventDrivenStrategy
 from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.gateway import BarSimulatorGateway
+from jaqs.trade.gateway import BacktestTradeApi
 
 
 class CtaStrategy(EventDrivenStrategy):
@@ -65,7 +65,7 @@ def test_cta():
         props[k] = v.to_enum(props[k])
     
     strategy = CtaStrategy()
-    gateway = BarSimulatorGateway()
+    gateway = BacktestTradeApi()
     data_service = RemoteDataService()
     
     context = model.Context()

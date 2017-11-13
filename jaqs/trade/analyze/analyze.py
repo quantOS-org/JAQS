@@ -114,7 +114,7 @@ class BaseAnalyzer(object):
     
     def _init_trades(self, df):
         """Add datetime column. """
-        df.loc[:, 'fill_dt'] = df.loc[:, 'fill_date'] * 1000000 + df.loc[:, 'fill_time']
+        df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
         
         self._trades = jutil.group_df_to_dict(df, by='symbol')
     

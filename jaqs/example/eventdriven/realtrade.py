@@ -32,6 +32,8 @@ class RealStrategy(EventDrivenStrategy):
         self.init_balance = props.get('init_balance')
         
         # self.s1, self.s2 = self.symbol.split(',')
+        self.symbol_list = self.symbol.split(',')
+        self.s1 = self.symbol_list[0]
     
     def on_cycle(self):
         pass
@@ -39,11 +41,11 @@ class RealStrategy(EventDrivenStrategy):
     def on_quote(self, quote):
         self.counter += 1
         print(quote.time, quote.symbol, self.counter)
-        if self.counter == 2:
-            print("counter = 10, let's trade.")
+        if self.counter % 3 == 0:
+            print("counter meets criteria, let's trade.")
             print(quote)
             # self.place_order(quote.symbol, 'Buy', quote.askprice1 + 1.0, 1)
-            self.place_order('IF1712.CFE', 'Buy', 9999.9, 1)
+            self.place_order(self.s1, 'Buy', 9999.9, 100)
             
         return
         
@@ -72,7 +74,11 @@ class RealStrategy(EventDrivenStrategy):
     def on_order_status(self, ind):
         print "\nStrategy on order status: "
         print(ind)
-    
+
+    def on_task_rsp(self, rsp):
+        print "\nStrategy on task rsp: "
+        print(rsp)
+
     def on_order_rsp(self, rsp):
         print "\nStrategy on order rsp: "
         print(rsp)

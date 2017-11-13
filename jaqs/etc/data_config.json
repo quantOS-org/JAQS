@@ -1,5 +1,5 @@
 {
-  "remote.address": "tcp://data.tushare.org:8910",
+  "remote.address": "tcp://10.1.0.210:8910",
   "remote.username": "test",
   "remote.password": "123"
 }

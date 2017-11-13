@@ -304,10 +304,10 @@ class RemoteDataService(DataService):
 
     def bar(self, symbol,
             start_time=200000, end_time=160000, trade_date=None,
-            freq='1m', fields=""):
+            freq='1M', fields=""):
         df, msg = self.data_api.bar(symbol=symbol, fields=fields,
                                     start_time=start_time, end_time=end_time, trade_date=trade_date,
-                                    freq='1m', data_format="")
+                                    freq='1M', data_format="")
         return df, msg
     
     def query(self, view, filter="", fields="", **kwargs):

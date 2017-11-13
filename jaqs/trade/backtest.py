@@ -223,7 +223,7 @@ class AlphaBacktestInstance(BacktestInstance):
         end = self.current_rebalance_date  # end is the same to ensure position adjusted for dividend on rebalance day
         df_adj = self.ctx.dataview.get_ts('adjust_factor',
                                           start_date=start, end_date=end)
-        pm = self.strategy.pm
+        pm = self.ctx.pm
         for symbol in pm.holding_securities:
             ser = df_adj.loc[:, symbol]
             ser_div = ser.div(ser.shift(1)).fillna(1.0)
@@ -259,7 +259,7 @@ class AlphaBacktestInstance(BacktestInstance):
         
         if not dic_inst:
             return
-        pm = self.strategy.pm
+        pm = self.ctx.pm
         for symbol in pm.holding_securities.copy():
             value_dic = dic_inst.get(symbol, None)
             if value_dic is None:
@@ -329,7 +329,7 @@ class AlphaBacktestInstance(BacktestInstance):
     
         # step2. calculate market value and cash
         # market value does not include those suspended
-        market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices, all_list)
+        market_value_float, market_value_frozen = self.ctx.pm.market_value(self.ctx.trade_date, prices, all_list)
         cash_available = self.strategy.cash + market_value_float
     
         cash_to_use = cash_available * self.strategy.position_ratio
@@ -390,7 +390,7 @@ class AlphaBacktestInstance(BacktestInstance):
             self.on_after_market_close()
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
-                                                                         len(self.strategy.pm.trades))
+                                                                         len(self.ctx.pm.trades))
     
     def on_after_market_close(self):
         self.ctx.gateway.on_after_market_close()
@@ -459,7 +459,7 @@ class AlphaBacktestInstance(BacktestInstance):
         import pandas as pd
         folder_path = os.path.abspath(folder_path)
     
-        trades = self.strategy.pm.trades
+        trades = self.ctx.pm.trades
     
         type_map = {'task_id': str,
                     'entrust_no': str,
@@ -490,11 +490,13 @@ class AlphaBacktestInstance(BacktestInstance):
         print ("Backtest results has been successfully saved to:\n" + folder_path)
     
     def show_position_info(self):
+        pm = self.ctx.pm
+        
         prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
-        market_value_float, market_value_frozen = self.strategy.pm.market_value(self.ctx.trade_date, prices)
-        for symbol in self.strategy.pm.holding_securities:
+        market_value_float, market_value_frozen = pm.market_value(self.ctx.trade_date, prices)
+        for symbol in pm.holding_securities:
             p = prices[symbol]
-            size = self.strategy.pm.get_position(symbol).curr_size
+            size = pm.get_position(symbol).curr_size
             print "{}  {:.2e}   {:.1f}@{:.2f}".format(symbol, p*size*100, p, size)
         print "float {:.2e}, frozen {:.2e}".format(market_value_float, market_value_frozen)
 
@@ -512,7 +514,7 @@ class EventBacktestInstance(BacktestInstance):
         super(EventBacktestInstance, self).init_from_config(props, strategy, context)
         
         # TODO should be consistent with tradeAPI
-        self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
+        # self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
         
         self.bar_type = props.get("bar_type")
         
@@ -529,6 +531,7 @@ class EventBacktestInstance(BacktestInstance):
     
     def on_new_day(self, date):
         self.ctx.trade_date = date
+        self.ctx.time = 0
         self.ctx.gateway.on_new_day(self.ctx.trade_date)
         self.strategy.initialize()
         print 'on_new_day in trade {}'.format(self.ctx.trade_date)
@@ -553,9 +556,9 @@ class EventBacktestInstance(BacktestInstance):
         
         dic = defaultdict(dict)
         for quote in quotes_list:
-            dic[quote.date * 1000000 + quote.time][quote.symbol] = quote
+            dic[jutil.combine_date_time(quote.date, quote.time)][quote.symbol] = quote
         return dic
-        
+    
     def _run_bar(self):
         """Quotes of different symbols will be aligned into one dictionary."""
         trade_dates = self.ctx.calendar.get_trade_date_range(self.start_date, self.end_date)
@@ -565,6 +568,9 @@ class EventBacktestInstance(BacktestInstance):
             
             quotes_dic = self._create_time_symbol_bars(trade_date)
             for dt in sorted(quotes_dic.keys()):
+                _, time = jutil.split_date_time(dt)
+                self.ctx.time = time
+                
                 quote_by_symbol = quotes_dic.get(dt)
                 self._process_quote_bar(quote_by_symbol)
             
@@ -605,7 +611,7 @@ class EventBacktestInstance(BacktestInstance):
         self.strategy.on_quote(quote_yesterday)
 
         # match
-        trade_results = self.ctx.gateway.process_quote(quote_today, freq=self.bar_type)
+        trade_results = self.ctx.gateway._process_quote(quote_today, freq=self.bar_type)
 
         # trade indication
         for trade_ind, status_ind in trade_results:
@@ -634,7 +640,7 @@ class EventBacktestInstance(BacktestInstance):
         
     def _process_quote_bar(self, quotes_dic):
         # match
-        trade_results = self.ctx.gateway.process_quote(quotes_dic, freq=self.bar_type)
+        trade_results = self.ctx.gateway._process_quote(quotes_dic, freq=self.bar_type)
         
         # trade indication
         for trade_ind, status_ind in trade_results:
@@ -658,7 +664,7 @@ class EventBacktestInstance(BacktestInstance):
         import pandas as pd
         folder_path = os.path.abspath(folder_path)
     
-        trades = self.strategy.pm.trades
+        trades = self.ctx.pm.trades
     
         type_map = {'task_id': str,
                     'entrust_no': str,
