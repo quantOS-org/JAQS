@@ -5,7 +5,7 @@ from jaqs.data.dataservice import RemoteDataService
 from jaqs.trade import model, common
 from jaqs.trade.realinstance import RealInstance
 from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.example.eventdriven.realtrade import RealStrategy
+from jaqs.example.eventdriven.market_making import RealStrategy
 from jaqs.trade.gateway import RealTimeTradeApi, BacktestTradeApi
 from jaqs.trade.portfoliomanager import PortfolioManager
 import jaqs.util as jutil
