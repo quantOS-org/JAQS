@@ -19,13 +19,14 @@ import jaqs.trade.analyze.analyze as ana
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataview import DataView
 from jaqs.trade import model
+from jaqs.trade.portfoliomanager import PortfolioManager
 from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.gateway import DailyStockSimGateway
+from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade.strategy import AlphaStrategy
-from jaqs.util import fileio
+import jaqs.util as jutil
 
-dataview_dir_path = fileio.join_relative_path('../output/prepared/fama_french/dataview')
-backtest_result_dir_path = fileio.join_relative_path('../output/fama_french')
+dataview_dir_path = jutil.join_relative_path('../output/fama_french/dataview')
+backtest_result_dir_path = jutil.join_relative_path('../output/fama_french')
 
 
 def test_save_dataview(sub_folder='test_dataview'):
@@ -79,20 +80,21 @@ def test_alpha_strategy_dataview():
         "position_ratio": 1.0,
     }
     
-    gateway = DailyStockSimGateway()
-    gateway.init_from_config(props)
+    trade_api = AlphaTradeApi()
+    trade_api.init_from_config(props)
     
-    context = model.Context(dataview=dv, gateway=gateway)
-    
-    stock_selector = model.StockSelector(context)
+    stock_selector = model.StockSelector()
     stock_selector.add_filter(name='myselector', func=my_selector)
     
-    strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight',
-                             # revenue_model=signal_model
-                             )
+    strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
+    pm = PortfolioManager()
     
     bt = AlphaBacktestInstance()
-    bt.init_from_config(props, strategy, context=context)
+    
+    context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm)
+    stock_selector.register_context(context)
+
+    bt.init_from_config(props)
     
     bt.run_alpha()
     
@@ -105,36 +107,8 @@ def test_backtest_analyze():
     dv.load_dataview(folder_path=dataview_dir_path)
     
     ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
-    
-    print "process trades..."
-    ta.process_trades()
-    print "get daily stats..."
-    ta.get_daily()
-    #########################
-    # ta.daily[symbol] # = df
-    
-    print "calc strategy return..."
-    ta.get_returns()
-    # position change info is huge!
-    # print "get position change..."
-    # ta.get_pos_change_info()
-    
-    selected_sec = []  # list(ta.universe)[:5]
-    if len(selected_sec) > 0:
-        print "Plot single securities PnL"
-        for symbol in selected_sec:
-            df_daily = ta.daily.get(symbol, None)
-            if df_daily is not None:
-                ana.plot_trades(df_daily, symbol=symbol, save_folder=backtest_result_dir_path)
-    
-    print "Plot strategy PnL..."
-    ta.plot_pnl(backtest_result_dir_path)
-    
-    print "generate report..."
-    static_folder = fileio.join_relative_path("trade/analyze/static")
-    ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
-                  out_folder=backtest_result_dir_path,
-                  selected=selected_sec)
+
+    ta.do_analyze(result_dir=backtest_result_dir_path, selected_sec=list(ta.universe)[:3])
 
 
 if __name__ == "__main__":

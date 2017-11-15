@@ -4,9 +4,9 @@ import os
 import json
 from collections import OrderedDict
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
 from jaqs.trade.analyze.report import Report
@@ -14,8 +14,7 @@ from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.basic.instrument import InstManager
 import jaqs.util as jutil
 
-
-# sys.path.append(os.path.abspath(".."))
+STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
 
 
 class MyFormatter(Formatter):
@@ -56,6 +55,8 @@ class BaseAnalyzer(object):
         self.adjust_mode = None
         
         self.inst_map = dict()
+        
+        self.metrics = dict()
         
     @property
     def trades(self):
@@ -118,7 +119,7 @@ class BaseAnalyzer(object):
             self.inst_map = data_inst.to_dict(orient='index')
         elif self.data_api is not None:
             inst_mgr = InstManager(symbol=symbol_str, data_api=self.data_api)
-            self.inst_map = inst_mgr.inst_map
+            self.inst_map = {k: v.__dict__ for k, v in inst_mgr.inst_map.items()}
         else:
             raise ValueError("no dataview or dataapi provided.")
         
@@ -373,7 +374,32 @@ class BaseAnalyzer(object):
     
         r.generate_html()
         r.output_html('report.html')
-        # r.output_pdf('report.pdf')
+
+    def do_analyze(self, result_dir, selected_sec=None):
+        if selected_sec is None:
+            selected_sec = []
+            
+        print "process trades..."
+        self.process_trades()
+        print "get daily stats..."
+        self.get_daily()
+        print "calc strategy return..."
+        self.get_returns(consider_commission=False)
+
+        if len(selected_sec) > 0:
+            print "Plot single securities PnL"
+            for symbol in selected_sec:
+                df_daily = self.daily.get(symbol, None)
+                if df_daily is not None:
+                    plot_trades(df_daily, symbol=symbol, save_folder=result_dir)
+
+        print "Plot strategy PnL..."
+        self.plot_pnl(result_dir)
+
+        print "generate report..."
+        self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
+                        out_folder=result_dir,
+                        selected=selected_sec)
 
 
 class EventAnalyzer(BaseAnalyzer):
@@ -428,6 +454,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             r[1:] = arr[1:] / arr[:-1] - 1
         return r
 
+    '''
     def get_returns_OLD(self, compound_return=True, consider_commission=True):
         profit_col_name = 'CumProfitComm' if consider_commission else 'CumProfit'
         vp_list = {sec: df_profit.loc[:, profit_col_name] for sec, df_profit in self.daily.viewitems()}
@@ -462,26 +489,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
 
-def calc_uat_metrics(t1, symbol):
-    cump1 = t1.loc[:, 'CumProfit'].values
-    profit1 = cump1[-1]
-    
-    n_trades = t1.loc[:, 'CumVolume'].values[-1] / 2.  # signle
-    avg_trade = profit1 / n_trades
-    print "profit without commission = {} \nprofit with commission {}".format(profit1, profit1)
-    print "avg_trade = {:.3f}".format(avg_trade)
-    
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(16, 8))
-    ax1.plot(cump1, label='inst1')
-    ax1.set_title("{} PnL in price".format(symbol))
-    ax1.legend(loc='upper left')
-    ax1.axhline(0, color='k', lw=1, ls='--')
-    ax2.plot(t1.loc[:, 'position'].values)
-    ax2.set_title("Position")
-    ax2.axhline(0, color='k', lw=1, ls='--')
-    
-    plt.show()
-    return
+    '''
 
 
 def plot_trades(df, symbol="", save_folder="."):
@@ -491,8 +499,8 @@ def plot_trades(df, symbol="", save_folder="."):
     bv, sv = df.loc[:, 'BuyVolume'].values, df.loc[:, 'SellVolume'].values
     profit = df.loc[:, 'CumProfit'].values
     avgpx = df.loc[:, 'AvgPosPrice']
-    bv *= .1
-    sv *= .1
+    bv *= .05
+    sv *= .05
     
     fig = plt.figure(figsize=(14, 10), dpi=300)
     ax1 = plt.subplot2grid((4, 1), (0, 0), rowspan=3)

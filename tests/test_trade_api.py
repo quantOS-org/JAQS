@@ -1,11 +1,11 @@
 # encoding: UTF-8
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 from jaqs.trade.tradeapi import TradeApi
 import pandas as pd
 
 def test_trade_api():
-    dic = fileio.read_json(fileio.join_relative_path('etc/trade_config.json'))
+    dic = jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
     address = dic.get("remote.address", None)
     username = dic.get("remote.username", None)
     password = dic.get("remote.password", None)

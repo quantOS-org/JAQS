@@ -1,28 +1,35 @@
 # -*- encoding: utf-8 -*-
 
 """
-Weekly rebalance
+1. filter universe: separate helper functions
+2. calc weights
+3. generate trades
 
-https://uqer.io/community/share/57b540ef228e5b79a4759398
+------------------------
 
-universe : hs300
-init_balance = 1e8
-start_date 20140101
-end_date   20170301
+- modify models: register function (with context parameter)
+- modify AlphaStrategy: inheritate
+
+------------------------
+
+suspensions and limit reachers:
+1. deal with them in re_balance function, not in filter_universe
+2. do not care about them when construct portfolio
+3. subtract market value and re-normalize weights (positions) after (daily) market open, before sending orders
 """
 import time
-
 import numpy as np
 import numpy.linalg as nlg
 import pandas as pd
 import scipy.stats as stats
-
 import jaqs.trade.analyze.analyze as ana
+
+from jaqs.trade.portfoliomanager import PortfolioManager
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataview import DataView
 from jaqs.trade import model
 from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.gateway import DailyStockSimGateway
+from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade.strategy import AlphaStrategy
 from jaqs.util import fileio
 
@@ -33,29 +40,29 @@ ic_weight_hd5_path = fileio.join_relative_path('../output/ICCombine', 'ic_weight
 custom_data_path = fileio.join_relative_path('../output/ICCombine', 'custom_date.json')
 
 
-def test_save_dataview():
+def save_dataview():
     ds = RemoteDataService()
     dv = DataView()
-    
+
     props = {'start_date': 20150101, 'end_date': 20170930, 'universe': '000905.SH',
              'fields': ('turnover,float_mv,close_adj,pe,pb'),
              'freq': 1}
-    
+
     dv.init_from_config(props, ds)
     dv.prepare_data()
-    
+
     factor_formula = 'Cutoff(Standardize(turnover / 10000 / float_mv), 2)'
     dv.add_formula('TO', factor_formula, is_quarterly=False)
-    
+
     factor_formula = 'Cutoff(Standardize(1/pb), 2)'
     dv.add_formula('BP', factor_formula, is_quarterly=False)
-    
+
     factor_formula = 'Cutoff(Standardize(Return(close_adj, 20)), 2)'
     dv.add_formula('REVS20', factor_formula, is_quarterly=False)
-    
+
     factor_formula = 'Cutoff(Standardize(Log(float_mv)), 2)'
     dv.add_formula('float_mv_factor', factor_formula, is_quarterly=False)
-    
+
     factor_formula = 'Delay(Return(close_adj, 1), -1)'
     dv.add_formula('NextRet', factor_formula, is_quarterly=False)
 
@@ -89,7 +96,7 @@ def get_ic(dv):
     for singleDate in dv.dates:
         singleSnapshot = dv.get_snapshot(singleDate)
         ICPanel[singleDate] = ic_calculation(singleSnapshot, factorList)
-    
+
     ICPanel = pd.DataFrame(ICPanel).T
     return ICPanel
 
@@ -151,59 +158,112 @@ def my_selector(context, user_options=None):
     t_date = context.trade_date
     current_ic_weight = np.mat(ic_weight.loc[t_date,]).reshape(-1, 1)
     factorList = context.factorList
-    
+
     factorPanel = {}
     for factor in factorList:
         factorPanel[factor] = context.snapshot[factor]
-    
+
     factorPanel = pd.DataFrame(factorPanel)
     factorResult = pd.DataFrame(np.mat(factorPanel) * np.mat(current_ic_weight), index=factorPanel.index)
-    
+
     factorResult = factorResult.fillna(-9999)
     s = factorResult.sort_values(0)[::-1]
-    
+
     critical = s.values[30]
     mask = factorResult > critical
     factorResult[mask] = 1.0
     factorResult[~mask] = 0.0
-    
+
     return factorResult
 
 
+def store_ic_weight():
+    """
+    Calculate IC weight and save it to file
+    """
+    dv = DataView()
+
+    dv.load_dataview(folder_path=dataview_dir_path)
+
+    factorList = ['TO', 'BP', 'REVS20', 'float_mv_factor']
+
+    orthFactor_dic = {}
+
+    for factor in factorList:
+        orthFactor_dic[factor] = {}
+
+    # add the orthogonalized factor to dataview
+    for trade_date in dv.dates:
+        snapshot = dv.get_snapshot(trade_date)
+        factorPanel = snapshot[factorList]
+        factorPanel = factorPanel.dropna()
+
+        if len(factorPanel) != 0:
+            orthfactorPanel = Schmidt(factorPanel)
+            orthfactorPanel.columns = [x + '_adj' for x in factorList]
+
+            snapshot = pd.merge(left=snapshot, right=orthfactorPanel,
+                                left_index=True, right_index=True, how='left')
+
+            for factor in factorList:
+                orthFactor_dic[factor][trade_date] = snapshot[factor]
+
+    for factor in factorList:
+        dv.append_df(pd.DataFrame(orthFactor_dic[factor]).T, field_name=factor + '_adj', is_quarterly=False)
+    dv.save_dataview(dataview_dir_path)
+
+    factorList_adj = [x + '_adj' for x in factorList]
+
+    fileio.save_json(factorList_adj, custom_data_path)
+
+    w = get_ic_weight(dv)
+
+    store = pd.HDFStore(ic_weight_hd5_path)
+    store['ic_weight'] = w
+    store.close()
+
+
 def test_alpha_strategy_dataview():
+    
     dv = DataView()
     dv.load_dataview(folder_path=dataview_dir_path)
     
     props = {
         "start_date": dv.start_date,
         "end_date": dv.end_date,
-        
+    
         "period": "week",
         "days_delay": 0,
-        
+    
         "init_balance": 1e8,
-        "position_ratio": 1.0,
-    }
-    
-    gateway = DailyStockSimGateway()
-    gateway.init_from_config(props)
-    
-    context = model.Context(dataview=dv, gateway=gateway)
-    
+        "position_ratio": 0.7,
+        'commission_rate': 0.0
+        }
+
+    trade_api = AlphaTradeApi()
+    bt = AlphaBacktestInstance()
+
+    stock_selector = model.StockSelector()
+    stock_selector.add_filter(name='myselector', func=my_selector)
+
+    strategy = AlphaStrategy(stock_selector=stock_selector,
+                             pc_method='equal_weight')
+    pm = PortfolioManager()
+
+    context = model.AlphaContext(dataview=dv, trade_api=trade_api,
+                                 instance=bt, strategy=strategy, pm=pm)
+
     store = pd.HDFStore(ic_weight_hd5_path)
     factorList = fileio.read_json(custom_data_path)
     context.ic_weight = store['ic_weight']
     context.factorList = factorList
     store.close()
-    
-    stock_selector = model.StockSelector(context)
-    stock_selector.add_filter(name='myselector', func=my_selector)
-    
-    strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
-    
-    bt = AlphaBacktestInstance()
-    bt.init_from_config(props, strategy, context=context)
-    
+
+    for mdl in [stock_selector]:
+        mdl.register_context(context)
+
+    bt.init_from_config(props)
+
     bt.run_alpha()
     
     bt.save_results(folder_path=backtest_result_dir_path)
@@ -211,23 +271,23 @@ def test_alpha_strategy_dataview():
 
 def test_backtest_analyze():
     ta = ana.AlphaAnalyzer()
+    
     dv = DataView()
     dv.load_dataview(folder_path=dataview_dir_path)
-
-    ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
     
+    ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
+
     print "process trades..."
     ta.process_trades()
     print "get daily stats..."
     ta.get_daily()
-    
     print "calc strategy return..."
-    ta.get_returns(consider_commission=False)
+    ta.get_returns(consider_commission=True)
     # position change info is huge!
     # print "get position change..."
     # ta.get_pos_change_info()
     
-    selected_sec = []  # list(ta.universe)[:5]
+    selected_sec = list(ta.universe)[:2]
     if len(selected_sec) > 0:
         print "Plot single securities PnL"
         for symbol in selected_sec:
@@ -245,59 +305,13 @@ def test_backtest_analyze():
                   selected=selected_sec)
 
 
-def store_ic_weight():
-    """
-    Calculate IC weight and save it to file
-    """
-    dv = DataView()
-    
-    dv.load_dataview(folder_path=dataview_dir_path)
-    
-    factorList = ['TO', 'BP', 'REVS20', 'float_mv_factor']
-    
-    orthFactor_dic = {}
-    
-    for factor in factorList:
-        orthFactor_dic[factor] = {}
-    
-    # add the orthogonalized factor to dataview
-    for trade_date in dv.dates:
-        snapshot = dv.get_snapshot(trade_date)
-        factorPanel = snapshot[factorList]
-        factorPanel = factorPanel.dropna()
-        
-        if len(factorPanel) != 0:
-            orthfactorPanel = Schmidt(factorPanel)
-            orthfactorPanel.columns = [x + '_adj' for x in factorList]
-            
-            snapshot = pd.merge(left=snapshot, right=orthfactorPanel,
-                                left_index=True, right_index=True, how='left')
-            
-            for factor in factorList:
-                orthFactor_dic[factor][trade_date] = snapshot[factor]
-    
-    for factor in factorList:
-        dv.append_df(pd.DataFrame(orthFactor_dic[factor]).T, field_name=factor + '_adj', is_quarterly=False)
-    dv.save_dataview(dataview_dir_path)
-    
-    factorList_adj = [x + '_adj' for x in factorList]
-    
-    fileio.save_json(factorList_adj, custom_data_path)
-    
-    w = get_ic_weight(dv)
-    
-    store = pd.HDFStore(ic_weight_hd5_path)
-    store['ic_weight'] = w
-    store.close()
-
-
 if __name__ == "__main__":
     t_start = time.time()
-    
-    test_save_dataview()
+    save_dataview()
     store_ic_weight()
     test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start
     print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+

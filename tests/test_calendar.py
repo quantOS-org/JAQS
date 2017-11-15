@@ -2,7 +2,7 @@
 
 import datetime
 
-from jaqs.data.calendar import Calendar
+from jaqs.data.dataservice import Calendar
 from jaqs.util import dtutil
 
 

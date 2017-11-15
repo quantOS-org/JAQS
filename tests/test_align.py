@@ -9,6 +9,7 @@ def test_align():
     # -------------------------------------------------------------------------------------
     # input and pre-process demo data
     ds = RemoteDataService()
+    ds.init_from_config()
     raw, msg = ds.query_lb_fin_stat('income', '600000.SH', 20151225, 20170501, 'oper_rev')
     assert msg == '0,'
     

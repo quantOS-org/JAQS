@@ -29,14 +29,6 @@ jaqs\.trade\.common module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.trade\.gateway module
----------------------------
-
-.. automodule:: jaqs.trade.gateway
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 jaqs\.trade\.model module
 -------------------------
 
@@ -53,18 +45,10 @@ jaqs\.trade\.portfoliomanager module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.trade\.pubsub module
---------------------------
+jaqs\.trade\.realtime module
+----------------------------
 
-.. automodule:: jaqs.trade.pubsub
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-jaqs\.trade\.realinstance module
---------------------------------
-
-.. automodule:: jaqs.trade.realinstance
+.. automodule:: jaqs.trade.realtime
     :members:
     :undoc-members:
     :show-inheritance:
@@ -73,6 +57,14 @@ jaqs\.trade\.strategy module
 ----------------------------
 
 .. automodule:: jaqs.trade.strategy
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+jaqs\.trade\.tradegateway module
+--------------------------------
+
+.. automodule:: jaqs.trade.tradegateway
     :members:
     :undoc-members:
     :show-inheritance:

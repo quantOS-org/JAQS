@@ -1,13 +1,13 @@
 # encoding: utf-8
 
 from jaqs.trade import model
-from jaqs.util import fileio
+import jaqs.util as jutil
 import random
 
 
 def test_context():
     r = random.random()
-    path = fileio.join_relative_path('../output/tests/storage{:.6f}.pic'.format(r))
+    path = jutil.join_relative_path('../output/tests/storage{:.6f}.pic'.format(r))
     context = model.Context()
     context.load_store(path)
     assert len(context.storage) == 0

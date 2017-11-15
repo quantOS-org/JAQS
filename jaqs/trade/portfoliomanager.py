@@ -136,6 +136,14 @@ class PortfolioManager(object):
         pos_key = self._make_position_key(symbol)
         position = self.positions.get(pos_key, None)
         return position
+    
+    def get_pos(self, symbol):
+        pos_key = self._make_position_key(symbol)
+        position = self.positions.get(pos_key, None)
+        if position is None:
+            return 0
+        else:
+            return position.current_size
 
     def get_task(self, task_id):
         """

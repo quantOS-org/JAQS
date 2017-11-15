@@ -2,9 +2,10 @@
 
 from jaqs.trade.event import EventEngine, Event, EVENT_TYPE
 from jaqs.data.basic import Quote
+import jaqs.util as jutil
 
 
-class RealInstance(EventEngine):
+class EventRealTimeInstance(EventEngine):
     """
     Attributes
     ----------
@@ -13,7 +14,7 @@ class RealInstance(EventEngine):
     
     """
     def __init__(self):
-        super(RealInstance, self).__init__()
+        super(EventRealTimeInstance, self).__init__()
         
         self.start_date = 0
         self.end_date = 0
@@ -92,18 +93,40 @@ class RealInstance(EventEngine):
     def on_task_status(self, event):
         ind = event.dic['ind']
         self.ctx.strategy.on_task_status(ind)
-
-
     
+    # ---------------------------------------------------------
+    # Save Results
+    def save_results(self, folder_path='.'):
+        import os
+        import pandas as pd
+        folder_path = os.path.abspath(folder_path)
     
+        trades = self.ctx.pm.trades
     
+        type_map = {'task_id': str,
+                    'entrust_no': str,
+                    'entrust_action': str,
+                    'symbol': str,
+                    'fill_price': float,
+                    'fill_size': float,
+                    'fill_date': int,
+                    'fill_time': int,
+                    'fill_no': str,
+                    'commission': float}
+        # keys = trades[0].__dict__.keys()
+        ser_list = dict()
+        for key in type_map.keys():
+            v = [t.__getattribute__(key) for t in trades]
+            ser = pd.Series(data=v, index=None, dtype=type_map[key], name=key)
+            ser_list[key] = ser
+        df_trades = pd.DataFrame(ser_list)
+        df_trades.index.name = 'index'
     
+        trades_fn = os.path.join(folder_path, 'trades.csv')
+        configs_fn = os.path.join(folder_path, 'configs.json')
+        jutil.create_dir(trades_fn)
     
+        df_trades.to_csv(trades_fn)
+        jutil.save_json(self.props, configs_fn)
     
-    
-    
-    
-    
-    
-    
-    
+        print ("Backtest results has been successfully saved to:\n" + folder_path)

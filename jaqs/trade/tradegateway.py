@@ -375,7 +375,7 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
                               }
     
     # -------------------------------------------------------------------------------------------
-    # On TradeAPI Callback: put a corresponding event to RealInstance
+    # On TradeAPI Callback: put a corresponding event to EventRealTimeInstance
 
     def set_trade_api_callbacks(self, trade_api):
         trade_api.set_task_status_callback(self.on_task_status)
@@ -741,8 +741,8 @@ class RealTimeTradeApi(TradeApi):
         self.ctx.strategy.on_task_status(ind)
 
     @staticmethod
-    def _check_task_id(task_id):
-        return not (task_id is None) or (task_id == 0)
+    def _is_failed_task(task_id):
+        return (task_id is None) or (task_id == 0)
     
     def place_order(self, symbol, action, price, size, algo="", algo_param={}, userdata=""):
         # Generate Task
@@ -750,7 +750,7 @@ class RealTimeTradeApi(TradeApi):
                                 order_type=common.ORDER_TYPE.LIMIT)
         
         task_id, msg = super(RealTimeTradeApi, self).place_order(symbol, action, price, size, algo, algo_param, userdata)
-        if not self._check_task_id(task_id):
+        if self._is_failed_task(task_id):
             return task_id, msg
     
         task = Task(task_id,
@@ -765,9 +765,9 @@ class RealTimeTradeApi(TradeApi):
 # ---------------------------------------------
 # For Alpha Strategy
 
-class DailyStockSimGateway(BaseTradeApi):
+class AlphaTradeApi(BaseTradeApi):
     def __init__(self):
-        super(DailyStockSimGateway, self).__init__()
+        super(AlphaTradeApi, self).__init__()
         self.ctx = None
         
         self._simulator = DailyStockSimulator()

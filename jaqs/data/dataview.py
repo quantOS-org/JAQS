@@ -13,8 +13,7 @@ import os
 import numpy as np
 import pandas as pd
 
-import jaqs.util.fileio
-from jaqs.util import dtutil
+import jaqs.util as jutil
 from jaqs.data.align import align
 from jaqs.data.py_expression_eval import Parser
 
@@ -405,8 +404,8 @@ class DataView(object):
     
         # initialize parameters
         self.start_date = props['start_date']
-        self.extended_start_date_d = dtutil.shift(self.start_date, n_weeks=-8)  # query more data
-        self.extended_start_date_q = dtutil.shift(self.start_date, n_weeks=-80)
+        self.extended_start_date_d = jutil.shift(self.start_date, n_weeks=-8)  # query more data
+        self.extended_start_date_q = jutil.shift(self.start_date, n_weeks=-80)
         self.end_date = props['end_date']
         self.all_price = props.get('all_price', True)
         self.freq = props.get('freq', 1)
@@ -1326,7 +1325,7 @@ class DataView(object):
             Folder path to store hd5 file and meta data.
             
         """
-        meta_data = jaqs.util.fileio.read_json(os.path.join(folder_path, 'meta_data.json'))
+        meta_data = jutil.read_json(os.path.join(folder_path, 'meta_data.json'))
         dic = self._load_h5(os.path.join(folder_path, 'data.hd5'))
         self.data_d = dic.get('/data_d', None)
         self.data_q = dic.get('/data_q', None)
@@ -1357,7 +1356,7 @@ class DataView(object):
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
 
         print "\nStore data..."
-        jaqs.util.fileio.save_json(meta_data_to_store, meta_path)
+        jutil.save_json(meta_data_to_store, meta_path)
         self._save_h5(data_path, data_to_store)
         
         print ("Dataview has been successfully saved to:\n"
@@ -1379,7 +1378,7 @@ class DataView(object):
         import warnings
         warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
         
-        jaqs.util.fileio.create_dir(fp)
+        jutil.create_dir(fp)
         h5 = pd.HDFStore(fp, complevel=9, complib='blosc')
         for key, value in dic.viewitems():
             h5[key] = value

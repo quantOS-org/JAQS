@@ -2,7 +2,7 @@
 
 import os
 import jinja2
-from jaqs.util import fileio
+import jaqs.util as jutil
 # from weasyprint import HTML
 
 
@@ -46,7 +46,7 @@ class Report(object):
     def output_html(self, fn='test_out.html'):
         path = os.path.abspath(os.path.join(self.out_folder, fn))
         
-        fileio.create_dir(path)
+        jutil.create_dir(path)
         with open(path, 'w') as f:
             f.write(self.html)
 

@@ -14,18 +14,17 @@ import time
 
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.trade.backtest import AlphaBacktestInstance
+from jaqs.trade.portfoliomanager import PortfolioManager
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 from jaqs.trade.strategy import AlphaStrategy
-from jaqs.trade.gateway import DailyStockSimGateway
+from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
 
-import pandas as pd
-
-dataview_dir_path = fileio.join_relative_path('../output/prepared/single_factor_weight')
-backtest_result_dir_path = fileio.join_relative_path('../output/single_factor_weight')
+dataview_dir_path = jutil.join_relative_path('../output/prepared/single_factor_weight')
+backtest_result_dir_path = jutil.join_relative_path('../output/single_factor_weight')
 
 
 def test_save_dataview():
@@ -43,7 +42,6 @@ def test_save_dataview():
     dv.add_formula('gq30', factor_formula, is_quarterly=False)
 
     dv.save_dataview(folder_path=dataview_dir_path)
-
 
 
 def test_alpha_strategy_dataview():
@@ -65,23 +63,26 @@ def test_alpha_strategy_dataview():
         "position_ratio": 1.0,
     }
 
-    gateway = DailyStockSimGateway()
-    gateway.init_from_config(props)
-
-    context = model.Context(dataview=dv, gateway=gateway)
+    trade_api = AlphaTradeApi()
 
     def singal_gq30(context, user_options=None):
         import numpy as np
         res = np.power(context.snapshot['gq30'], 8)
         return res
     
-    signal_model = model.FactorRevenueModel(context)
+    signal_model = model.FactorRevenueModel()
     signal_model.add_signal('signal_gq30', singal_gq30)
 
     strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
+    pm = PortfolioManager()
 
     bt = AlphaBacktestInstance()
-    bt.init_from_config(props, strategy, context=context)
+    
+    context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm)
+    
+    signal_model.register_context(context)
+
+    bt.init_from_config(props)
 
     bt.run_alpha()
 
@@ -95,32 +96,7 @@ def test_backtest_analyze():
 
     ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
 
-    print "process trades..."
-    ta.process_trades()
-    print "get daily stats..."
-    ta.get_daily()
-    print "calc strategy return..."
-    ta.get_returns()
-    # position change info is huge!
-    # print "get position change..."
-    # ta.get_pos_change_info()
-
-    selected_sec = list(ta.universe)[:5]
-    if len(selected_sec) > 0:
-        print "Plot single securities PnL"
-        for symbol in selected_sec:
-            df_daily = ta.daily.get(symbol, None)
-            if df_daily is not None:
-                ana.plot_trades(df_daily, symbol=symbol, save_folder=backtest_result_dir_path)
-
-    print "Plot strategy PnL..."
-    ta.plot_pnl(backtest_result_dir_path)
-
-    print "generate report..."
-    static_folder = fileio.join_relative_path("trade/analyze/static")
-    ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
-                  out_folder=backtest_result_dir_path,
-                  selected=selected_sec)
+    ta.do_analyze(result_dir=backtest_result_dir_path, selected_sec=list(ta.universe)[:3])
 
 
 if __name__ == "__main__":

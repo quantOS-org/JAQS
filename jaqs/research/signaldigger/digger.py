@@ -7,7 +7,7 @@ import pandas as pd
 from . import performance as pfm
 from . import plotting
 
-from jaqs.util import fileio, pdutil
+import jaqs.util as jutil
 
 
 class SignalDigger(object):
@@ -88,12 +88,12 @@ class SignalDigger(object):
         if mask is not None:
             assert np.all(signal.index == mask.index)
             assert np.all(signal.columns == mask.columns)
-            mask = pdutil.fillinf(mask)
+            mask = jutil.fillinf(mask)
             mask = mask.astype(int).fillna(0).astype(bool)
         else:
             mask = pd.DataFrame(index=signal.index, columns=signal.columns, data=False)
-        signal = pdutil.fillinf(signal)
-        data = pdutil.fillinf(data)
+        signal = jutil.fillinf(signal)
+        data = jutil.fillinf(data)
 
         # ----------------------------------------------------------------------
         # save data
@@ -132,7 +132,7 @@ class SignalDigger(object):
         # calculate quantile
         signal_masked = signal.copy()
         signal_masked = signal_masked[~mask]
-        df_quantile = pdutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
+        df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
 
         # ----------------------------------------------------------------------
         # stack
@@ -175,11 +175,11 @@ class SignalDigger(object):
         
         if self.output_format in ['pdf', 'png', 'jpg']:
             fp = os.path.join(self.output_folder, '.'.join([file_name, self.output_format]))
-            fileio.create_dir(fp)
+            jutil.create_dir(fp)
             fig.savefig(fp)
             print "Figure saved: {}".format(fp)
         elif self.output_format == 'base64':
-            fig_b64 = fileio.fig2base64(fig, 'png')
+            fig_b64 = jutil.fig2base64(fig, 'png')
             self.fig_data[file_name] = fig_b64
             print "Base64 data of figure {} will be stored in dictionary.".format(file_name)
         elif self.output_format == 'plot':

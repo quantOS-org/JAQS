@@ -3,17 +3,17 @@
 import json
 
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 from jaqs.trade import model
 from jaqs.trade import common
 from jaqs.data.dataservice import RemoteDataService
-from jaqs.example.eventdriven.doubleMaStrategy import DoubleMaStrategy
+from jaqs.example.eventdriven.ma import DoubleMaStrategy
 from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.gateway import BacktestTradeApi
+from jaqs.trade.tradegateway import BacktestTradeApi
 
 
 def test_double_ma():
-    prop_file_path = fileio.join_relative_path("etc/backtest.json")
+    prop_file_path = jutil.join_relative_path("etc/backtest.json")
     print prop_file_path
     prop_file = open(prop_file_path, 'r')
     
@@ -28,7 +28,7 @@ def test_double_ma():
     gateway = BacktestTradeApi()
     data_service = RemoteDataService()
 
-    context = model.Context(data_api=data_service, gateway=gateway)
+    context = model.Context(data_api=data_service)
     
     backtest = EventBacktestInstance()
     backtest.init_from_config(props, strategy, context=context)

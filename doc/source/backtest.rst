@@ -47,7 +47,7 @@ series)和信号（float series）权重
             "position_ratio": 0.5,
         }
 
-        gateway = DailyStockSimGateway()
+        gateway = AlphaTradeApi()
         gateway.init_from_config(props)
 
         context = model.Context(dataview=dv, gateway=gateway)

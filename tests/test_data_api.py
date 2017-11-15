@@ -1,12 +1,12 @@
 # encoding: UTF-8
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 from jaqs.data.dataapi import DataApi
 from jaqs.trade import common
 
 
 def test_data_api():
-    dic = fileio.read_json(fileio.join_relative_path('etc/data_config.json'))
+    dic = jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
     address = dic.get("remote.address", None)
     username = dic.get("remote.username", None)
     password = dic.get("remote.password", None)

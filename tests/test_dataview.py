@@ -1,10 +1,10 @@
 # encoding: utf-8
 
 from jaqs.data.dataview import DataView
-from jaqs.util import fileio
+import jaqs.util as jutil
 
-daily_path = fileio.join_relative_path('../output/tests/test_dataview_d')
-quarterly_path = fileio.join_relative_path('../output/tests/test_dataview_q')
+daily_path = jutil.join_relative_path('../output/tests/test_dataview_d')
+quarterly_path = jutil.join_relative_path('../output/tests/test_dataview_q')
 
 
 def test_write():

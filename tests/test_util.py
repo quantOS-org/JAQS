@@ -1,17 +1,17 @@
 # encoding: utf-8
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 
 
 def test_read_save_pickle():
-    fp = fileio.join_relative_path('../output/tests/test_read_save_pickle.pic')
+    fp = jutil.join_relative_path('../output/tests/test_read_save_pickle.pic')
     d = {'a': 1.0, 'b': 2, 'c': True, 'd': list()}
-    fileio.save_pickle(d, fp)
+    jutil.save_pickle(d, fp)
     
-    d2 = fileio.load_pickle(fp)
+    d2 = jutil.load_pickle(fp)
     assert d2['b'] == 2
     
-    d3 = fileio.load_pickle('a_non_exits_file_blabla.pic')
+    d3 = jutil.load_pickle('a_non_exits_file_blabla.pic')
     assert d3 is None
 
 

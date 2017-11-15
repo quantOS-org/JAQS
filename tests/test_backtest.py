@@ -22,20 +22,21 @@ import time
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.trade.strategy import AlphaStrategy
 
-from jaqs.util import fileio
+import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 from jaqs.trade.backtest import AlphaBacktestInstance
 from jaqs.trade.portfoliomanager import PortfolioManager
-from jaqs.trade.gateway import DailyStockSimGateway
+from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
 
-dataview_dir_path = fileio.join_relative_path('../output/prepared/test_backtest')
-backtest_result_dir_path = fileio.join_relative_path('../output/test_backtest')
+dataview_dir_path = jutil.join_relative_path('../output/prepared/test_backtest')
+backtest_result_dir_path = jutil.join_relative_path('../output/test_backtest')
 
 
 def save_dataview():
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     props = {'start_date': 20170101, 'end_date': 20171030, 'universe': '000300.SH',
@@ -101,7 +102,7 @@ def test_alpha_strategy_dataview():
         'commission_rate': 0.0
         }
 
-    gateway = DailyStockSimGateway()
+    trade_api = AlphaTradeApi()
     bt = AlphaBacktestInstance()
     
     risk_model = model.FactorRiskModel()
@@ -122,7 +123,7 @@ def test_alpha_strategy_dataview():
     # strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='market_value_weight')
     # strategy = AlphaStrategy()
 
-    context = model.AlphaContext(dataview=dv, gateway=gateway, trade_api=gateway,
+    context = model.AlphaContext(dataview=dv, trade_api=trade_api,
                                  instance=bt, strategy=strategy, pm=pm)
     for mdl in [risk_model, signal_model, cost_model, stock_selector]:
         mdl.register_context(context)
@@ -164,7 +165,7 @@ def test_backtest_analyze():
     ta.plot_pnl(backtest_result_dir_path)
     
     print "generate report..."
-    static_folder = fileio.join_relative_path("trade/analyze/static")
+    static_folder = jutil.join_relative_path("trade/analyze/static")
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
                   out_folder=backtest_result_dir_path,
                   selected=selected_sec)
@@ -173,7 +174,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
     
-    # test_alpha_strategy_dataview()
+    test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start

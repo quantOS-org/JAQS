@@ -6,12 +6,13 @@ import pandas as pd
 from jaqs.data.dataview import DataView
 from jaqs.data.dataservice import RemoteDataService
 from jaqs.research import signaldigger
-from jaqs.util import fileio
+import jaqs.util as jutil
 
-dataview_folder = fileio.join_relative_path('../output/prepared', 'test_signal')
+dataview_folder = jutil.join_relative_path('../output/prepared', 'test_signal')
 
-def save_dataview(data_folder_name):
+def save_dataview():
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     props = {'start_date': 20140101, 'end_date': 20171001, 'universe': '000300.SH',
@@ -67,7 +68,7 @@ def analyze_signal():
 
     # Step.4 analyze!
     my_period = 5
-    obj = signaldigger.digger.SignalDigger(output_folder=fileio.join_relative_path('../output'),
+    obj = signaldigger.digger.SignalDigger(output_folder=jutil.join_relative_path('../output'),
                                            output_format='pdf')
     obj.process_signal_before_analysis(signal, price=price,
                                        mask=mask_all,
@@ -81,5 +82,5 @@ def analyze_signal():
 
 
 if __name__ == "__main__":
-    save_dataview()
+    # save_dataview()
     analyze_signal()

@@ -5,8 +5,6 @@ from abc import abstractmethod
 import numpy as np
 import pandas as pd
 
-from jaqs.util import fileio
-# from jaqs.trade.pubsub import Publisher
 from jaqs.trade.event import EVENT_TYPE, Event
 from jaqs.data.dataapi import DataApi
 from jaqs.data import align
@@ -259,7 +257,10 @@ class RemoteDataService(DataService):
             props = dict()
             
         if self.data_api is not None:
-            self.data_api.close()
+            if len(props) == 0:
+                return
+            else:
+                self.data_api.close()
             
         def get_from_list_of_dict(l, key, default=None):
             res = None
@@ -271,7 +272,7 @@ class RemoteDataService(DataService):
                 res = default
             return res
         
-        props_default = fileio.read_json(fileio.join_relative_path('etc/data_config.json'))
+        props_default = jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
         dic_list = [props, props_default]
         
         address = get_from_list_of_dict(dic_list, "remote.address", "")

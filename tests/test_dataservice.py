@@ -6,6 +6,7 @@ import jaqs.util as jutil
 
 def test_remote_data_service_daily():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     # test daily
     res, msg = ds.daily('rb1710.SHF,600662.SH', fields="",
@@ -24,6 +25,7 @@ def test_remote_data_service_daily():
 
 def test_remote_data_service_daily_quited():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     # test daily
     res, msg = ds.daily('600832.SH', fields="",
@@ -35,6 +37,7 @@ def test_remote_data_service_daily_quited():
 
 def test_remote_data_service_bar():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     # test bar
     res2, msg2 = ds.bar('rb1710.SHF,600662.SH', start_time=200000, end_time=160000, trade_date=20170831, fields="")
@@ -53,6 +56,7 @@ def test_remote_data_service_bar():
     
 def test_remote_data_service_lb():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     # test lb.secDailyIndicator
     fields = "pb,pe,free_share,net_assets,limit_status"
@@ -78,6 +82,7 @@ def test_remote_data_service_lb():
 
 def test_remote_data_service_daily_ind_performance():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     hs300 = ds.get_index_comp('000300.SH', 20140101, 20170101)
     hs300_str = ','.join(hs300)
@@ -92,6 +97,7 @@ def test_remote_data_service_daily_ind_performance():
 
 def test_remote_data_service_components():
     ds = RemoteDataService()
+    ds.init_from_config()
     res = ds.get_index_comp_df(index='000300.SH', start_date=20140101, end_date=20170505)
     assert res.shape == (814, 430)
     
@@ -104,6 +110,7 @@ def test_remote_data_service_industry():
     import pandas as pd
     
     ds = RemoteDataService()
+    ds.init_from_config()
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
     df = ds.get_industry_raw(symbol=','.join(arr), type_='ZZ')
     df = df.astype(dtype={'in_date': int})
@@ -139,6 +146,7 @@ def test_remote_data_service_industry_df():
     cal = Calendar()
     
     ds = RemoteDataService()
+    ds.init_from_config()
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
     symbol_arr = ','.join(arr)
     
@@ -161,6 +169,7 @@ def test_remote_data_service_industry_df():
 
 def test_remote_data_service_fin_indicator():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     symbol = '000008.SZ'
     filter_argument = ds._dic2url({'symbol': symbol})
@@ -171,6 +180,7 @@ def test_remote_data_service_fin_indicator():
 
 def test_remote_data_service_adj_factor():
     ds = RemoteDataService()
+    ds.init_from_config()
 
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
     symbol_arr = ','.join(arr)
@@ -182,6 +192,7 @@ def test_remote_data_service_adj_factor():
 
 def test_remote_data_service_inst_info():
     ds = RemoteDataService()
+    ds.init_from_config()
     
     sec = '000001.SZ'
     res = ds.query_inst_info(sec, fields='status,selllot,buylot,pricetick,multiplier,product')
@@ -192,6 +203,7 @@ def test_remote_data_service_inst_info():
 
 def test_remote_data_service_index_weight():
     ds = RemoteDataService()
+    ds.init_from_config()
     df = ds.get_index_weights(index='000300.SH', trade_date=20140101)
     assert df.shape[0] == 300
     assert abs(df['weight'].sum() - 100) < 1.0

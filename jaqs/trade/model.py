@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 from jaqs.data.dataservice import Calendar
-from jaqs.util import fileio
+import jaqs.util as jutil
 
 
 class RegisteredFunction(object):
@@ -71,10 +71,10 @@ class Context(object):
                     obj.ctx = self
 
     def save_store(self, path):
-        fileio.save_pickle(self.storage, path)
+        jutil.save_pickle(self.storage, path)
 
     def load_store(self, path):
-        s = fileio.load_pickle(path)
+        s = jutil.load_pickle(path)
         if s is not None:
             self.storage = s
             

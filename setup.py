@@ -14,7 +14,7 @@ def readme():
 
 setup(
     name='jaqs',
-    version='0.2.0',
+    version='0.4.0',
     description='Open source quantitative research&trading framework.',
     long_description = readme(),
     install_requires=[

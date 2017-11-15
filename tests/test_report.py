@@ -1,10 +1,10 @@
 # encoding: utf-8
 from jaqs.trade.analyze.report import Report
-from jaqs.util import fileio
+import jaqs.util as jutil
 
 
 def test_output():
-    static_folder = fileio.join_relative_path('trade/analyze/static')
+    static_folder = jutil.join_relative_path('trade/analyze/static')
 
     r = Report({'mytitle': 'Test Title', 'mytable': 'Hello World!'},
                source_dir=static_folder,

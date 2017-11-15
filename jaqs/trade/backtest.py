@@ -1,21 +1,15 @@
 # encoding: utf-8
 
-import os
-
 import numpy as np
 import pandas as pd
 
 from jaqs.trade import common
-from jaqs.trade.analyze.pnlreport import PnlManager
-from jaqs.trade.pubsub import Subscriber
 from jaqs.data.basic.marketdata import Bar
 from jaqs.data.basic.trade import Trade
-from jaqs.util import dtutil
-from jaqs.util import fileio
 import jaqs.util as jutil
 
 
-class BacktestInstance(Subscriber):
+class BacktestInstance(object):
     """
     Attributes
     ----------
@@ -34,8 +28,6 @@ class BacktestInstance(Subscriber):
         
         self.ctx = None
         
-        self.commission_rate = 0.0
-    
     def init_from_config(self, props):
         """
         
@@ -64,10 +56,6 @@ class BacktestInstance(Subscriber):
             if obj is not None:
                 obj.init_from_config(props)
 
-    def calc_commission(self, trade_ind):
-        to = abs(trade_ind.fill_price * trade_ind.fill_size)
-        res = to * self.commission_rate
-        return res
 
 
 '''
@@ -88,7 +76,7 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
     def go_next_rebalance_day(self):
         """update self.ctx.trade_date and last_date."""
         if self.ctx.gateway.match_finished:
-            next_period_day = dtutil.get_next_period_day(self.ctx.trade_date,
+            next_period_day = jutil.get_next_period_day(self.ctx.trade_date,
                                                          self.ctx.strategy.period, self.ctx.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
@@ -344,7 +332,7 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.strategy.on_after_rebalance(cash_available + market_value_frozen)
 
     def run_alpha(self):
-        gateway = self.ctx.trade_api
+        tapi = self.ctx.trade_api
         
         self.ctx.trade_date = self.start_date
         while True:
@@ -355,7 +343,7 @@ class AlphaBacktestInstance(BacktestInstance):
             print "\n=======new day {}".format(self.ctx.trade_date)
 
             # match uncome orders or re-balance
-            if gateway.match_finished:
+            if tapi.match_finished:
                 # Step1.
                 # position adjust according to dividend, cash paid, de-list actions during the last period
                 # two adjust must in order
@@ -379,7 +367,7 @@ class AlphaBacktestInstance(BacktestInstance):
             
             # Deal with trade indications
             # results = gateway.match(self.univ_price_dic)
-            results = gateway.match_and_callback(self.univ_price_dic)
+            results = tapi.match_and_callback(self.univ_price_dic)
             for trade_ind, order_status_ind in results:
                 self.ctx.strategy.cash -= trade_ind.commission
                 
@@ -406,7 +394,7 @@ class AlphaBacktestInstance(BacktestInstance):
         """update self.ctx.trade_date and last_date."""
         current_date = self.ctx.trade_date
         if self.ctx.trade_api.match_finished:
-            next_period_day = dtutil.get_next_period_day(current_date, self.ctx.strategy.period,
+            next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
                                                          n=self.ctx.strategy.n_periods,
                                                          extra_offset=self.ctx.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
@@ -478,10 +466,10 @@ class AlphaBacktestInstance(BacktestInstance):
     
         trades_fn = os.path.join(folder_path, 'trades.csv')
         configs_fn = os.path.join(folder_path, 'configs.json')
-        fileio.create_dir(trades_fn)
+        jutil.create_dir(trades_fn)
     
         df_trades.to_csv(trades_fn)
-        fileio.save_json(self.props, configs_fn)
+        jutil.save_json(self.props, configs_fn)
     
         print ("Backtest results has been successfully saved to:\n" + folder_path)
     
@@ -501,25 +489,13 @@ class EventBacktestInstance(BacktestInstance):
     def __init__(self):
         super(EventBacktestInstance, self).__init__()
         
-        # self.pnlmgr = None
-        self.bar_type = 1
+        self.bar_type = ""
         
-        self.commission_rate = 1E-4
-
     def init_from_config(self, props):
         super(EventBacktestInstance, self).init_from_config(props)
         
-        # TODO should be consistent with tradeAPI
-        # self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
+        self.bar_type = props.get("bar_type", "1d")
         
-        self.bar_type = props.get("bar_type")
-        
-        self.commission_rate = props.get('commission_rate', 20E-4)
-        
-        # self.pnlmgr = PnlManager()
-        # self.pnlmgr.setStrategy(strategy)
-        # self.pnlmgr.initFromConfig(props, self.ctx.data_api)
-    
     def go_next_trade_date(self):
         next_dt = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
         
@@ -694,10 +670,10 @@ class EventBacktestInstance(BacktestInstance):
     
         trades_fn = os.path.join(folder_path, 'trades.csv')
         configs_fn = os.path.join(folder_path, 'configs.json')
-        fileio.create_dir(trades_fn)
+        jutil.create_dir(trades_fn)
     
         df_trades.to_csv(trades_fn)
-        fileio.save_json(self.props, configs_fn)
+        jutil.save_json(self.props, configs_fn)
     
         print ("Backtest results has been successfully saved to:\n" + folder_path)
     

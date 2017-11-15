@@ -2,13 +2,13 @@
 
 import os
 from os.path import join
-from jaqs.util import fileio
+import jaqs.util as jutil
 import subprocess
 
 
 def md2rst():
-    input_dir = fileio.join_relative_path('../doc')
-    output_dir = fileio.join_relative_path('../doc/source')
+    input_dir = jutil.join_relative_path('../doc')
+    output_dir = jutil.join_relative_path('../doc/source')
 
     for dir_path, dir_names, file_names in os.walk(input_dir):
         for fn in file_names:

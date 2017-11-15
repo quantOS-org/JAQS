@@ -3,19 +3,15 @@
 import abc
 from abc import abstractmethod
 from six import with_metaclass
-from collections import defaultdict
 
 import numpy as np
 
-from jaqs.trade.portfoliomanager import PortfolioManager
-from jaqs.data.basic.order import *
 from jaqs.data.basic.position import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
-from jaqs.util import fileio
+# import jaqs.util as jutil
 
 from jaqs.trade import model
 from jaqs.trade import common
-from jaqs.trade.event import EVENT_TYPE, Event
 
 
 class Strategy(with_metaclass(abc.ABCMeta)):
@@ -61,6 +57,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         """used to generate id for orders and trades."""
         return str(np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next(key))
     
+    '''
     # -------------------------------------------------------------------------------------------
     # Order
 
@@ -91,7 +88,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
 
         """
         pass
-    
+
     def cancel_order(self, task_id):
         """Cancel all uncome orders of a task according to its task ID.
 
@@ -108,24 +105,11 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         err_msg : str
 
         """
-        '''
-        entrust_no_list = self.task_id_map.get(task_id, None)
-        if entrust_no_list is None:
-            return False, "No task id {}".format(task_id)
-    
-        err_msgs = []
-        for entrust_no in entrust_no_list:
-            err_msg = self.ctx.gateway.cancel_order(entrust_no)
-            err_msgs.append(err_msg)
-        if any(map(lambda s: bool(s), err_msgs)):
-            return False, ','.join(err_msgs)
-        else:
-            return True, ""
-        '''
+        pass
 
     # -------------------------------------------------------------------------------------------
     # Query
-    
+
     def query_account(self):
         """
         
@@ -135,7 +119,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
 
         """
         pass
-    
+
     def query_universe(self):
         """
         
@@ -145,7 +129,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
 
         """
         pass
-    
+
     def query_position(self, mode="all", symbols=""):
         """
         Parameters
@@ -160,7 +144,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         
         """
         pass
-    
+
     def query_portfolio(self):
         """
         Return net positions of all securities in the strategy universe (including zero positions).
@@ -187,6 +171,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         pd.DataFrame
 
         """
+
     def query_order(self, task_id=-1):
         """
         Query order information of current day.
@@ -256,7 +241,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         
         """
         pass
-    
+
     def place_batch_order(self, orders, algo="", algo_param=None):
         """Send a batch of orders to the system together.
 
@@ -295,6 +280,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         
         """
         pass
+    '''
     
     # -------------------------------------------------------------------------------------------
     # Callback Indications & Responses
@@ -723,9 +709,29 @@ class EventDrivenStrategy(Strategy):
     def on_quote(self, quote):
         pass
     
-    @abstractmethod
+    def on_tick(self, quote):
+        pass
+    
     def on_cycle(self):
         pass
     
     def initialize(self):
         pass
+
+    def cancel_all_orders(self):
+        for task_id, task in self.ctx.pm.tasks.items():
+            if not task.is_finished:
+                self.ctx.trade_api.cancel_order(task_id)
+
+    def liquidate(self, quote, n, tick_size=1.0, pos=0):
+        if pos == 0:
+            return
+    
+        ref_price = quote.close
+        if pos < 0:
+            action = common.ORDER_ACTION.BUY
+            price = ref_price + n * tick_size
+        else:
+            action = common.ORDER_ACTION.SELL
+            price = ref_price - n * tick_size
+        self.ctx.trade_api.place_order(quote.symbol, action, price, abs(pos))
