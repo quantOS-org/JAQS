@@ -25,6 +25,7 @@ from jaqs.trade.strategy import AlphaStrategy
 from jaqs.util import fileio
 import jaqs.trade.analyze.analyze as ana
 from jaqs.trade.backtest import AlphaBacktestInstance
+from jaqs.trade.portfoliomanager import PortfolioManager
 from jaqs.trade.gateway import DailyStockSimGateway
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
@@ -101,13 +102,12 @@ def test_alpha_strategy_dataview():
         }
 
     gateway = DailyStockSimGateway()
-
-    context = model.AlphaContext(dataview=dv, gateway=gateway)
+    bt = AlphaBacktestInstance()
     
-    risk_model = model.FactorRiskModel(context)
-    signal_model = model.FactorRevenueModel(context)
-    cost_model = model.SimpleCostModel(context)
-    stock_selector = model.StockSelector(context)
+    risk_model = model.FactorRiskModel()
+    signal_model = model.FactorRevenueModel()
+    cost_model = model.SimpleCostModel()
+    stock_selector = model.StockSelector()
     
     signal_model.add_signal(name='my_factor', func=my_factor)
     cost_model.consider_cost(name='my_commission', func=my_commission, options={'myrate': 1e-2})
@@ -117,13 +117,18 @@ def test_alpha_strategy_dataview():
     strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
                              cost_model=cost_model, risk_model=risk_model,
                              pc_method='factor_value_weight')
+    pm = PortfolioManager()
     # strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
     # strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='market_value_weight')
     # strategy = AlphaStrategy()
-    
-    bt = AlphaBacktestInstance()
-    bt.init_from_config(props, strategy, context=context)
-    
+
+    context = model.AlphaContext(dataview=dv, gateway=gateway, trade_api=gateway,
+                                 instance=bt, strategy=strategy, pm=pm)
+    for mdl in [risk_model, signal_model, cost_model, stock_selector]:
+        mdl.register_context(context)
+
+    bt.init_from_config(props)
+
     bt.run_alpha()
     
     bt.save_results(folder_path=backtest_result_dir_path)
@@ -134,7 +139,7 @@ def test_backtest_analyze():
     
     dv = DataView()
     dv.load_dataview(folder_path=dataview_dir_path)
-
+    
     ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
 
     print "process trades..."
@@ -168,7 +173,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
     
-    test_alpha_strategy_dataview()
+    # test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start

@@ -647,31 +647,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         pass
     
     def send_bullets(self):
-        self.goal_portfolio_by_batch_order(self.goal_positions)
-    
-    def goal_portfolio_by_batch_order(self, goals):
-        assert len(goals) == len(self.ctx.universe)
-        
-        orders = []
-        for goal in goals:
-            sec, goal_size = goal.symbol, goal.size
-            if sec in self.ctx.pm.holding_securities:
-                current_size = self.ctx.pm.get_position(sec).current_size
-            else:
-                current_size = 0
-            diff_size = goal_size - current_size
-            if diff_size != 0:
-                action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
-                
-                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
-                order.price_target = 'vwap'  # TODO
-                
-                orders.append(order)
-        self.place_batch_order2(orders)
-    
-    def place_batch_order2(self, orders):
-        for order in orders:
-            self.ctx.gateway.place_order(order)
+        # self.ctx.trade_api.goal_portfolio_by_batch_order(self.goal_positions)
+        self.ctx.trade_api.goal_portfolio(self.goal_positions, algo='vwap')
     
     def generate_weights_order(self, weights_dic, turnover, prices, suspensions=None):
         """
@@ -697,15 +674,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         cash_used = 0.0
         goals = []
         for sec, w in weights_dic.viewitems():
-            goal_pos = GoalPosition()
-            goal_pos.symbol = sec
+            goal_pos = dict()
+            goal_pos['symbol'] = sec
             
             if sec in suspensions:
                 current_pos = self.ctx.pm.get_position(sec)
-                goal_pos.size = current_pos.current_size if current_pos is not None else 0
+                goal_pos['size'] = current_pos.current_size if current_pos is not None else 0
             elif abs(w) < 1e-8:
                 # order.entrust_size = 0
-                goal_pos.size = 0
+                goal_pos['size'] = 0
             else:
                 price = prices[sec]
                 if not (np.isfinite(price) and np.isfinite(w)):
@@ -718,7 +695,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 # shares_left = shares_raw - shares * 100  # may be negative
                 # cash_left += shares_left * price
                 cash_used += shares * price
-                goal_pos.size = shares
+                goal_pos['size'] = shares
             
             goals.append(goal_pos)
         

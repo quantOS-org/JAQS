@@ -158,7 +158,7 @@ class FixedPriceTypeOrder(Order):
         Order.__init__(self)
         
         self.price_target = target
-
+    
 
 class VwapOrder(Order):
     """

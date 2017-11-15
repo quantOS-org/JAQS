@@ -23,8 +23,12 @@ class Instrument(object):
 
 
 class InstManager(object):
-    def __init__(self, inst_type="", symbol=""):
-        self.data_api = RemoteDataService()
+    def __init__(self, inst_type="", symbol="", data_api=None):
+        if data_api is None:
+            self.data_api = RemoteDataService()
+        else:
+            self.data_api = data_api
+        
         self.inst_map = {}
         self.load_instruments(inst_type=inst_type, symbol=symbol)
     

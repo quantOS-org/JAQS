@@ -206,8 +206,10 @@ class PortfolioManager(object):
             raise NotImplementedError("basket_order")
         
         elif task.function_name == 'goal_portfolio':
-            goal_positions = task.data
-            self._update_trade_stat_from_goal_positions(goal_positions)
+            # self._update_trade_stat_from_goal_positions(goal_positions)
+            orders = task.data
+            for order in orders:
+                self._update_trade_stat_from_order(order)
     
     def _on_task_rsp(self, rsp):
         """
@@ -355,6 +357,17 @@ class PortfolioManager(object):
             orders = task.data
             if all([o.is_finished for o in orders]):
                 task.task_status = common.TASK_STATUS.DONE
+        elif task.function_name == 'goal_portfolio':
+            orders = task.data
+            if all([o.is_finished for o in orders]):
+                task.task_status = common.TASK_STATUS.DONE
+            '''
+            goals = task.data
+            if all([((self.get_position(goal['symbol']) is not None)
+                     and (self.get_position(goal['symbol']).current_size == goal['size']))
+                    for goal in goals]):
+                task.task_status = common.TASK_STATUS.DONE
+            '''
         else:
             raise NotImplementedError()
         
@@ -388,6 +401,10 @@ class PortfolioManager(object):
             order = task.data
             order.copy(ind)
         elif task.function_name == 'place_batch_order':
+            for order in task.data:
+                if order.entrust_no == ind.entrust_no:
+                    order.copy(ind)
+        elif task.function_name == 'goal_portfolio':
             for order in task.data:
                 if order.entrust_no == ind.entrust_no:
                     order.copy(ind)
@@ -501,7 +518,8 @@ class PortfolioManager(object):
         # self._update_order_from_trade_ind(ind)
 
         # Update Tasks
-        self._update_task_if_done(ind.task_id)
+        if not (ind.entrust_no == 101010 or ind.entrust_no == 202020):  # trades generate by system
+            self._update_task_if_done(ind.task_id)
         
         # hook:
         self.original_on_trade(ind)

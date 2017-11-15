@@ -765,39 +765,153 @@ class RealTimeTradeApi(TradeApi):
 # ---------------------------------------------
 # For Alpha Strategy
 
-class DailyStockSimGateway(object):
+class DailyStockSimGateway(BaseTradeApi):
     def __init__(self):
         super(DailyStockSimGateway, self).__init__()
         self.ctx = None
         
-        self.simulator = DailyStockSimulator()
+        self._simulator = DailyStockSimulator()
+        self.entrust_no_task_id_map = dict()
         self.seq_gen = SequenceGenerator()
 
-    def _next_task_id(self):
-        return str(np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next('task_id'))
-    
+        self.commission_rate = 0.0
+
+    def _get_next_task_id(self):
+        return np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next('task_id')
+
+    def _add_task_id(self, ind):
+        no = ind.entrust_no
+        task_id = self.entrust_no_task_id_map[no]
+        ind.task_id = task_id
+        # ind.task_no = task_id
+
     def init_from_config(self, props):
+        self.commission_rate = props.get('commission_rate', 0.0)
+        
+        self.set_order_status_callback(lambda ind: self.ctx.strategy.on_order_status(ind))
+        self.set_trade_callback(lambda ind: self.ctx.strategy.on_trade(ind))
+        self.set_task_status_callback(lambda ind: self.ctx.strategy.on_task_status(ind))
+        
+    def query_account(self, format=""):
         pass
     
     def on_new_day(self, trade_date):
-        self.simulator.on_new_day(trade_date)
+        self._simulator.on_new_day(trade_date)
 
     def on_after_market_close(self):
-        self.simulator.on_after_market_close()
+        self._simulator.on_after_market_close()
+
+    def place_order(self, security, action, price, size, algo="", algo_param={}, userdata=""):
+        if size <= 0:
+            print("Invalid size {}".format(size))
+            return
     
-    def place_order(self, order):
-        order.task_id = self._next_task_id()
-        err_msg = self.simulator.add_order(order)
-        return err_msg
+        # Generate Task
+        order = Order.new_order(security, action, price, size, self.ctx.trade_date, self.ctx.time,
+                                order_type=common.ORDER_TYPE.LIMIT)
     
-    def cancel_order(self, entrust_no):
-        order_status_ind, err_msg = self.simulator.cancel_order(entrust_no)
-        self.cb_on_order_status(order_status_ind)
-        return err_msg
+        task_id = self._get_next_task_id()
+        order.task_id = task_id
     
+        task = Task(task_id,
+                    algo=algo, algo_param=algo_param, data=order,
+                    function_name='place_order', trade_date=self.ctx.trade_date)
+        # task.task_no = task_id
+    
+        # Send Order to Exchange
+        entrust_no = self._simulator.add_order(order)
+        task.data.entrust_no = entrust_no
+    
+        self.ctx.pm.add_task(task)
+        self.entrust_no_task_id_map[entrust_no] = task.task_id
+    
+        order_status_ind = OrderStatusInd(order)
+        order_status_ind.order_status = common.ORDER_STATUS.ACCEPTED
+        self._order_status_callback(order_status_ind)
+    
+        return task_id, ""
+
+    def cancel_order(self, task_id):
+        task = self.ctx.pm.get_task(task_id)
+        if task.function_name == 'place_order':
+            order = task.data
+            entrust_no = order.entrust_no
+            order_status_ind, err_msg = self._simulator.cancel_order(entrust_no)
+            task_id = self.entrust_no_task_id_map[entrust_no]
+            order_status_ind.task_id = task_id
+            # order_status_ind.task_no = task_id
+            self._order_status_callback(order_status_ind)
+        else:
+            raise NotImplementedError("cancel task with function_name = {}".format(task.function_name))
+
+    def goal_portfolio(self, positions, algo="", algo_param={}, userdata=""):
+        # Generate Orders
+        task_id = self._get_next_task_id()
+        
+        orders = []
+        for goal in positions:
+            sec, goal_size = goal['symbol'], goal['size']
+            if sec in self.ctx.pm.holding_securities:
+                current_size = self.ctx.pm.get_position(sec).current_size
+            else:
+                current_size = 0
+            diff_size = goal_size - current_size
+            if diff_size != 0:
+                action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
+        
+                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
+                if algo == 'vwap':
+                    order.price_target = 'vwap'  # TODO
+                elif algo == '':
+                    order.price_target = 'vwap'
+                else:
+                    raise NotImplementedError("goal_portfolio algo = {}".format(algo))
+
+                order.task_id = task_id
+                orders.append(order)
+
+        # Generate Task
+        task = Task(task_id,
+                    algo=algo, algo_param=algo_param, data=orders,
+                    function_name='goal_portfolio', trade_date=self.ctx.trade_date)
+
+        self.ctx.pm.add_task(task)
+
+        # Send Orders to Exchange
+        for order in orders:
+            entrust_no = self._simulator.add_order(order)
+            # task.data.entrust_no = entrust_no
+            self.entrust_no_task_id_map[entrust_no] = task.task_id
+            
+            order_status_ind = OrderStatusInd(order)
+            order_status_ind.order_status = common.ORDER_STATUS.ACCEPTED
+            self._order_status_callback(order_status_ind)
+    
+    def goal_portfolio_by_batch_order(self, goals):
+        assert len(goals) == len(self.ctx.universe)
+    
+        orders = []
+        for goal in goals:
+            sec, goal_size = goal.symbol, goal.size
+            if sec in self.ctx.pm.holding_securities:
+                current_size = self.ctx.pm.get_position(sec).current_size
+            else:
+                current_size = 0
+            diff_size = goal_size - current_size
+            if diff_size != 0:
+                action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
+            
+                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
+                order.price_target = 'vwap'  # TODO
+            
+                orders.append(order)
+        
+        for order in orders:
+            self._simulator.add_order(order)
+
     @property
     def match_finished(self):
-        return self.simulator.match_finished
+        return self._simulator.match_finished
     
     @abstractmethod
     def match(self, price_dict, time=0):
@@ -815,7 +929,36 @@ class DailyStockSimGateway(object):
         list
 
         """
-        return self.simulator.match(price_dict, date=self.ctx.trade_date, time=time)
+        return self._simulator.match(price_dict, date=self.ctx.trade_date, time=time)
+
+    def calc_commission(self, trade_ind):
+        to = abs(trade_ind.fill_price * trade_ind.fill_size)
+        res = to * self.commission_rate
+        return res
+
+    def _add_commission(self, ind):
+        comm = self.calc_commission(ind)
+        ind.commission = comm
+        
+    def match_and_callback(self, price_dict):
+        results = self._simulator.match(price_dict, date=self.ctx.trade_date, time=self.ctx.time)
+    
+        for trade_ind, order_status_ind in results:
+            self._add_commission(trade_ind)
+        
+            task_id = self.entrust_no_task_id_map[trade_ind.entrust_no]
+            self._add_task_id(trade_ind)
+            self._add_task_id(order_status_ind)
+        
+            self._order_status_callback(order_status_ind)
+            self._trade_callback(trade_ind)
+        
+            task = self.ctx.pm.get_task(task_id)
+            if task.is_finished:
+                task_ind = TaskInd(task_id, task_status=task.task_status,
+                                   task_algo='', task_msg="")
+                self._task_status_callback(task_ind)
+        return results
 
 
 class DailyStockSimulator(object):
@@ -881,14 +1024,14 @@ class DailyStockSimulator(object):
             default ""
 
         """
+        neworder = copy.copy(order)
         self._validate_order(order)
-        
+
         entrust_no = self._get_next_entrust_no()
-        order.entrust_no = entrust_no
-        
-        self.__orders[order.entrust_no] = order
-        err_msg = ""
-        return err_msg
+        neworder.entrust_no = entrust_no
+
+        self.__orders[entrust_no] = neworder
+        return entrust_no
     
     def cancel_order(self, entrust_no):
         """
@@ -904,15 +1047,16 @@ class DailyStockSimulator(object):
             default ""
 
         """
-        popped = self.__orders.pop(entrust_no, None)
-        if popped is None:
+        order = self.__orders.pop(entrust_no, None)
+        if order is None:
             err_msg = "No order with entrust_no {} in simulator.".format(entrust_no)
             order_status_ind = None
         else:
+            order.cancel_size = order.entrust_size - order.fill_size
+            order.order_status = common.ORDER_STATUS.CANCELLED
+            
             err_msg = ""
-            order_status_ind = OrderStatusInd()
-            order_status_ind.init_from_order(popped)
-            order_status_ind.order_status = common.ORDER_STATUS.CANCELLED
+            order_status_ind = OrderStatusInd(order)
         return order_status_ind, err_msg
     
     def match(self, price_dic, date=19700101, time=150000):
@@ -941,12 +1085,10 @@ class DailyStockSimulator(object):
             fill_size = order.entrust_size - order.fill_size
             
             # create trade indication
-            trade_ind = Trade()
-            trade_ind.init_from_order(order)
+            trade_ind = Trade(order)
             trade_ind.set_fill_info(fill_price, fill_size,
                                     date, time,
                                     self._next_fill_no())
-            results.append(trade_ind)
             
             # update order status
             order.fill_price = (order.fill_price * order.fill_size
@@ -954,8 +1096,12 @@ class DailyStockSimulator(object):
             order.fill_size += fill_size
             if order.fill_size == order.entrust_size:
                 order.order_status = common.ORDER_STATUS.FILLED
+                
+            order_status_ind = OrderStatusInd(order)
+            
+            results.append((trade_ind, order_status_ind))
         
-        self.__orders = {k: v for k, v in self.__orders.viewitems() if not v.is_finished}
+        self.__orders = {k: v for k, v in self.__orders.items() if not v.is_finished}
         # self.cancel_order(order.entrust_no)  # TODO DEBUG
         
         return results

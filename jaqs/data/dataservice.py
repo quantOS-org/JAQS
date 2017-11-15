@@ -254,7 +254,10 @@ class RemoteDataService(DataService):
     def __del__(self):
         self.data_api.close()
 
-    def init_from_config(self, props):
+    def init_from_config(self, props=None):
+        if props is None:
+            props = dict()
+            
         if self.data_api is not None:
             self.data_api.close()
             

@@ -60,8 +60,9 @@ class BacktestInstance(Subscriber):
             raise ValueError("No dataview, no symbol either.")
 
         for obj in ['data_api', 'trade_api', 'pm', 'strategy']:
-            if hasattr(self.ctx, obj):
-                getattr(self.ctx, obj).init_from_config(props)
+            obj = getattr(self.ctx, obj)
+            if obj is not None:
+                obj.init_from_config(props)
 
     def calc_commission(self, trade_ind):
         to = abs(trade_ind.fill_price * trade_ind.fill_size)
@@ -343,7 +344,7 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.strategy.on_after_rebalance(cash_available + market_value_frozen)
 
     def run_alpha(self):
-        gateway = self.ctx.gateway
+        gateway = self.ctx.trade_api
         
         self.ctx.trade_date = self.start_date
         while True:
@@ -377,20 +378,18 @@ class AlphaBacktestInstance(BacktestInstance):
                 self.on_new_day(self.ctx.trade_date)
             
             # Deal with trade indications
-            trade_indications = gateway.match(self.univ_price_dic)
-            for trade_ind in trade_indications:
-                self.ctx.strategy.on_trade(trade_ind)
-                comm = self.calc_commission(trade_ind)
-                trade_ind.commission = comm
-                self.ctx.strategy.cash -= comm
-            
+            # results = gateway.match(self.univ_price_dic)
+            results = gateway.match_and_callback(self.univ_price_dic)
+            for trade_ind, order_status_ind in results:
+                self.ctx.strategy.cash -= trade_ind.commission
+                
             self.on_after_market_close()
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
                                                                          len(self.ctx.pm.trades))
     
     def on_after_market_close(self):
-        self.ctx.gateway.on_after_market_close()
+        self.ctx.trade_api.on_after_market_close()
         
     '''
     def get_univ_prices(self, field_name='close'):
@@ -406,7 +405,7 @@ class AlphaBacktestInstance(BacktestInstance):
     def go_next_rebalance_day(self):
         """update self.ctx.trade_date and last_date."""
         current_date = self.ctx.trade_date
-        if self.ctx.gateway.match_finished:
+        if self.ctx.trade_api.match_finished:
             next_period_day = dtutil.get_next_period_day(current_date, self.ctx.strategy.period,
                                                          n=self.ctx.strategy.n_periods,
                                                          extra_offset=self.ctx.strategy.days_delay)
@@ -446,7 +445,7 @@ class AlphaBacktestInstance(BacktestInstance):
     
     def on_new_day(self, date):
         # self.ctx.strategy.on_new_day(date)
-        self.ctx.gateway.on_new_day(date)
+        self.ctx.trade_api.on_new_day(date)
         
         self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
         self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
@@ -529,8 +528,8 @@ class EventBacktestInstance(BacktestInstance):
     def on_new_day(self, date):
         self.ctx.trade_date = date
         self.ctx.time = 0
-        if hasattr(self.ctx.gateway, 'on_new_day'):
-            self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        if hasattr(self.ctx.trade_api, 'on_new_day'):
+            self.ctx.trade_api.on_new_day(self.ctx.trade_date)
         if hasattr(self.ctx.trade_api, 'on_new_day'):
             self.ctx.trade_api.on_new_day(self.ctx.trade_date)
         self.ctx.strategy.initialize()

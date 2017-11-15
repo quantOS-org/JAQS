@@ -398,6 +398,7 @@ class DataView(object):
         data_api : BaseDataServer
         
         """
+        data_api.init_from_config(props)
         self.data_api = data_api
     
         sep = ','
@@ -896,7 +897,8 @@ class DataView(object):
     def _prepare_inst_info(self):
         res = self.data_api.query_inst_info(symbol=','.join(self.symbol),
                                             fields='symbol,inst_type,name,list_date,'
-                                                   'delist_date,product,pricetick,buylot,setlot',
+                                                   'delist_date,product,pricetick,multiplier,'
+                                                   'buylot,setlot',
                                             inst_type="")
         self._data_inst = res
 
@@ -1382,4 +1384,3 @@ class DataView(object):
         for key, value in dic.viewitems():
             h5[key] = value
         h5.close()
-    

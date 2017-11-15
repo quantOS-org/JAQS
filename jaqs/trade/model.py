@@ -85,7 +85,7 @@ class Context(object):
         elif self._calendar is not None:
             return self._calendar
         else:
-            self._calendar = Calendar
+            self._calendar = Calendar()
             return self._calendar
         
     
@@ -177,7 +177,7 @@ class FuncRegisterable(object):
     """
     def __init__(self, context=None):
         super(FuncRegisterable, self).__init__()
-        self.context = context
+        self.ctx = context
         self.func_table = dict()
         self.active_funcs = []
     
@@ -191,7 +191,7 @@ class FuncRegisterable(object):
         self.active_funcs.append(name)
     
     def register_context(self, context):
-        self.context = context
+        self.ctx = context
     '''
     def activate_func(self, f_dict):
         """
@@ -231,7 +231,7 @@ class StockSelector(FuncRegisterable):
         mask_selected = dict()
         for factor in self.active_funcs:
             rf = self.func_table[factor]
-            res = rf.func(context=self.context, user_options=rf.options)
+            res = rf.func(context=self.ctx, user_options=rf.options)
             res = convert_to_df(res)
             mask_selected[factor] = res
         
@@ -391,7 +391,7 @@ class FactorRevenueModel(BaseRevenueModel):
         forecasts = dict()
         for factor in self.active_funcs:
             rf = self.func_table[factor]
-            res = rf.func(context=self.context, user_options=rf.options)
+            res = rf.func(context=self.ctx, user_options=rf.options)
             res = convert_to_df(res)
             forecasts[factor] = res
         return forecasts
@@ -465,7 +465,7 @@ class FactorRevenueModel_custom(FactorRevenueModel):
         self.signal_weights = signal_weights
 
     def combine_custom_weight(self, forecasts):
-        td = self.context.trade_date
+        td = self.ctx.trade_date
 
         res = 0.0
         for factor_name, factor_value in forecasts.viewitems():
@@ -530,7 +530,7 @@ class SimpleCostModel(BaseCostModel):
         for cost_name in self.active_funcs:
             rf = self.func_table[cost_name]
             cost_user_dic[cost_name] = rf.func(symbol, trading_volume * price,
-                                               context=self.context, user_options=rf.options)
+                                               context=self.ctx, user_options=rf.options)
         cost_user = sum(cost_user_dic.values())
         
         return cost_default + cost_user

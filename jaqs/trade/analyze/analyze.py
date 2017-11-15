@@ -55,7 +55,7 @@ class BaseAnalyzer(object):
         
         self.adjust_mode = None
         
-        self.inst_mgr = None
+        self.inst_map = dict()
         
     @property
     def trades(self):
@@ -77,19 +77,19 @@ class BaseAnalyzer(object):
         """Read-only attribute, close prices of securities in the universe"""
         return self._closes
     
-    def initialize(self, data_server_=None, dataview=None, file_folder='.'):
+    def initialize(self, data_api=None, dataview=None, file_folder='.'):
         """
         Read trades from csv file to DataFrame of given data type.
 
         Parameters
         ----------
-        data_server_ : RemoteDataService
+        data_api : RemoteDataService
         dataview : DataView
         file_folder : str
             Directory path where trades and configs are stored.
 
         """
-        self.data_api = data_server_
+        self.data_api = data_api
         self.dataview = dataview
         
         type_map = {'task_id': str,
@@ -107,11 +107,21 @@ class BaseAnalyzer(object):
         
         self._init_universe(trades.loc[:, 'symbol'].values)
         self._init_configs(file_folder)
-        symbol_str = ','.join(self.universe)
-        self.inst_mgr = InstManager(symbol=symbol_str)
         self._init_trades(trades)
         self._init_symbol_price()
+        self._init_inst_data()
     
+    def _init_inst_data(self):
+        symbol_str = ','.join(self.universe)
+        if self.dataview is not None:
+            data_inst = self.dataview.data_inst
+            self.inst_map = data_inst.to_dict(orient='index')
+        elif self.data_api is not None:
+            inst_mgr = InstManager(symbol=symbol_str, data_api=self.data_api)
+            self.inst_map = inst_mgr.inst_map
+        else:
+            raise ValueError("no dataview or dataapi provided.")
+        
     def _init_trades(self, df):
         """Add datetime column. """
         df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
@@ -265,7 +275,7 @@ class BaseAnalyzer(object):
 
     def get_returns(self, compound_return=True, consider_commission=True):
         cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit']
-        dic_symbol = {sec: self.inst_mgr.get_instrument(sec).multiplier * df_daily.loc[:, cols]
+        dic_symbol = {sec: self.inst_map[sec]['multiplier'] * df_daily.loc[:, cols]
                       for sec, df_daily in self.daily.items()}
         df_profit = pd.concat(dic_symbol, axis=1)  # this is cumulative profit
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
@@ -379,7 +389,7 @@ class EventAnalyzer(BaseAnalyzer):
         self.account = None  # OrderedDict
         
     def initialize(self, data_server_=None, dataview=None, file_folder='.'):
-        super(EventAnalyzer, self).initialize(data_server_=data_server_, dataview=dataview,
+        super(EventAnalyzer, self).initialize(data_api=data_server_, dataview=dataview,
                                               file_folder=file_folder)
         if self.dataview is not None and self.dataview.data_benchmark is not None:
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
@@ -400,8 +410,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         
         self.data_benchmark = None
 
-    def initialize(self, data_server_=None, dataview=None, file_folder='.'):
-        super(AlphaAnalyzer, self).initialize(data_server_=data_server_, dataview=dataview,
+    def initialize(self, data_api=None, dataview=None, file_folder='.'):
+        super(AlphaAnalyzer, self).initialize(data_api=data_api, dataview=dataview,
                                               file_folder=file_folder)
         if self.dataview is not None and self.dataview.data_benchmark is not None:
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
