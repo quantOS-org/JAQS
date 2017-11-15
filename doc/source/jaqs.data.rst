@@ -20,14 +20,6 @@ jaqs\.data\.align module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.data\.calendar module
----------------------------
-
-.. automodule:: jaqs.data.calendar
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 jaqs\.data\.dataservice module
 ------------------------------
 

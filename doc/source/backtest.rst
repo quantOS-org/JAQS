@@ -13,8 +13,8 @@ Backtest
 -  指数成分
 
 | 理念：
-| 不在\ ``on_bar``\ 中进行发单，而是给出选股条件（boolean
-series）和信号（float series）权重
+| 不在\ ``on_bar``\ 中进行发单，而是给出选股条件(boolean
+series)和信号（float series）权重
 
 .. code:: python
 
@@ -324,8 +324,8 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
 1. 因子IC的定义方法
 '''''''''''''''''''
 
-| 首先介绍一下因子IC（Information
-Coefficient）的定义。传统意义上，因子在某一期的IC为该期因子与股票下期收益率的秩相关系数，即：
+| 首先介绍一下因子IC (Information
+Coefficient)的定义。传统意义上，因子在某一期的IC为该期因子与股票下期收益率的秩相关系数，即：
 | $$IC\_t = RankCorrelation(\\vec{f\_t}, \\vec{r\_{t+1}})$$
 | 其中$\\vec{f\_t}$为所有股票在t期的因子值向量，$\\vec{r\_{t+1}}$为所有股票在t到t+1期的收益率向量。秩相关系数直接反映了因子的预测能力：IC越高，说明该因子对接下里一期股票收益的预测能力越强。
 
@@ -630,6 +630,524 @@ b.接着根据各因子IC的权重，对当天各股票的IC值进行加权求�
 #. `基于因子IC的多因子模型 <https://uqer.io/community/share/57b540ef228e5b79a4759398>`__
 #. 《安信证券－多因子系列报告之一：基于因子IC的多因子模型》
 
+Calendar Spread交易策略
+~~~~~~~~~~~~~~~~~~~~~~~
+
+本帖主要介绍了基于事件驱动回测框架实现calendar spread交易策略。
+
+一. 策略介绍
+^^^^^^^^^^^^
+
+| 在商品期货市场中，同一期货品种不同到期月份合约间的价格在短期内的相关性较稳定。该策略就利用这一特性，在跨期基差稳定上升时进场做多基差，反之做空基差。
+| 在本文中我们选择了天然橡胶作为交易品种，时间范围从2017年7月到2017年11月，选择的合约为RU1801.SHF和RU1805.SHF，将基差定义为近期合约价格减去远期合约价格。
+
+二. 参数准备
+^^^^^^^^^^^^
+
+我们在test\_spread\_commodity.py文件中的test\_spread\_trading()函数中设置策略所需参数，例如交易标的，策略开始日期，终止日期，换仓频率等。
+
+.. code:: python
+
+    props = {
+             "symbol"                : "ru1801.SHF,ru1805.SHF",
+             "start_date"            : 20170701,
+             "end_date"              : 20171109,
+             "bar_type"              : "DAILY",
+             "init_balance"          : 2e4,
+             "bufferSize"            : 20,
+             "future_commission_rate": 0.00002,
+             "stock_commission_rate" : 0.0001,
+             "stock_tax_rate"        : 0.0000
+             }
+
+三. 策略实现
+^^^^^^^^^^^^
+
+策略实现全部在spread\_commodity.py中完成，创建名为SpreadCommodity()的class继承EventDrivenStrategy，具体分为以下几个步骤：
+
+1. 策略初始化
+'''''''''''''
+
+这里将后续步骤所需要的变量都创建好并初始化。
+
+.. code:: python
+
+    def __init__(self):
+        EventDrivenStrategy.__init__(self)
+
+        self.symbol      = ''
+        self.s1          = ''
+        self.s2          = ''
+        self.quote1      = None
+        self.quote2      = None
+
+        self.bufferSize  = 0
+        self.bufferCount = 0
+        self.spreadList  = ''
+
+2. 从props中得到变量值
+''''''''''''''''''''''
+
+这里将props中设置的参数传入。其中，self.spreadList记录了最近$n$天的spread值，$n$是由self.bufferSize确定的。
+
+.. code:: python
+
+    def init_from_config(self, props):
+        super(SpreadCommodity, self).init_from_config(props)
+        self.symbol       = props.get('symbol')
+        self.init_balance = props.get('init_balance')
+        self.bufferSize   = props.get('bufferSize')
+        self.s1, self.s2  = self.symbol.split(',')
+        self.spreadList = np.zeros(self.bufferSize)
+
+3. 策略实现
+'''''''''''
+
+| 策略的主体部分在on\_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on\_quote()函数。
+| 首先将两个合约的quote放入self.quote1和self.quote2中，并计算当天的spread
+
+.. code:: python
+
+    q1 = quote_dic.get(self.s1)
+    q2 = quote_dic.get(self.s2)
+    self.quote1 = q1
+    self.quote2 = q2
+    spread = q1.close - q2.close
+
+接着更新self.spreadList。因为self.spreadList为固定长度，更新方法为将第2个到最后1个元素向左平移1位，并将当前的spread放在队列末尾。
+
+.. code:: python
+
+    self.spreadList[0:self.bufferSize - 1] = self.spreadList[1:self.bufferSize]
+    self.spreadList[-1] = spread
+    self.bufferCount += 1
+
+接着将self.spreadList中的数据对其对应的编号（例如从1到20）做regression，观察回归系数的pvalue是否显著，比如小于0.05。如果结果不显著，则不对仓位进行操作；如果结果显著，再判断系数符号，如果系数大于0则做多spread，反之做空spread。
+
+.. code:: python
+
+    X, y = np.array(range(self.bufferSize)), np.array(self.spreadList)
+    X = X.reshape(-1, 1)
+    y = y.reshape(-1, 1)
+    X = sm.add_constant(X)
+
+    est = sm.OLS(y, X)
+    est = est.fit()
+
+    if est.pvalues[1] < 0.05:
+        if est.params[1] < 0:
+            self.short_spread(q1, q2)
+        else:
+            self.long_spread(q1, q2)
+
+四. 回测结果
+^^^^^^^^^^^^
+
+|calendarspreadresult|
+
+商品期货的Dual Thrust日内交易策略
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+本帖主要介绍了基于事件驱动回测框架实现Dual Thrust日内交易策略。
+
+一. 策略介绍
+^^^^^^^^^^^^
+
+| Dual
+Thrust是一个趋势跟踪策略，具有简单易用、适用度广的特点，其思路简单、参数较少，配合不同的参数、止盈止损和仓位管理，可以为投资者带来长期稳定的收益，被投资者广泛应用于股票、货币、贵金属、债券、能源及股指期货市场等。
+| 在本文中，我们将Dual Thrust应用于商品期货市场中。
+| 简而言之，该策略的逻辑原型是较为常见的开盘区间突破策略，以今日开盘价加减一定比例确定上下轨。日内突破上轨时平空做多，突破下轨时平多做空。
+| 在Dual
+Thrust交易系统中，对于震荡区间的定义非常关键，这也是该交易系统的核心和精髓。Dual
+Thrust系统使用
+| $$Range = Max(HH-LC,HC-LL)$$
+| 来描述震荡区间的大小。其中HH是过去N日High的最大值，LC是N日Close的最小值，HC是N日Close的最大值，LL是N日Low的最小值。
+
+二. 参数准备
+^^^^^^^^^^^^
+
+我们在test\_spread\_commodity.py文件中的test\_spread\_trading()函数中设置策略所需参数，例如交易标的，策略开始日期，终止日期，换仓频率等，其中$k1，k2$为确定突破区间上下限的参数。
+
+.. code:: python
+
+    props = {
+             "symbol"                : "rb1710.SHF",
+             "start_date"            : 20170510,
+             "end_date"              : 20170930,
+             "buffersize"            : 2,
+             "k1"                    : 0.7,
+             "k2"                    : 0.7,
+             "bar_type"              : "MIN",
+             "init_balance"          : 1e5,
+             "future_commission_rate": 0.00002,
+             "stock_commission_rate" : 0.0001,
+             "stock_tax_rate"        : 0.0000
+             }
+
+三. 策略实现
+^^^^^^^^^^^^
+
+策略实现全部在DualThrust.py中完成，创建名为DualThrustStrategy()的class继承EventDrivenStrategy，具体分为以下几个步骤：
+
+1. 策略初始化
+'''''''''''''
+
+这里将后续步骤所需要的变量都创建好并初始化。其中self.bufferSize为窗口期长度，self.pos记录了实时仓位，self.Upper和self.Lower记录了突破区间上下限。
+
+.. code:: python
+
+    def __init__(self):
+        EventDrivenStrategy.__init__(self)
+        self.symbol      = ''
+        self.quote       = None
+        self.bufferCount = 0
+        self.bufferSize  = ''
+        self.high_list   = ''
+        self.close_list  = ''
+        self.low_list    = ''
+        self.open_list   = ''
+        self.k1          = ''
+        self.k2          = ''
+        self.pos         = 0
+        self.Upper       = 0.0
+        self.Lower       = 0.0
+
+2. 从props中得到变量值
+''''''''''''''''''''''
+
+这里将props中设置的参数传入。其中，self.high\_list为固定长度的list，保存了最近$N$天的日最高价，其他变量类似。
+
+.. code:: python
+
+    def init_from_config(self, props):
+        super(DualThrustStrategy, self).init_from_config(props)
+
+        self.symbol       = props.get('symbol')
+        self.init_balance = props.get('init_balance')
+        self.bufferSize   = props.get('buffersize')
+        self.k1           = props.get('k1')
+        self.k2           = props.get('k2')
+        self.high_list    = np.zeros(self.bufferSize)
+        self.close_list   = np.zeros(self.bufferSize)
+        self.low_list     = np.zeros(self.bufferSize)
+        self.open_list    = np.zeros(self.bufferSize)
+
+3. 策略实现
+'''''''''''
+
+在每天开始时，首先调用initialize()函数，得到当天的open，close，high和low的值，并对应放入list中。
+
+.. code:: python
+
+    def initialize(self):
+        self.bufferCount += 1
+
+        # get the trading date
+        td = self.ctx.trade_date
+        ds = self.ctx.data_api
+
+        # get the daily data
+        df, msg = ds.daily(symbol=self.symbol, start_date=td, end_date=td)
+
+        # put the daily value into the corresponding list
+        self.open_list[0:self.bufferSize - 1] =
+                       self.open_list[1:self.bufferSize]
+        self.open_list[-1] = df.high
+        self.high_list[0:self.bufferSize - 1] =
+                       self.high_list[1:self.bufferSize]
+        self.high_list[-1] = df.high
+        self.close_list[0:self.bufferSize - 1] =
+                       self.close_list[1:self.bufferSize]
+        self.close_list[-1] = df.close
+        self.low_list[0:self.bufferSize - 1] =
+                       self.low_list[1:self.bufferSize]
+        self.low_list[-1] = df.low
+
+策略的主体部分在on\_quote()函数中实现。因为我们选择分钟级回测，所以会在每分钟调用on\_quote()函数。
+
+首先取到当日的quote，并计算过去$N$天的HH，HC，LC和LL，并据此计算Range和上下限Upper，Lower
+
+.. code:: python
+
+    HH = max(self.high_list[:-1])
+    HC = max(self.close_list[:-1])
+    LC = min(self.close_list[:-1])
+    LL = min(self.low_list[:-1])
+
+    Range = max(HH - LC, HC - LL)
+    Upper = self.open_list[-1] + self.k1 * Range
+    Lower = self.open_list[-1] - self.k2 * Range
+
+| 几个关键变量的意义如下图所示：
+| |illustrationdual|
+
+我们的交易时间段为早上9:01:00到下午14:28:00,交易的逻辑为：
+
+#. 当分钟Bar的open向上突破上轨时，如果当时持有空单，则先平仓，再开多单；如果没有仓位，则直接开多单；
+#. 当分钟Bar的open向下突破下轨时，如果当时持有多单，则先平仓，再开空单；如果没有仓位，则直接开空单；
+
+   .. code:: python
+
+       if self.pos == 0:
+           if self.quote.open > Upper:
+               self.short(self.quote, self.quote.close, 1)
+           elif self.quote.open < Lower:
+               self.buy(self.quote, self.quote.close, 1)
+       elif self.pos < 0:
+           if self.quote.open < Lower:
+               self.cover(self.quote, self.quote.close, 1)
+               self.long(self.quote, self.quote.close, 1)
+       else:
+           if self.quote.open > Upper:
+               self.sell(self.quote, self.quote.close, 1)
+               self.short(self.quote, self.quote.close, 1)
+
+   由于我们限制该策略为日内策略，故当交易时间超过14:28:00时，进行强行平仓。
+
+   .. code:: python
+
+       elif self.quote.time > 142800:
+           if self.pos > 0:
+               self.sell(self.quote, self.quote.close, 1)
+           elif self.pos < 0:
+               self.cover(self.quote, self.quote.close, 1)
+
+   我们在下单后，可能由于市场剧烈变动导致未成交，因此在on\_trade\_ind()函数中记录具体成交情况，当空单成交时，self.pos减一，当多单成交时，self.pos加一。
+
+   .. code:: python
+
+       def on_trade_ind(self, ind):
+           if ind.entrust_action == 'sell' or ind.entrust_action == 'short':
+               self.pos -= 1
+           elif ind.entrust_action == 'buy' or ind.entrust_action == 'cover':
+               self.pos += 1
+           print(ind)
+
+四. 回测结果
+^^^^^^^^^^^^
+
+| 回测结果如下图所示：
+| |dualthrustresult|
+
+五、参考文献
+^^^^^^^^^^^^
+
+版块内股票轮动策略
+~~~~~~~~~~~~~~~~~~
+
+本帖主要介绍了基于事件驱动回测框架实现版块内股票轮动策略。
+
+一. 策略介绍
+^^^^^^^^^^^^
+
+| 该轮动策略如下：在策略开始执行时等价值买入版块内所有股票，每天 $t$
+计算各股在过去$m$天相对板块指数的收益率
+| $$R^A\_{i,t} =
+(lnP\_{i,t}-lnP\_{i,t-m}）-（lnP\_{B,t}-lnP\_{B,t-m}）$$
+| 其中$P\_{i,t}$为股票$i$在$t$天的收盘价，$P\_{B,t}$为板块指数在$t$天的收盘价。每天检查持仓，若持仓股$R^A\_{i,t}$超过过去$n$天均值加$k$倍标准差，则卖出；反之，若有未持仓股$R^A\_{i,t}$小于过去$n$天均值减$k$倍标准差，则买入。
+
+二. 参数准备
+^^^^^^^^^^^^
+
+我们在test\_roll\_trading.py文件中的test\_strategy()函数中设置策略所需参数。首先确定策略开始日期，终止日期以及板块指数。在本文中，我们选择券商指数399975.SZ，并听过data\_service得到该指数中所有成份股。
+
+.. code:: python
+
+    start_date = 20150901
+    end_date = 20171030
+    index = '399975.SZ'
+    data_service = RemoteDataService()
+    symbol_list = data_service.get_index_comp(index, start_date, start_date)
+
+接着在props中设置参数
+
+.. code:: python
+
+    symbol_list.append(index)
+    props = {"symbol": ','.join(symbol_list),
+             "start_date": start_date,
+             "end_date": end_date,
+             "bar_type": "DAILY",
+             "init_balance": 1e7,
+             "std multiplier": 1.5,
+             "m": 10,
+             "n": 60,
+             "future_commission_rate": 0.00002,
+             "stock_commission_rate": 0.0001,
+             "stock_tax_rate": 0.0000}
+
+我们可以在bar\_type中设置换仓周期，现在支持分钟和日换仓，本例中选择每日调仓。
+
+三. 策略实现
+^^^^^^^^^^^^
+
+策略实现全部在roll.py中完成，创建名为RollStrategy()的class继承EventDrivenStrategy，具体分为以下几个步骤：
+
+1. 策略初始化
+'''''''''''''
+
+这里将后续步骤所需要的变量都创建好并初始化。
+
+.. code:: python
+
+    def __init__(self):
+        EventDrivenStrategy.__init__(self)
+        self.symbol = ''
+        self.benchmark_symbol = ''
+        self.quotelist = ''
+        self.startdate = ''
+        self.bufferSize = 0
+        self.rollingWindow = 0
+        self.bufferCount = 0
+        self.bufferCount2 = 0
+        self.closeArray = {}
+        self.activeReturnArray = {}
+        self.std = ''
+        self.balance = ''
+        self.multiplier = 1.0
+        self.std_multiplier = 0.0
+
+2. 从props中得到变量值
+''''''''''''''''''''''
+
+这里将props中设置的参数传入。其中，self.closeArray和self.activeReturnArray数据类型为dict，key为股票代码，value分别为最近$m$天的收盘价和最近$n$天的active
+return。
+
+.. code:: python
+
+    def init_from_config(self, props):
+        super(RollStrategy, self).init_from_config(props)
+        self.symbol = props.get('symbol').split(',')
+        self.init_balance = props.get('init_balance')
+        self.startdate = props.get('start_date')
+        self.std_multiplier = props.get('std multiplier')
+        self.bufferSize = props.get('n')
+        self.rollingWindow = props.get('m')
+        self.benchmark_symbol = self.symbol[-1]
+        self.balance = self.init_balance
+
+        for s in self.symbol:
+            self.closeArray[s] = np.zeros(self.rollingWindow)
+            self.activeReturnArray[s] = np.zeros(self.bufferSize)
+
+3. 策略实现
+'''''''''''
+
+| 策略的主体部分在on\_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on\_quote()函数。
+| 首先将版块内所有股票的quote放入self.quotelist中，
+
+.. code:: python
+
+    self.quotelist = []
+    for s in self.symbol:
+        self.quotelist.append(quote_dic.get(s))
+
+接着对每只股票更新self.closeArray。因为self.closeArray为固定长度，更新方法为将第2个到最后1个元素向左平移1位，并将当前quote中最新的close放在末尾。
+
+.. code:: python
+
+    for stock in self.quotelist:
+        self.closeArray[stock.symbol][0:self.rollingWindow - 1] =  self.closeArray[stock.symbol][1:self.rollingWindow]
+        self.closeArray[stock.symbol][-1] = stock.close
+
+计算每只股票在过去$m$天的active return，存入self.activeReturnArray。
+
+.. code:: python
+
+    ### calculate active return for each stock
+    benchmarkReturn = np.log(self.closeArray[self.benchmark_symbol][-1])
+                     -np.log(self.closeArray[self.benchmark_symbol][0])
+    for stock in self.quotelist:
+        stockReturn = np.log(self.closeArray[stock.symbol][-1])
+                     -np.log(self.closeArray[stock.symbol][0])
+        activeReturn = stockReturn - benchmarkReturn
+        self.activeReturnArray[stock.symbol][0:self.bufferSize - 1]
+                     = self.activeReturnArray[stock.symbol][1:self.bufferSize]
+        self.activeReturnArray[stock.symbol][-1] = activeReturn
+
+在策略首次执行时，默认等价值持有版块中所有的股票。
+
+.. code:: python
+
+    ### On the first day of strategy, buy in equal value stock in the universe
+    stockvalue = self.balance/len(self.symbol)
+    for stock in self.quotelist:
+        if stock.symbol != self.benchmark_symbol:
+            self.buy(stock, stock.close,
+                     np.floor(stockvalue/stock.close/self.multiplier))
+
+在其他日期，当策略开始执行时，首先通过self.pm.holding\_securities检查持有的股票代码，并与版块成分比较确定未持有的股票代码。
+
+.. code:: python
+
+    stockholdings = self.pm.holding_securities
+    noholdings = set(self.symbol) - stockholdings
+    stockvalue = self.balance/len(noholdings)
+
+对于已持有的股票，计算最近$m$天的active
+return，若超过self.activeReturnArray均值的一定范围，就将该股票卖出。
+
+.. code:: python
+
+    for stock in list(stockholdings):
+        curRet = self.activeReturnArray[stock][-1]
+        avgRet = np.mean(self.activeReturnArray[stock][:-1])
+        stdRet = np.std(self.activeReturnArray[stock][:-1])
+        if curRet >= avgRet + self.std_multiplier * stdRet:
+            curPosition = self.pm.positions[stock].curr_size
+            stock_quote = quote_dic.get(stock)
+            self.sell(stock_quote, stock_quote.close, curPosition)
+
+反之，对于未持有的股票，若其active
+return低于均值的一定范围，就将其买入。
+
+.. code:: python
+
+    for stock in list(noholdings):
+        curRet = self.activeReturnArray[stock][-1]
+        avgRet = np.mean(self.activeReturnArray[stock][:-1])
+        stdRet = np.std(self.activeReturnArray[stock][:-1])
+        if curRet < avgRet - self.std_multiplier * stdRet:
+            stock_quote = quote_dic.get(stock)
+            self.buy(stock_quote, stock_quote.close,
+                     np.floor(stockvalue/stock_quote.close/self.multiplier))
+
+此外，我们在框架中on\_trade\_ind()中实现了仓位管理。在策略初始化时，我们将组合中的现金设为初始资金。
+
+.. code:: python
+
+    self.init_balance = props.get('init_balance')
+    self.balance = self.init_balance
+
+此后，每买入一只股票，我们将self.balance减去相应市值；每卖出一只股票，将self.balance加上相应市值。
+
+.. code:: python
+
+    def on_trade_ind(self, ind):
+        if ind.entrust_action == 'buy':
+            self.balance -= ind.fill_price * ind.fill_size * self.multiplier
+        elif ind.entrust_action == 'sell':
+            self.balance += ind.fill_price * ind.fill_size * self.multiplier
+        print(ind)
+
+四. 回测结果
+^^^^^^^^^^^^
+
+| 该策略的回测结果如下图所示：
+| |rollwithinsectorresult|
+
+| 回测的参数如下：
+| \| 指标 \| 值 \|
+| \| -------- \| --: \|
+| \| Beta \| 0.70 \|
+| \| Annual Return \| 0.05 \|
+| \| Annual Volatility\| 0.17 \|
+| \| Sharpe Ratio \| 0.29 \|
+
 .. |analyze| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png
 .. |backtestgraham| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/backtest_Graham_result.png
 .. |backtesticmodel| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/backtest_ICModel_result.png
+.. |calendarspreadresult| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/event_driven_calendar_spread_result.png
+.. |illustrationdual| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/event_drivent_illustration_dual.png
+.. |dualthrustresult| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/event_drivent_dual_thrust_result.png
+.. |rollwithinsectorresult| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/event_driven_roll_within_sector_result.png

@@ -25,4 +25,5 @@ Other Important APIs
 
     jaqs.data
     jaqs.trade
+    jaqs.research
     jaqs.util

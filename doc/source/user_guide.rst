@@ -12,3 +12,7 @@
 .. include:: research.rst
 
 .. include:: backtest.rst
+
+.. include:: trade_api.rst
+
+.. include:: realtime.rst

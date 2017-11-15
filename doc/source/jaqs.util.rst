@@ -36,6 +36,14 @@ jaqs\.util\.numeric module
     :undoc-members:
     :show-inheritance:
 
+jaqs\.util\.pdutil module
+-------------------------
+
+.. automodule:: jaqs.util.pdutil
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 jaqs\.util\.profile module
 --------------------------
 

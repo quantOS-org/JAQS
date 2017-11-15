@@ -8,6 +8,7 @@ Subpackages
 
     jaqs.trade.analyze
     jaqs.trade.event
+    jaqs.trade.tradeapi
 
 Submodules
 ----------
@@ -44,10 +45,26 @@ jaqs\.trade\.model module
     :undoc-members:
     :show-inheritance:
 
+jaqs\.trade\.portfoliomanager module
+------------------------------------
+
+.. automodule:: jaqs.trade.portfoliomanager
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 jaqs\.trade\.pubsub module
 --------------------------
 
 .. automodule:: jaqs.trade.pubsub
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+jaqs\.trade\.realinstance module
+--------------------------------
+
+.. automodule:: jaqs.trade.realinstance
     :members:
     :undoc-members:
     :show-inheritance:
