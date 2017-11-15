@@ -168,7 +168,7 @@ class JRpcClient :
                 pass
 
             except Exception, e:
-                print "_callback_run", type(e), e
+                print "_callback_run {}".format(r), type(e), e
 
     def _async_call(self, func):
         self._callback_queue.put( func )
