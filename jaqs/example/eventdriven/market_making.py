@@ -31,21 +31,35 @@ class RealStrategy(EventDrivenStrategy):
         self.s1 = self.symbol_list[0]
         
         self.tick_size1 = 1.0
+        self.open_size = 1
         
-        self.output = False
+        self.output = True
+        
+        # self.liquidate()
+        self._update_pos()
     
     def on_cycle(self):
         pass
     
     def on_tick(self, quote):
+        if quote.symbol != self.s1:
+            return
+        
         self.counter += 1
-        print(quote.time, quote.symbol, self.counter)
-        if self.counter % 1 == 0:
-            print("counter meets criteria, let's trade.")
+        
+        # if self.counter % 5 == 0:
+        if self.counter == 1:
             print(quote)
-            # self.place_order(quote.symbol, 'Buy', quote.askprice1 + 1.0, 1)
-            self.ctx.trade_api.place_order(quote.symbol, 'Buy', quote.askprice1, 1)
-            self.ctx.trade_api.place_order(quote.symbol, 'Sell', quote.bidprice1, 1)
+            # task_id, msg = self.ctx.trade_api.place_order(quote.symbol, 'Buy', quote.askprice1, 1)
+            # if task_id is None or task_id == 0:
+            #     print(msg)
+            # else:
+            #     print("   place_order: task_id = {}".format(task_id))
+            task_id, msg = self.ask(quote)
+            if task_id is None or task_id == 0:
+                print(msg)
+            else:
+                print("   place_order: task_id = {}".format(task_id))
             
         return
 
@@ -54,22 +68,25 @@ class RealStrategy(EventDrivenStrategy):
             price = quote.bidprice1
         else:
             price = quote.vwap - self.tick_size1
-        self.ctx.trade_api.place_order(quote.symbol, 'Buy', price, 1)
+        action = common.ORDER_ACTION.BUY
+        self.ctx.trade_api.place_order(quote.symbol, action, price, self.open_size)
 
     def ask(self, quote):
         if hasattr(quote, 'askprice1'):
             price = quote.askprice1
         else:
             price = quote.vwap + self.tick_size1
-        self.ctx.trade_api.place_order(quote.symbol, 'Sell', price, 1)
+        action = common.ORDER_ACTION.SHORT
+        return self.ctx.trade_api.place_order(quote.symbol, action, price, self.open_size)
 
     def cancel_all_orders(self):
         for task_id, task in self.ctx.pm.tasks.items():
-            if not task.is_finished:
+            if task.trade_date == self.ctx.trade_date and not task.is_finished:
                 self.ctx.trade_api.cancel_order(task_id)
     
     def liquidate(self, quote, n):
-        self.cancel_all_orders()
+        self._update_pos()
+        # self.cancel_all_orders()
         
         if self.pos == 0:
             return
@@ -92,14 +109,15 @@ class RealStrategy(EventDrivenStrategy):
         ts = self.ctx.pm.get_trade_stat(self.s1)
         if (abs(self.pos) > 5
             or ((ts is not None) and (ts.buy_want_size > 5 or ts.sell_want_size > 5))):
-            self.cancel_all_orders()
+            # self.cancel_all_orders()
             self.liquidate(quote, 1)
         else:
             self.bid(quote)
             self.ask(quote)
         
         if self.output:
-            self.show()
+            pass
+            # self.show()
     
     def show(self):
         ts = self.ctx.pm.get_trade_stat(self.s1)
@@ -107,16 +125,19 @@ class RealStrategy(EventDrivenStrategy):
         print(ts)
         print(p)
     
-    def on_trade(self, ind):
-        print "\nStrategy on trade: "
-        # print(ind)
+    def _update_pos(self):
         p = self.ctx.pm.get_position(self.s1)
         if p is None:
             self.pos = 0
         else:
             self.pos = p.current_size
+    
+    def on_trade(self, ind):
+        print "\nStrategy on trade: "
+        self._update_pos()
+        # print(ind)
         
-        print(p)
+        # print(p)
         ts = self.ctx.pm.get_trade_stat(self.s1)
         print(ts)
     

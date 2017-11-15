@@ -97,10 +97,10 @@ class Quote(object):
         return quote
 
     def __repr__(self):
-        return "{0.trade_date:8d}-{0.time:6d} " \
-               " (BID) {0.bidvolume1:6.0f}@{0.bidprice1:6.3f}" \
-               " | " \
-               "{0.askvolume1:6.0f}@{0.askprice1:6.3f} (ASK) ".format(self)
+        return ("{0.symbol:s}  {0.trade_date:8d}-{0.time:6d}      "
+                " (BID) {0.bidvolume1:6.0f}@{0.bidprice1:6.2f}"
+                " | "
+                "{0.askprice1:6.2f}@{0.askvolume1:<6.0f} (ASK)".format(self))
 
     def __str__(self):
         return self.__repr__()

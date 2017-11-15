@@ -15,7 +15,6 @@ class RealInstance(EventEngine):
     def __init__(self):
         super(RealInstance, self).__init__()
         
-        self.strategy = None
         self.start_date = 0
         self.end_date = 0
         
@@ -23,14 +22,12 @@ class RealInstance(EventEngine):
         
         self.ctx = None
     
-    def init_from_config(self, props, strategy):
+    def init_from_config(self, props):
         """
         
         Parameters
         ----------
         props : dict
-        strategy : Strategy
-        context : Context
 
         """
         for name in ['start_date', 'end_date']:
@@ -41,12 +38,10 @@ class RealInstance(EventEngine):
         self.props = props
         self.start_date = props.get("start_date")
         self.end_date = props.get("end_date")
-        self.strategy = strategy
-        
-        strategy.ctx = self.ctx
-        strategy.init_from_config(props)
-        
-        self.ctx.pm.init_positions()
+
+        for obj in ['data_api', 'trade_api', 'pm', 'strategy']:
+            if hasattr(self.ctx, obj):
+                getattr(self.ctx, obj).init_from_config(props)
 
     def register_context(self, context=None):
         self.ctx = context
@@ -76,27 +71,27 @@ class RealInstance(EventEngine):
     def on_quote(self, event):
         quote_dic = event.dic['quote']
         quote = Quote.create_from_dict(quote_dic)
-        self.strategy.on_tick(quote)
+        self.ctx.strategy.on_tick(quote)
     
     def on_order_rsp(self, event):
         rsp = event.dic['rsp']
-        self.strategy.on_order_rsp(rsp)
+        self.ctx.strategy.on_order_rsp(rsp)
 
     def on_task_rsp(self, event):
         rsp = event.dic['rsp']
-        self.strategy.on_task_rsp(rsp)
+        self.ctx.strategy.on_task_rsp(rsp)
     
     def on_trade(self, event):
         ind = event.dic['ind']
-        self.strategy.on_trade(ind)
+        self.ctx.strategy.on_trade(ind)
 
     def on_order_status(self, event):
         ind = event.dic['ind']
-        self.strategy.on_order_status(ind)
+        self.ctx.strategy.on_order_status(ind)
 
     def on_task_status(self, event):
         ind = event.dic['ind']
-        self.strategy.on_task_status(ind)
+        self.ctx.strategy.on_task_status(ind)
 
 
     

@@ -251,8 +251,6 @@ class RemoteDataService(DataService):
         self.REPORT_DATE_FIELD_NAME = 'report_date'
         self.calendar = None
         
-        self.init_from_config({})
-
     def __del__(self):
         self.data_api.close()
 
@@ -282,12 +280,12 @@ class RemoteDataService(DataService):
 
         self.data_api = DataApi(address, use_jrpc=False)
         self.data_api.set_timeout(timeout=time_out)
-        print("\n{}@{} login...".format(username, address))
+        print("\nDataApi login: {}@{}".format(username, address))
         r, msg = self.data_api.login(username=username, password=password)
         if not r:
-            print("    DataAPI login failed: msg = '{}'\n".format(msg))
+            print("    login failed: msg = '{}'\n".format(msg))
         else:
-            print "    DataAPI login success : {}@{}\n".format(username, address)
+            print "    login success \n"
         
         self.calendar = Calendar(self.data_api)
 

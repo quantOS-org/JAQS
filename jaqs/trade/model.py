@@ -43,11 +43,7 @@ class Context(object):
                  dataview=None,
                  strategy=None, pm=None, instance=None):
         # TODO: should also support get calendar from dataview
-        if data_api is None:
-            calendar = Calendar()
-        else:
-            calendar = data_api.calendar
-        self.calendar = calendar
+        self._calendar = None
 
         self.universe = []
         self._data_api = data_api
@@ -81,6 +77,17 @@ class Context(object):
         s = fileio.load_pickle(path)
         if s is not None:
             self.storage = s
+            
+    @property
+    def calendar(self):
+        if self.data_api is not None:
+            return self.data_api.calendar
+        elif self._calendar is not None:
+            return self._calendar
+        else:
+            self._calendar = Calendar
+            return self._calendar
+        
     
     @property
     def data_api(self):

@@ -12,7 +12,7 @@ import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 
 result_dir_path = jutil.join_relative_path('../output/test_consistency')
-is_backtest = True
+is_backtest = False
 
 
 def consis():
@@ -20,24 +20,18 @@ def consis():
     if is_backtest:
         props = {"symbol": "rb1710.SHF,hc1710.SHF",
                  "start_date": 20170510,
-                 "end_date": 20170530,
-                 "bar_type": "MIN",
+                 "end_date": 20170930,
+                 "bar_type": "1M",  # '1d'
                  "init_balance": 2e4,
                  "future_commission_rate": 0.00002,
                  "stock_commission_rate": 0.0001,
                  "stock_tax_rate": 0.0000}
 
-        # props['bar_type'] = 'DAILY'
-
-        enum_props = {'bar_type': common.QUOTE_TYPE}
-        for k, v in enum_props.iteritems():
-            props[k] = v.to_enum(props[k])
-
         tapi = BacktestTradeApi()
         ins = EventBacktestInstance()
         
     else:
-        props = {'symbol': 'IC1712.CFE,rb1801.SHF'}
+        props = {'symbol': 'rb1801.SHF,IC1712.CFE'}
         tapi = RealTimeTradeApi()
         ins = RealInstance()
 
@@ -45,15 +39,15 @@ def consis():
     
     ds = RemoteDataService()
     strat = RealStrategy()
-    pm = PortfolioManager(strategy=strat)
+    pm = PortfolioManager()
     
     context = model.Context(data_api=ds, trade_api=tapi, gateway=None, instance=ins,
                             strategy=strat, pm=pm)
     
+    ins.init_from_config(props)
     if not is_backtest:
         ds.subscribe(props['symbol'])
 
-    ins.init_from_config(props, strat)
     ins.run()
     if not is_backtest:
         time.sleep(1000)

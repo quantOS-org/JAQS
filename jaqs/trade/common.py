@@ -38,6 +38,7 @@ class QUOTE_TYPE(ReprStrEnum):
     QUARTERMIN = '15M'
     DAILY = '1d'
     SPECIALBAR = '-1'
+    # %Y%m%d%H%M%S
 
 
 @unique

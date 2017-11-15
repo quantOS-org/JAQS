@@ -44,7 +44,9 @@ class Order(object):
 
     """
     
-    def __init__(self):
+    def __init__(self, order=None):
+        self.ba_id = ""
+        self.sa_id = ""
         self.task_id = 0
         self.entrust_no = ""
         
@@ -56,8 +58,7 @@ class Order(object):
         self.entrust_date = 0
         self.entrust_time = 0
         
-        self.sub_seq = 0
-        self.sub_total = 0
+        self.ord_seq = 0
         self.batch_no = 0
         
         self.order_status = ""
@@ -69,11 +70,11 @@ class Order(object):
         self.order_type = ""
         self.time_in_force = ""
         
-        # TODO attributes below only for backward compatibility
-        self.errmsg = ""
-        self.cancel_size = 0
-        self.entrust_no = ''
-    
+        self.commission = 0.0
+        
+        if order is not None:
+            self.copy(order)
+        
     def __eq__(self, other):
         return self.entrust_no == other.entrust_no
     
@@ -100,8 +101,7 @@ class Order(object):
         self.entrust_date = order.entrust_date
         self.entrust_time = order.entrust_time
         
-        self.sub_seq = order.sub_seq
-        self.sub_total = order.sub_total
+        self.ord_seq = order.ord_seq
         self.batch_no = order.batch_no
         
         self.order_status = order.order_status
@@ -113,9 +113,7 @@ class Order(object):
         self.order_type = order.order_type
         self.time_in_force = order.time_in_force
         
-        self.cancel_size = order.cancel_size
-        self.entrust_no = order.entrust_no
-        self.errmsg = order.errmsg
+        self.commission = order.commission
     
     @property
     def is_finished(self):
@@ -196,9 +194,10 @@ class OrderStatusInd(object):
         self.task_id = 0
         self.entrust_no = ''
         
+        self.order_type = ""
         self.algo = ''
         self.batch_no = 0
-        self.order_seq = 0
+        self.ord_seq = 0
         
         self.symbol = ''
         
@@ -213,6 +212,8 @@ class OrderStatusInd(object):
         self.fill_size = 0
         self.fill_price = 0.0
         self.commission = 0.0
+        
+        self.time_in_force = ""
         
         # self.is_finished = False
         
@@ -238,6 +239,9 @@ class OrderStatusInd(object):
         
         self.fill_size = order.fill_size
         self.fill_price = order.fill_price
+
+        self.algo = order.algo
+        self.order_type = order.order_type
 
     @classmethod
     def create_from_dict(cls, dic):
@@ -314,7 +318,7 @@ class Task(object):
     def __init__(self, task_id=0,
                  algo="", algo_param=None,
                  data=None,
-                 function_name=""):
+                 function_name="", trade_date=0):
         self.task_id = task_id
         self.task_status = common.TASK_STATUS.ACCEPTED
         
@@ -323,13 +327,13 @@ class Task(object):
         self.algo = algo
         self.algo_param = dict() if algo_param else algo_param
         
+        self.trade_date = trade_date
         self.function_name = function_name
     
     @property
     def is_finished(self):
         return self.task_status == common.TASK_STATUS.DONE
         
-
 
 if __name__ == "__main__":
     o = FixedPriceTypeOrder.new_order('cu', 'buy', 1.0, 100, 20170505, 130524)

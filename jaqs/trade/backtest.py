@@ -36,13 +36,12 @@ class BacktestInstance(Subscriber):
         
         self.commission_rate = 0.0
     
-    def init_from_config(self, props, strategy):
+    def init_from_config(self, props):
         """
         
         Parameters
         ----------
         props : dict
-        strategy : Strategy
 
         """
         for name in ['start_date', 'end_date']:
@@ -52,7 +51,6 @@ class BacktestInstance(Subscriber):
         self.props = props
         self.start_date = props.get("start_date")
         self.end_date = props.get("end_date")
-        self.strategy = strategy
         
         if 'symbol' in props:
             self.ctx.init_universe(props['symbol'])
@@ -60,9 +58,10 @@ class BacktestInstance(Subscriber):
             self.ctx.init_universe(self.ctx.dataview.symbol)
         else:
             raise ValueError("No dataview, no symbol either.")
-        
-        strategy.init_from_config(props)
-        self.ctx.trade_api.init_from_config(props)
+
+        for obj in ['data_api', 'trade_api', 'pm', 'strategy']:
+            if hasattr(self.ctx, obj):
+                getattr(self.ctx, obj).init_from_config(props)
 
     def calc_commission(self, trade_ind):
         to = abs(trade_ind.fill_price * trade_ind.fill_size)
@@ -89,7 +88,7 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
         """update self.ctx.trade_date and last_date."""
         if self.ctx.gateway.match_finished:
             next_period_day = dtutil.get_next_period_day(self.ctx.trade_date,
-                                                         self.strategy.period, self.strategy.days_delay)
+                                                         self.ctx.strategy.period, self.ctx.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
                 self.ctx.trade_date = next_period_day
@@ -120,31 +119,31 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
             
             if gateway.match_finished:
                 self.on_new_day(self.last_date)
-                df_dic = self.strategy.get_univ_prices()  # access data
-                self.strategy.re_balance_plan_before_open(df_dic, suspensions=[])
+                df_dic = self.ctx.strategy.get_univ_prices()  # access data
+                self.ctx.strategy.re_balance_plan_before_open(df_dic, suspensions=[])
                 
                 self.on_new_day(self.ctx.trade_date)
-                self.strategy.send_bullets()
+                self.ctx.strategy.send_bullets()
             else:
                 self.on_new_day(self.ctx.trade_date)
             
-            df_dic = self.strategy.get_univ_prices()  # access data
+            df_dic = self.ctx.strategy.get_univ_prices()  # access data
             trade_indications = gateway.match(df_dic, self.ctx.trade_date)
             for trade_ind in trade_indications:
-                self.strategy.on_trade(trade_ind)
+                self.ctx.strategy.on_trade(trade_ind)
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.trade_days),
-                                                                         len(self.strategy.pm.trades))
+                                                                         len(self.ctx.strategy.pm.trades))
     
     def on_new_day(self, date):
         self.ctx.trade_date = date
-        self.strategy.on_new_day(date)
+        self.ctx.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
     
     def save_results(self, folder='../output/'):
         import pandas as pd
         
-        trades = self.strategy.pm.trades
+        trades = self.ctx.strategy.pm.trades
         
         type_map = {'task_id': str,
                     'entrust_no': str,
@@ -204,8 +203,8 @@ class AlphaBacktestInstance(BacktestInstance):
         
         self.commission_rate = 20E-4
     
-    def init_from_config(self, props, strategy):
-        super(AlphaBacktestInstance, self).init_from_config(props, strategy)
+    def init_from_config(self, props):
+        super(AlphaBacktestInstance, self).init_from_config(props)
         
         self.commission_rate = props.get('commission_rate', 20E-4)
 
@@ -244,7 +243,7 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
                 trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
                 
-                self.strategy.on_trade(trade_ind)
+                self.ctx.strategy.on_trade(trade_ind)
 
     def delist_adjust(self):
         df_inst = self.ctx.dataview.data_inst
@@ -275,7 +274,7 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.set_fill_info(price=last_close_price, size=pos,
                                     date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
     
-            self.strategy.on_trade(trade_ind)
+            self.ctx.strategy.on_trade(trade_ind)
 
     def re_balance_plan_before_open(self):
         """
@@ -304,7 +303,7 @@ class AlphaBacktestInstance(BacktestInstance):
         universe_list = [s for s in universe_list if s in listing_symbols]
         
         # step.3 construct portfolio using models
-        self.strategy.portfolio_construction(universe_list)
+        self.ctx.strategy.portfolio_construction(universe_list)
         
     def re_balance_plan_after_open(self):
         """
@@ -323,25 +322,25 @@ class AlphaBacktestInstance(BacktestInstance):
         all_list = reduce(lambda s1, s2: s1.union(s2), [set(suspensions), set(limit_reaches)])
     
         # step1. weights of those suspended and limit will be remove, and weights of others will be re-normalized
-        self.strategy.re_weight_suspension(all_list)
+        self.ctx.strategy.re_weight_suspension(all_list)
     
         # step2. calculate market value and cash
         # market value does not include those suspended
         market_value_float, market_value_frozen = self.ctx.pm.market_value(self.ctx.trade_date, prices, all_list)
-        cash_available = self.strategy.cash + market_value_float
+        cash_available = self.ctx.strategy.cash + market_value_float
     
-        cash_to_use = cash_available * self.strategy.position_ratio
+        cash_to_use = cash_available * self.ctx.strategy.position_ratio
         cash_unuse = cash_available - cash_to_use
     
         # step3. generate target positions
         # position of those suspended will remain the same (will not be traded)
-        goals, cash_remain = self.strategy.generate_weights_order(self.strategy.weights, cash_to_use, prices,
+        goals, cash_remain = self.ctx.strategy.generate_weights_order(self.ctx.strategy.weights, cash_to_use, prices,
                                                                   suspensions=all_list)
-        self.strategy.goal_positions = goals
-        self.strategy.cash = cash_remain + cash_unuse
+        self.ctx.strategy.goal_positions = goals
+        self.ctx.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()
         
-        self.strategy.on_after_rebalance(cash_available + market_value_frozen)
+        self.ctx.strategy.on_after_rebalance(cash_available + market_value_frozen)
 
     def run_alpha(self):
         gateway = self.ctx.gateway
@@ -373,17 +372,17 @@ class AlphaBacktestInstance(BacktestInstance):
                 self.on_new_day(self.ctx.trade_date)
                 # get suspensions, get up/down limits, generate goal positions and send orders.
                 self.re_balance_plan_after_open()
-                self.strategy.send_bullets()
+                self.ctx.strategy.send_bullets()
             else:
                 self.on_new_day(self.ctx.trade_date)
             
             # Deal with trade indications
             trade_indications = gateway.match(self.univ_price_dic)
             for trade_ind in trade_indications:
-                self.strategy.on_trade(trade_ind)
+                self.ctx.strategy.on_trade(trade_ind)
                 comm = self.calc_commission(trade_ind)
                 trade_ind.commission = comm
-                self.strategy.cash -= comm
+                self.ctx.strategy.cash -= comm
             
             self.on_after_market_close()
         
@@ -408,9 +407,9 @@ class AlphaBacktestInstance(BacktestInstance):
         """update self.ctx.trade_date and last_date."""
         current_date = self.ctx.trade_date
         if self.ctx.gateway.match_finished:
-            next_period_day = dtutil.get_next_period_day(current_date, self.strategy.period,
-                                                         n=self.strategy.n_periods,
-                                                         extra_offset=self.strategy.days_delay)
+            next_period_day = dtutil.get_next_period_day(current_date, self.ctx.strategy.period,
+                                                         n=self.ctx.strategy.n_periods,
+                                                         extra_offset=self.ctx.strategy.days_delay)
             # update current_date: next_period_day is a workday, but not necessarily a trade date
             if self.ctx.calendar.is_trade_date(next_period_day):
                 current_date = next_period_day
@@ -446,7 +445,7 @@ class AlphaBacktestInstance(BacktestInstance):
         return list(merge.loc[merge.loc[:, 'limit'], :].index.values)
     
     def on_new_day(self, date):
-        # self.strategy.on_new_day(date)
+        # self.ctx.strategy.on_new_day(date)
         self.ctx.gateway.on_new_day(date)
         
         self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
@@ -508,8 +507,8 @@ class EventBacktestInstance(BacktestInstance):
         
         self.commission_rate = 1E-4
 
-    def init_from_config(self, props, strategy):
-        super(EventBacktestInstance, self).init_from_config(props, strategy)
+    def init_from_config(self, props):
+        super(EventBacktestInstance, self).init_from_config(props)
         
         # TODO should be consistent with tradeAPI
         # self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
@@ -534,7 +533,7 @@ class EventBacktestInstance(BacktestInstance):
             self.ctx.gateway.on_new_day(self.ctx.trade_date)
         if hasattr(self.ctx.trade_api, 'on_new_day'):
             self.ctx.trade_api.on_new_day(self.ctx.trade_date)
-        self.strategy.initialize()
+        self.ctx.strategy.initialize()
         print 'on_new_day in trade {}'.format(self.ctx.trade_date)
     
     def on_after_market_close(self):
@@ -609,8 +608,11 @@ class EventBacktestInstance(BacktestInstance):
     
     def _process_quote_daily(self, quote_yesterday, quote_today):
         # on_quote
-        self.strategy.on_quote(quote_yesterday)
-
+        self.ctx.strategy.on_quote(quote_yesterday)
+        
+        self.ctx.trade_api.match_and_callback(quote_today, freq=self.bar_type)
+        
+        '''
         # match
         trade_results = self.ctx.gateway._process_quote(quote_today, freq=self.bar_type)
 
@@ -618,12 +620,13 @@ class EventBacktestInstance(BacktestInstance):
         for trade_ind, status_ind in trade_results:
             comm = self.calc_commission(trade_ind)
             trade_ind.commission = comm
-            # self.strategy.cash -= comm
+            # self.ctx.strategy.cash -= comm
             
-            self.strategy.on_trade(trade_ind)
-            self.strategy.on_order_status(status_ind)
-
-            self.on_after_market_close()
+            self.ctx.strategy.on_trade(trade_ind)
+            self.ctx.strategy.on_order_status(status_ind)
+        '''
+        
+        self.on_after_market_close()
 
     def run(self):
         if self.bar_type == common.QUOTE_TYPE.DAILY:
@@ -650,14 +653,14 @@ class EventBacktestInstance(BacktestInstance):
         for trade_ind, status_ind in trade_results:
             comm = self.calc_commission(trade_ind)
             trade_ind.commission = comm
-            # self.strategy.cash -= comm
+            # self.ctx.strategy.cash -= comm
     
-            self.strategy.on_trade(trade_ind)
-            self.strategy.on_order_status(status_ind)
+            self.ctx.strategy.on_trade(trade_ind)
+            self.ctx.strategy.on_order_status(status_ind)
         '''
         
         # on_quote
-        self.strategy.on_quote(quotes_dic)
+        self.ctx.strategy.on_quote(quotes_dic)
 
     '''
     def generate_report(self, output_format=""):
@@ -711,8 +714,8 @@ class EventBacktestInstance(BacktestInstance):
         def __extract(func):
             return lambda event: func(event.data, **event.kwargs)
         
-        ee = self.strategy.eventEngine  # TODO event-driven way of lopping, is it proper?
-        ee.register(EVENT.CALENDAR_NEW_TRADE_DATE, __extract(self.strategy.on_new_day))
+        ee = self.ctx.strategy.eventEngine  # TODO event-driven way of lopping, is it proper?
+        ee.register(EVENT.CALENDAR_NEW_TRADE_DATE, __extract(self.ctx.strategy.on_new_day))
         ee.register(EVENT.MD_QUOTE, __extract(self._process_quote_bar))
         ee.register(EVENT.MARKET_CLOSE, __extract(self.close_day))
         
@@ -725,9 +728,9 @@ class EventBacktestInstance(BacktestInstance):
                 ee.put(e_newday)
                 ee.process_once()  # this line should be done on another thread
                 
-                # self.strategy.onNewday(self.ctx.trade_date)
-                self.strategy.pm.on_new_day(self.ctx.trade_date, self.last_date)
-                self.strategy.ctx.trade_date = self.ctx.trade_date
+                # self.ctx.strategy.onNewday(self.ctx.trade_date)
+                self.ctx.strategy.pm.on_new_day(self.ctx.trade_date, self.last_date)
+                self.ctx.strategy.ctx.trade_date = self.ctx.trade_date
                 
                 for quote in quotes:
                     # self.processQuote(quote)
@@ -736,13 +739,13 @@ class EventBacktestInstance(BacktestInstance):
                     ee.put(e_quote)
                     ee.process_once()
                 
-                # self.strategy.onMarketClose()
+                # self.ctx.strategy.onMarketClose()
                 # self.closeDay(self.ctx.trade_date)
                 e_close = Event(EVENT.MARKET_CLOSE)
                 e_close.data = self.ctx.trade_date
                 ee.put(e_close)
                 ee.process_once()
-                # self.strategy.onSettle()
+                # self.ctx.strategy.onSettle()
                 
             else:
                 # no quotes because of holiday or other issues. We don't update last_date
@@ -750,6 +753,6 @@ class EventBacktestInstance(BacktestInstance):
             
             self.ctx.trade_date = self.go_next_trade_date(self.ctx.trade_date)
             
-            # self.strategy.onTradingEnd()
+            # self.ctx.strategy.onTradingEnd()
 
     '''

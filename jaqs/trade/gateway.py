@@ -313,7 +313,7 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
     
     """
     def __init__(self):
-        super(RealTimeTradeApi, self).__init__()
+        super(RealTimeTradeApi_async, self).__init__()
         
         self.ctx = None
         
@@ -322,8 +322,6 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
         self._task_no_id_map = dict()
 
         self.seq_gen = SequenceGenerator()
-        
-        self.init_from_config({})
         
     def init_from_config(self, props):
         """
@@ -651,8 +649,6 @@ class RealTimeTradeApi(TradeApi):
         
         self.ctx = None
         
-        self.init_from_config({})
-        
     def init_from_config(self, props):
         self.set_trade_api_callbacks()
 
@@ -676,10 +672,13 @@ class RealTimeTradeApi(TradeApi):
             raise ValueError("no address, username or password available!")
         
         # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
-        print("\n{}@{} login...".format(username, address))
+        print("\nTradeApi login {}@{}".format(username, address))
         user_info, msg = self.login(username, password)
-        print("    Login msg: {:s}".format(msg))
-        print("    Login user info: {:s}\n".format(user_info))
+        if not (msg == '0,'):
+            print("    login failed: msg = '{}'\n".format(msg))
+        else:
+            print("    login success. user info: \n"
+                  "    {:s}\n".format(user_info))
     
     def set_trade_api_callbacks(self):
         self.set_task_callback(self.on_task_status)
@@ -740,6 +739,27 @@ class RealTimeTradeApi(TradeApi):
         ind = TaskInd.create_from_dict(ind_dic)
         
         self.ctx.strategy.on_task_status(ind)
+
+    @staticmethod
+    def _check_task_id(task_id):
+        return not (task_id is None) or (task_id == 0)
+    
+    def place_order(self, symbol, action, price, size, algo="", algo_param={}, userdata=""):
+        # Generate Task
+        order = Order.new_order(symbol, action, price, size, self.ctx.trade_date, self.ctx.time,
+                                order_type=common.ORDER_TYPE.LIMIT)
+        
+        task_id, msg = super(RealTimeTradeApi, self).place_order(symbol, action, price, size, algo, algo_param, userdata)
+        if not self._check_task_id(task_id):
+            return task_id, msg
+    
+        task = Task(task_id,
+                    algo=algo, algo_param=algo_param, data=order,
+                    function_name='place_order')
+        
+        self.ctx.pm.add_task(task)
+    
+        return task_id, msg
     
 
 # ---------------------------------------------
@@ -1066,23 +1086,23 @@ class OrderBook(object):
             
             fill_size = 0
             if order.order_type == common.ORDER_TYPE.LIMIT:
-                if order.entrust_action == common.ORDER_ACTION.BUY and entrust_price >= low:
+                if common.ORDER_ACTION.is_positive(order.entrust_action) and entrust_price >= low:
                     fill_price = min(entrust_price, high)
                     # fill_size = min(entrust_size, self.participation_rate * volume)
                     fill_size = entrust_size
                     
-                elif order.entrust_action == common.ORDER_ACTION.SELL and order.entrust_price <= high:
+                elif common.ORDER_ACTION.is_negative(order.entrust_action) and order.entrust_price <= high:
                     fill_price = max(entrust_price, low)
                     # fill_size = min(entrust_size, self.participation_rate * volume)
                     fill_size = entrust_size
 
             elif order.order_type == common.ORDER_TYPE.STOP:
-                if order.entrust_action == common.ORDER_ACTION.BUY and order.entrust_price <= high:
+                if common.ORDER_ACTION.is_positive(order.entrust_action) and order.entrust_price <= high:
                     fill_price = max(entrust_price, low)
                     # fill_size = min(entrust_size, self.participation_rate * volume)
                     fill_size = entrust_size
 
-                if order.entrust_action == common.ORDER_ACTION.SELL and order.entrust_price >= low:
+                if common.ORDER_ACTION.is_negative(order.entrust_action) and order.entrust_price >= low:
                     fill_price = min(entrust_price, high)
                     # fill_size = min(entrust_size, self.participation_rate * volume)
                     fill_size = entrust_size
@@ -1177,9 +1197,9 @@ class BacktestTradeApi(BaseTradeApi):
     def init_from_config(self, props):
         self.commission_rate = props.get('commission_rate', 0.0)
         
-        self.set_order_status_callback(self.ctx.strategy.on_order_status)
-        self.set_trade_callback(self.ctx.strategy.on_trade)
-        self.set_task_status_callback(self.ctx.strategy.on_task_status)
+        self.set_order_status_callback(lambda ind: self.ctx.strategy.on_order_status(ind))
+        self.set_trade_callback(lambda ind: self.ctx.strategy.on_trade(ind))
+        self.set_task_status_callback(lambda ind: self.ctx.strategy.on_task_status(ind))
 
     def on_new_day(self, trade_date):
         self._orderbook = OrderBook()
@@ -1201,21 +1221,22 @@ class BacktestTradeApi(BaseTradeApi):
         
         task = Task(task_id,
                     algo=algo, algo_param=algo_param, data=order,
-                    function_name='place_order')
+                    function_name='place_order', trade_date=self.ctx.trade_date)
         # task.task_no = task_id
         
         # Send Order to Exchange
         entrust_no = self._orderbook.add_order(order)
         task.data.entrust_no = entrust_no
         
+        self.ctx.pm.add_task(task)
+        self.entrust_no_task_id_map[entrust_no] = task.task_id
+
         order_status_ind = OrderStatusInd(order)
         order_status_ind.order_status = common.ORDER_STATUS.ACCEPTED
         # order_status_ind.task_no = task_id
         self._order_status_callback(order_status_ind)
-        
-        self.ctx.pm.add_task(task)
-        self.entrust_no_task_id_map[entrust_no] = task.task_id
-        
+
+
         '''
         # TODO: not necessary
         rsp = OrderRsp(entrust_no=entrust_no, task_id=task_id, msg="")
