@@ -17,7 +17,7 @@ def set_log_dir(log_dir):
         except Exception as e:
             print "Exception", e
 
-class TradeApi:
+class TradeApi(object):
     
     def __init__(self, addr, use_jrpc=True, prod_type="jzts"):
         """

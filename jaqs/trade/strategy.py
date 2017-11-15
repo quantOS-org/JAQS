@@ -244,26 +244,6 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         err_msg : str
 
         """
-        '''
-        assert len(goals) == len(self.ctx.universe)
-        
-        orders = []
-        for goal in goals:
-            sec, goal_size = goal.symbol, goal.size
-            if sec in self.pm.holding_securities:
-                curr_size = self.pm.get_position(sec).curr_size
-            else:
-                curr_size = 0
-            diff_size = goal_size - curr_size
-            if diff_size != 0:
-                action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
-                
-                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
-                order.price_target = 'vwap'  # TODO
-                
-                orders.append(order)
-        self.place_batch_order(orders)
-        '''
         pass
 
     def stop_portfolio(self):
@@ -296,23 +276,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
         err_msg : str.
 
         """
-        '''
-        task_id = self._get_next_num('task_id')
-        err_msgs = []
-        for order in orders:
-            # only add task_id and entrust_no, leave other attributes unchanged.
-            order.task_id = task_id
-            order.entrust_no = self._get_next_num('entrust_no')
-            
-            self.pm.add_order(order)
-            
-            err_msg = self.ctx.gateway.place_order(order)
-            err_msgs.append(err_msg)
-            
-            self.task_id_map[order.task_id].append(order.entrust_no)
-        
-        return task_id, ','.join(err_msgs)
-        '''
+        pass
 
     def basket_order(self, orders, algo="", algo_param=None):
         """
@@ -486,7 +450,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
     def _get_weights_last(self):
         current_positions = self.query_portfolio()
-        univ_pos_dic = {p.symbol: p.curr_size for p in current_positions}
+        univ_pos_dic = {p.symbol: p.current_size for p in current_positions}
         for sec in self.ctx.universe:
             if sec not in univ_pos_dic:
                 univ_pos_dic[sec] = 0
@@ -683,7 +647,31 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         pass
     
     def send_bullets(self):
-        self.goal_portfolio(self.goal_positions)
+        self.goal_portfolio_by_batch_order(self.goal_positions)
+    
+    def goal_portfolio_by_batch_order(self, goals):
+        assert len(goals) == len(self.ctx.universe)
+        
+        orders = []
+        for goal in goals:
+            sec, goal_size = goal.symbol, goal.size
+            if sec in self.ctx.pm.holding_securities:
+                current_size = self.ctx.pm.get_position(sec).current_size
+            else:
+                current_size = 0
+            diff_size = goal_size - current_size
+            if diff_size != 0:
+                action = common.ORDER_ACTION.BUY if diff_size > 0 else common.ORDER_ACTION.SELL
+                
+                order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
+                order.price_target = 'vwap'  # TODO
+                
+                orders.append(order)
+        self.place_batch_order2(orders)
+    
+    def place_batch_order2(self, orders):
+        for order in orders:
+            self.ctx.gateway.place_order(order)
     
     def generate_weights_order(self, weights_dic, turnover, prices, suspensions=None):
         """
@@ -714,7 +702,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             
             if sec in suspensions:
                 current_pos = self.ctx.pm.get_position(sec)
-                goal_pos.size = current_pos.curr_size if current_pos is not None else 0
+                goal_pos.size = current_pos.current_size if current_pos is not None else 0
             elif abs(w) < 1e-8:
                 # order.entrust_size = 0
                 goal_pos.size = 0
@@ -739,8 +727,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
     def liquidate_all(self):
         for sec in self.ctx.pm.holding_securities:
-            curr_size = self.ctx.pm.get_position(sec).curr_size
-            self.place_order(sec, common.ORDER_ACTION.SELL, 1e-3, curr_size)
+            current_size = self.ctx.pm.get_position(sec).current_size
+            self.place_order(sec, common.ORDER_ACTION.SELL, 1e-3, current_size)
     
     def query_portfolio(self):
         positions = []

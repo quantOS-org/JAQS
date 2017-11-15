@@ -919,7 +919,7 @@ class DataView(object):
                                             start_date=self.extended_start_date_d, end_date=self.end_date,
                                             adjust_mode=self.adjust_mode, fields='trade_date,symbol,close,vwap,volume,turnover')
         if msg != '0,':
-            raise ValueError("msg = {:s}".format(msg))
+            raise ValueError("msg = '{:s}'".format(msg))
         
         # TODO: we want more than just close price of benchmark
         df_bench = df_bench.set_index('trade_date').loc[:, ['close']]

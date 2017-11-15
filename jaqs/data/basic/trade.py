@@ -1,5 +1,7 @@
 # encoding:utf-8
 
+from .order import Order
+
 
 class Trade(object):
     """
@@ -26,7 +28,7 @@ class Trade(object):
 
     """
     
-    def __init__(self):
+    def __init__(self, order=None):
         self.task_id = 0
         self.entrust_no = ""
         
@@ -41,6 +43,12 @@ class Trade(object):
         self.fill_time = 0
         
         self.commission = 0.0
+
+        if order is not None:
+            if isinstance(order, Order):
+                self.init_from_order(order)
+            else:
+                raise ValueError("init_from_order only accept argument of type Order.")
         
     def init_from_order(self, order):
         self.task_id = order.task_id
@@ -48,7 +56,7 @@ class Trade(object):
         self.symbol = order.symbol
         self.entrust_action = order.entrust_action
     
-    def send_fill_info(self, price, size, date, time, no):
+    def set_fill_info(self, price, size, date, time, no):
         self.fill_price = price
         self.fill_size = size
         self.fill_date = date

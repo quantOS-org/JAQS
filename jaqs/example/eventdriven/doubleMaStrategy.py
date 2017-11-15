@@ -60,7 +60,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
         if p is None:
             self.pos = 0
         else:
-            self.pos = p.curr_size
+            self.pos = p.current_size
         
         self.closeArray[0:self.bufferSize - 1] = self.closeArray[1:self.bufferSize]
         self.closeArray[-1] = quote.close

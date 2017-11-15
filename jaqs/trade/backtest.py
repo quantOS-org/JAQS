@@ -36,14 +36,13 @@ class BacktestInstance(Subscriber):
         
         self.commission_rate = 0.0
     
-    def init_from_config(self, props, strategy, context):
+    def init_from_config(self, props, strategy):
         """
         
         Parameters
         ----------
         props : dict
         strategy : Strategy
-        context : Context
 
         """
         for name in ['start_date', 'end_date']:
@@ -53,18 +52,17 @@ class BacktestInstance(Subscriber):
         self.props = props
         self.start_date = props.get("start_date")
         self.end_date = props.get("end_date")
-        self.ctx = context
         self.strategy = strategy
         
         if 'symbol' in props:
             self.ctx.init_universe(props['symbol'])
-        elif hasattr(context, 'dataview'):
-            self.ctx.init_universe(context.dataview.symbol)
+        elif hasattr(self.ctx, 'dataview'):
+            self.ctx.init_universe(self.ctx.dataview.symbol)
         else:
             raise ValueError("No dataview, no symbol either.")
         
-        strategy.ctx = self.ctx
         strategy.init_from_config(props)
+        self.ctx.trade_api.init_from_config(props)
 
     def calc_commission(self, trade_ind):
         to = abs(trade_ind.fill_price * trade_ind.fill_size)
@@ -206,8 +204,8 @@ class AlphaBacktestInstance(BacktestInstance):
         
         self.commission_rate = 20E-4
     
-    def init_from_config(self, props, strategy, context):
-        super(AlphaBacktestInstance, self).init_from_config(props, strategy, context)
+    def init_from_config(self, props, strategy):
+        super(AlphaBacktestInstance, self).init_from_config(props, strategy)
         
         self.commission_rate = props.get('commission_rate', 20E-4)
 
@@ -230,7 +228,7 @@ class AlphaBacktestInstance(BacktestInstance):
             mask_diff = ser_div != 1
             ser_adj = ser_div.loc[mask_diff]
             for date, ratio in ser_adj.iteritems():
-                pos_old = pm.get_position(symbol).curr_size
+                pos_old = pm.get_position(symbol).current_size
                 # TODO pos will become float, original: int
                 pos_new = pos_old * ratio
                 pos_diff = pos_new - pos_old  # must be positive
@@ -244,7 +242,7 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.task_id = self.POSITION_ADJUST_NO
                 trade_ind.entrust_no = self.POSITION_ADJUST_NO
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
-                trade_ind.send_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
+                trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
                 
                 self.strategy.on_trade(trade_ind)
 
@@ -264,7 +262,7 @@ class AlphaBacktestInstance(BacktestInstance):
             value_dic = dic_inst.get(symbol, None)
             if value_dic is None:
                 continue
-            pos = pm.get_position(symbol).curr_size
+            pos = pm.get_position(symbol).current_size
             last_trade_date = self.ctx.calendar.get_last_trade_date(value_dic['delist_date'])
             last_close_price = self.ctx.dataview.get_snapshot(last_trade_date, symbol=symbol, fields='close')
             last_close_price = last_close_price.at[symbol, 'close']
@@ -274,8 +272,8 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.task_id = self.DELIST_ADJUST_NO
             trade_ind.entrust_no = self.DELIST_ADJUST_NO
             trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
-            trade_ind.send_fill_info(price=last_close_price, size=pos,
-                                     date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
+            trade_ind.set_fill_info(price=last_close_price, size=pos,
+                                    date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
     
             self.strategy.on_trade(trade_ind)
 
@@ -496,7 +494,7 @@ class AlphaBacktestInstance(BacktestInstance):
         market_value_float, market_value_frozen = pm.market_value(self.ctx.trade_date, prices)
         for symbol in pm.holding_securities:
             p = prices[symbol]
-            size = pm.get_position(symbol).curr_size
+            size = pm.get_position(symbol).current_size
             print "{}  {:.2e}   {:.1f}@{:.2f}".format(symbol, p*size*100, p, size)
         print "float {:.2e}, frozen {:.2e}".format(market_value_float, market_value_frozen)
 
@@ -510,8 +508,8 @@ class EventBacktestInstance(BacktestInstance):
         
         self.commission_rate = 1E-4
 
-    def init_from_config(self, props, strategy, context=None):
-        super(EventBacktestInstance, self).init_from_config(props, strategy, context)
+    def init_from_config(self, props, strategy):
+        super(EventBacktestInstance, self).init_from_config(props, strategy)
         
         # TODO should be consistent with tradeAPI
         # self.ctx.gateway.register_callback('portfolio manager', strategy.pm)
@@ -532,7 +530,10 @@ class EventBacktestInstance(BacktestInstance):
     def on_new_day(self, date):
         self.ctx.trade_date = date
         self.ctx.time = 0
-        self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        if hasattr(self.ctx.gateway, 'on_new_day'):
+            self.ctx.gateway.on_new_day(self.ctx.trade_date)
+        if hasattr(self.ctx.trade_api, 'on_new_day'):
+            self.ctx.trade_api.on_new_day(self.ctx.trade_date)
         self.strategy.initialize()
         print 'on_new_day in trade {}'.format(self.ctx.trade_date)
     
@@ -639,8 +640,11 @@ class EventBacktestInstance(BacktestInstance):
         print "Backtest done."
         
     def _process_quote_bar(self, quotes_dic):
+        self.ctx.trade_api.match_and_callback(quotes_dic, freq=self.bar_type)
+        
+        '''
         # match
-        trade_results = self.ctx.gateway._process_quote(quotes_dic, freq=self.bar_type)
+        trade_results = self.ctx.trade_api._process_quote(quotes_dic, freq=self.bar_type)
         
         # trade indication
         for trade_ind, status_ind in trade_results:
@@ -650,6 +654,7 @@ class EventBacktestInstance(BacktestInstance):
     
             self.strategy.on_trade(trade_ind)
             self.strategy.on_order_status(status_ind)
+        '''
         
         # on_quote
         self.strategy.on_quote(quotes_dic)

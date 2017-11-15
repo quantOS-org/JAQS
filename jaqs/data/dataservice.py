@@ -282,12 +282,12 @@ class RemoteDataService(DataService):
 
         self.data_api = DataApi(address, use_jrpc=False)
         self.data_api.set_timeout(timeout=time_out)
-        print("{}@{} login...".format(username, address))
+        print("\n{}@{} login...".format(username, address))
         r, msg = self.data_api.login(username=username, password=password)
         if not r:
-            print("DataAPI login failed: msg = {}".format(msg))
+            print("    DataAPI login failed: msg = '{}'\n".format(msg))
         else:
-            print "DataAPI login success : {}@{}".format(username, address)
+            print "    DataAPI login success : {}@{}\n".format(username, address)
         
         self.calendar = Calendar(self.data_api)
 
@@ -855,7 +855,7 @@ class Calendar(object):
             self.data_api.set_timeout(timeout=time_out)
             r, msg = self.data_api.login(username=username, password=password)
             if not r:
-                print("DataAPI login failed: msg = {}".format(msg))
+                print("DataAPI login failed: msg = '{}".format(msg))
             else:
                 print "DataAPI login success : {}@{}".format(username, address)
     

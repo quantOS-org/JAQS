@@ -29,13 +29,20 @@ class Position(object):
         Last day's position.
     today_size : int
         Today's position.
-    curr_size : int
+    current_size : int
         Current position.
 
     Methods
     -------
 
     """
+    '''
+    __slots__ = ['symbol', 'side', 'cost_price',
+                 'close_pnl', 'float_pnl', 'trading_pnl', 'holding_pnl',
+                 'enable_size', 'frozen_size', 'want_size',
+                 'today_size', 'pre_size', 'current_size', 'init_size',
+                 'commission']
+    '''
     
     def __init__(self, symbol=""):
         self.symbol = symbol
@@ -54,14 +61,31 @@ class Position(object):
         
         self.today_size = 0
         self.pre_size = 0
-        self.curr_size = 0
+        self.current_size = 0
         self.init_size = 0
+        
+        self.commission = 0.0
 
     def __repr__(self):
-        return "{0.side:7s} {0.curr_size:5d} of {0.symbol:10s}".format(self)
+        return "{0.side:7s} {0.current_size:5d} of {0.symbol:10s}".format(self)
 
     def __str__(self):
         return self.__repr__()
+
+    @classmethod
+    def create_from_df(cls, df):
+        bar_list = []
+        for _, row in df.iterrows():
+            dic = row.to_dict()
+            bar = cls.create_from_dict(dic)
+            bar_list.append(bar)
+        return bar_list
+
+    @classmethod
+    def create_from_dict(cls, dic):
+        bar = cls()
+        bar.__dict__.update(dic)
+        return bar
 
 
 class GoalPosition(object):

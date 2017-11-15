@@ -39,7 +39,9 @@ class Context(object):
         Add new securities.
 
     """
-    def __init__(self, data_api=None, trade_api=None, dataview=None, gateway=None, instance=None):
+    def __init__(self, data_api=None, trade_api=None, gateway=None,
+                 dataview=None,
+                 strategy=None, pm=None, instance=None):
         # TODO: should also support get calendar from dataview
         if data_api is None:
             calendar = Calendar()
@@ -50,21 +52,26 @@ class Context(object):
         self.universe = []
         self._data_api = data_api
         self._trade_api = trade_api
-        self._dataview = dataview
         self._gateway = gateway
+        
+        self._dataview = dataview
+        
         self.instance = instance
+
+        self.strategy = strategy
+        self.pm = pm
         
         self.trade_date = 0
+        self.time = 0
         self.snapshot = None
-        
-        self.pm = None
         
         self.storage = dict()
         
         for member, obj in self.__dict__.viewitems():
             if hasattr(obj, 'ctx'):
                 if member in ['calendar', '_data_api', '_trade_api',
-                              '_dataview', '_gateway', 'instance']:
+                              '_dataview', '_gateway', 'instance',
+                              'pm', 'strategy']:
                     obj.ctx = self
 
     def save_store(self, path):
@@ -142,9 +149,12 @@ class AlphaContext(Context):
         Current snapshot of the universe available to be traded.
         
     """
-    def __init__(self, calendar=None, data_api=None, dataview=None, gateway=None):
-        super(AlphaContext, self).__init__(calendar=calendar, data_api=data_api,
-                                           dataview=dataview, gateway=gateway)
+    def __init__(self, data_api=None, trade_api=None, gateway=None,
+                 dataview=None,
+                 strategy=None, pm=None, instance=None):
+        super(AlphaContext, self).__init__(data_api=data_api, trade_api=trade_api, gateway=gateway,
+                                           dataview=dataview,
+                                           strategy=strategy, pm=pm, instance=instance)
         self.snapshot_sub = None
     
     
@@ -670,11 +680,11 @@ def convert_to_df(res):
     else:
         raise ValueError("Return type of signal function must be DataFrame or Series or dict!"
                          + "\nWe got [{}] instead.".format(type(res)))
-    return res
     '''
     elif isinstance(res, dict):
         res = pd.DataFrame(columns=[factor], data=pd.Series(data=res))
     '''
+    return res
 
     
 if __name__ == "__main__":

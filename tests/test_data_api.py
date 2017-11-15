@@ -2,6 +2,7 @@
 
 from jaqs.util import fileio
 from jaqs.data.dataapi import DataApi
+from jaqs.trade import common
 
 
 def test_data_api():
@@ -26,7 +27,7 @@ def test_data_api():
     assert daily.shape == (248, 9)
     assert daily2.shape == (124, 9)
     
-    df, msg = api.bar(symbol="600030.SH", trade_date=20170904, freq='1m', start_time=90000, end_time=150000)
+    df, msg = api.bar(symbol="600030.SH", trade_date=20170904, freq=common.QUOTE_TYPE.MIN, start_time=90000, end_time=150000)
     print df.columns
     assert df.shape == (240, 15)
     

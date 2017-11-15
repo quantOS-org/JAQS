@@ -45,6 +45,8 @@ class RealInstance(EventEngine):
         
         strategy.ctx = self.ctx
         strategy.init_from_config(props)
+        
+        self.ctx.pm.init_positions()
 
     def register_context(self, context=None):
         self.ctx = context
@@ -74,7 +76,7 @@ class RealInstance(EventEngine):
     def on_quote(self, event):
         quote_dic = event.dic['quote']
         quote = Quote.create_from_dict(quote_dic)
-        self.strategy.on_quote(quote)
+        self.strategy.on_tick(quote)
     
     def on_order_rsp(self, event):
         rsp = event.dic['rsp']
@@ -96,49 +98,6 @@ class RealInstance(EventEngine):
         ind = event.dic['ind']
         self.strategy.on_task_status(ind)
 
-
-def remote_data_service_mkt_data_callback():
-    import time
-    from jaqs.data.dataservice import RemoteDataService
-    from jaqs.trade import model
-    from jaqs.example.eventdriven.realtrade import RealStrategy
-    from jaqs.trade.gateway import RealGateway, RealTimeTradeApi
-    
-    ds = RemoteDataService()
-    tapi = RealTimeTradeApi()
-
-    strat = RealStrategy()
-    from jaqs.trade.portfoliomanager import PortfolioManager
-    pm = PortfolioManager(strategy=strat)
-    
-    gateway = RealGateway()
-    
-    ins = RealInstance()
-    
-    gateway.trade_api.use_strategy(3)
-    df_univ, msg = gateway.trade_api.query_universe()
-    print("Universe:")
-    print(df_univ)
-    
-    context = model.Context(data_api=ds, gateway=gateway, instance=ins)
-    context.pm = pm
-
-    # order dependent is not good! we should make it not dependent or hard-code the order
-    props = {'symbol': 'hc1801.SHF,CFCICA.JZ'}
-    # props = {'symbol': '000001.SZ,600001.SH'}
-    # props = {'symbol': 'CFCICA.JZ,600001.SH'}
-    ins.init_from_config(props, strat)
-    ins.run()
-    gateway.run()
-    
-    # ds.subscribe('CFCICA.JZ,000001.SZ')
-    # ds.subscribe('rb1710.SHF')
-    ds.subscribe(props['symbol'])
-    time.sleep(1000)
-
-
-if __name__ == "__main__":
-    remote_data_service_mkt_data_callback()
 
     
     

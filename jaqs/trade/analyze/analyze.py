@@ -180,7 +180,8 @@ class BaseAnalyzer(object):
     
         df.loc[:, 'CumTurnOver'] = turnover.cumsum()
     
-        direction = df.loc[:, 'entrust_action'].apply(lambda s: 1 if s == 'buy' else -1)
+        from jaqs.trade import common
+        direction = df.loc[:, 'entrust_action'].apply(lambda s: 1 if common.ORDER_ACTION.is_positive(s) else -1)
     
         df.loc[:, 'BuyVolume'] = (direction + 1) / 2 * fs
         df.loc[:, 'SellVolume'] = (direction - 1) / -2 * fs

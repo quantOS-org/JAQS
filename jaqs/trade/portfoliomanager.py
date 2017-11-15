@@ -3,7 +3,7 @@
 import copy
 from collections import defaultdict
 
-from jaqs.data.basic import OrderStatusInd, Trade, Task, TaskRsp
+from jaqs.data.basic import OrderStatusInd, Trade, Task
 from jaqs.data.basic.order import *
 from jaqs.data.basic.position import Position
 
@@ -15,6 +15,18 @@ class TradeStat(object):
         self.buy_want_size = 0
         self.sell_filled_size = 0
         self.sell_want_size = 0
+        
+    def __repr__(self):
+        return ("        Want Size      Filled Size  \n"
+                "====================================\n"
+                "Buy     {0:8.0f}         {1:8.0f}   \n"
+                "------------------------------------\n"
+                "Sell    {2:8.0f}         {3:8.0f}   \n"
+                "".format(self.buy_want_size, self.buy_filled_size,
+                          self.sell_want_size, self.sell_filled_size))
+    
+    def __str__(self):
+        return self.__repr__()
 
 
 class PortfolioManager(object):
@@ -42,28 +54,32 @@ class PortfolioManager(object):
     
     # TODO want / frozen update
     def __init__(self, strategy=None):
-        self.orders = {}
+        self.ctx = None
+        
+        self.orders = dict()
         self.tasks = dict()
         self.trades = []
+        
         self.positions = dict()
-        self.holding_securities = set()
         self.tradestat = dict()
+        
+        self.holding_securities = set()
         
         self.strategy = strategy
         self._hook_strategy()
     
     def _hook_strategy(self):
         self.original_on_order_status = self.strategy.on_order_status
-        self.strategy.on_order_status = self.on_order_status
+        self.strategy.on_order_status = self._on_order_status
         
         self.original_on_trade = self.strategy.on_trade
-        self.strategy.on_trade = self.on_trade
+        self.strategy.on_trade = self._on_trade
         
         self.original_on_order_rsp = self.strategy.on_order_rsp
-        self.strategy.on_order_rsp = self.on_order_rsp
+        self.strategy.on_order_rsp = self._on_order_rsp
         
         self.original_on_task_rsp = self.strategy.on_task_rsp
-        self.strategy.on_task_rsp = self.on_task_rsp
+        self.strategy.on_task_rsp = self._on_task_rsp
     
     @staticmethod
     def _make_position_key(symbol):
@@ -73,10 +89,91 @@ class PortfolioManager(object):
     @staticmethod
     def _make_order_key(entrust_id, trade_date):
         return '@'.join((str(entrust_id), str(trade_date)))
+
+    def _on_order_rsp(self, rsp):
+        self.original_on_order_rsp(rsp)
+
+    def _get_trade_stat(self, symbol):
+        """
+        
+        Parameters
+        ----------
+        symbol : str
+
+        Returns
+        -------
+        TradeStat
+
+        """
+        trade_stat = self.tradestat.get(symbol, None)
+        if trade_stat is None:
+            trade_stat = TradeStat(symbol=symbol)
+        return trade_stat
+
+    def get_trade_stat(self, symbol):
+        """
+        
+        Parameters
+        ----------
+        symbol : str
+
+        Returns
+        -------
+        TradeStat
+
+        """
+        trade_stat = self.tradestat.get(symbol, None)
+        return trade_stat
     
-    def on_order_rsp(self, rsp):
-        pass
-    
+    def get_position(self, symbol):
+        pos_key = self._make_position_key(symbol)
+        position = self.positions.get(pos_key, None)
+        return position
+
+    def get_trade_stat(self, symbol):
+        """
+        
+        Parameters
+        ----------
+        symbol : str
+
+        Returns
+        -------
+        TradeStat or None
+
+        """
+        return self.tradestat.get(symbol, None)
+
+    def get_task(self, task_id):
+        """
+        
+        Parameters
+        ----------
+        task_id : int
+
+        Returns
+        -------
+        Task
+
+        """
+        return self.tasks.get(task_id, None)
+
+    def init_positions(self):
+        df_acc, msg = self.ctx.trade_api.query_account()
+        account_info = df_acc.set_index('type').to_dict(orient='index')
+        
+        df_univ, msg = self.ctx.trade_api.query_universe()
+        df_univ = df_univ.rename(columns={'security': 'symbol'})
+        univ = df_univ['symbol'].values.copy()
+        # self.ctx.init_universe(univ)
+        
+        df_pos, msg = self.ctx.trade_api.query_position()
+        df_pos = df_pos.rename(columns={'security': 'symbol'})
+        pos_list = Position.create_from_df(df_pos)
+        pos_dic = {p.symbol: p for p in pos_list}
+        self.positions.update(pos_dic)
+        print
+        
     # ----------------------------------------------------------------------------
     # On Task Change
     
@@ -89,21 +186,23 @@ class PortfolioManager(object):
         task : Task
 
         """
-        if task.task_no in self.tasks:
-            print 'duplicate task {}'.format(task.task_no)
+        if task.task_id in self.tasks:
+            print 'duplicate task {}'.format(task.task_id)
         
         # Store Task (right after strategy constructs a task)
         # TODO: copy
-        self.tasks[task.task_no] = copy.deepcopy(task)
+        self.tasks[task.task_id] = copy.deepcopy(task)
         
         # Store/Update TradeStat (right after strategy constructs a task)
         if task.function_name == 'place_order':
             order = task.data
+            self.orders[order.entrust_no] = order
             self._update_trade_stat_from_order(order)
         
         elif task.function_name == 'place_batch_order':
             orders = task.data
             for order in orders:
+                self.orders[order.entrust_no] = order
                 self._update_trade_stat_from_order(order)
         
         elif task.function_name == 'basket_order':
@@ -114,7 +213,7 @@ class PortfolioManager(object):
             goal_positions = task.data
             self._update_trade_stat_from_goal_positions(goal_positions)
     
-    def on_task_rsp(self, rsp):
+    def _on_task_rsp(self, rsp):
         """
         
         Parameters
@@ -122,17 +221,17 @@ class PortfolioManager(object):
         rsp : TaskRsp
 
         """
-        task_no = rsp.task_no
-        task = self.tasks.get(task_no, None)
+        task_id = rsp.task_id
+        task = self.tasks.get(task_id, None)
         if task is None:
-            print("task_no {} does not exist in PortfolioManager".format(task_no))
+            print("task_id {} does not exist in PortfolioManager".format(task_id))
             return
         
         if rsp.success:
             task.task_id = rsp.task_id
             
             # write back
-            self.tasks[task_no] = task
+            self.tasks[task_id] = task
         else:
             # Update TradeStat (right after strategy constructs a task)
             if task.function_name == 'place_order':
@@ -151,23 +250,6 @@ class PortfolioManager(object):
             elif task.function_name == 'goal_portfolio':
                 goal_positions = task.data
                 self._update_trade_stat_from_goal_positions(goal_positions, roll_back=True)
-    
-    def _get_trade_stat(self, symbol):
-        """
-        
-        Parameters
-        ----------
-        symbol : str
-
-        Returns
-        -------
-        TradeStat
-
-        """
-        trade_stat = self.tradestat.get(symbol, None)
-        if trade_stat is None:
-            trade_stat = TradeStat(symbol=symbol)
-        return trade_stat
     
     def _update_trade_stat_from_order(self, order, roll_back=False):
         """
@@ -227,17 +309,6 @@ class PortfolioManager(object):
             self.tradestat[symbol] = tradestat
     
     '''
-    def on_order_rsp(self, rsp):
-        self.original_on_order_rsp(rsp)
-    
-    '''
-    
-    def get_position(self, symbol):
-        pos_key = self._make_position_key(symbol)
-        position = self.positions.get(pos_key, None)
-        return position
-    
-    '''
     def add_order(self, order):
         """
         Add order to orders, create position and tradestat if necessary.
@@ -278,7 +349,22 @@ class PortfolioManager(object):
     # ----------------------------------------------------------------------------
     # On Order Status
     
-    def on_order_status(self, ind):
+    def _update_task_if_done(self, task_id):
+        task = self.get_task(task_id)
+        if task.function_name == 'place_order':
+            order = task.data
+            if order.is_finished:
+                task.task_status = common.TASK_STATUS.DONE
+        elif task.function_name == 'place_batch_order':
+            orders = task.data
+            if all([o.is_finished for o in orders]):
+                task.task_status = common.TASK_STATUS.DONE
+        else:
+            raise NotImplementedError()
+        
+        self.tasks[task_id] = task
+        
+    def _on_order_status(self, ind):
         """
         
         Parameters
@@ -287,16 +373,30 @@ class PortfolioManager(object):
 
         """
         
-        if ind.order_status is None:
+        if ind.task_id not in self.tasks:
             return
-        task_no = ind.task_no
-        if task_no not in self.tasks:
+
+        # TODO
+        if ind.entrust_no == 101010 or ind.entrust_no == 202020:  # trades generate by system
             return
+
+        # update order
+        order = self.orders[ind.entrust_no]
+        order.order_status = ind.order_status
+        
+        task = self.get_task(ind.task_id)
+        if task.function_name == 'place_order':
+            order = task.data
+            order.order_status = ind.order_status
+        elif task.function_name == 'place_batch_order':
+            for order in task.data:
+                if order.entrust_no == ind.entrust_no:
+                    order.order_status = ind.order_status
         
         # order status other than CANCELLED/REJECTED will be dealt with self.on_trade
-        if (ind.order_status == common.ORDER_STATUS.CANCELLED
-            or ind.order_status == common.ORDER_STATUS.REJECTED):
+        if (ind.order_status == common.ORDER_STATUS.CANCELLED) or (ind.order_status == common.ORDER_STATUS.REJECTED):
             
+            # update TradeStat
             trade_stat = self._get_trade_stat(ind.symbol)
             
             release_size = ind.entrust_size - ind.fill_size
@@ -306,6 +406,9 @@ class PortfolioManager(object):
                 trade_stat.sell_want_size -= release_size
             
             self.tradestat[ind.symbol] = trade_stat
+
+            # update task
+            self._update_task_if_done(ind.task_id)
             
             """
             entrust_no = ind.entrust_no
@@ -357,7 +460,7 @@ class PortfolioManager(object):
         pos_key = self._make_position_key(symbol)
         pos = self.positions.get(pos_key)
         
-        pos.curr_size *= ratio
+        pos.current_size *= ratio
         pos.init_size *= ratio
         self.positions[pos_key] = pos
     
@@ -366,7 +469,7 @@ class PortfolioManager(object):
     # ----------------------------------------------------------------------------
     # On Trade Indication
     
-    def on_trade(self, ind):
+    def _on_trade(self, ind):
         # record trades
         self.trades.append(ind)
         
@@ -394,9 +497,32 @@ class PortfolioManager(object):
         
         # Change TradeStat
         self._update_trade_stat_from_trade_ind(ind)
+
+        # Update Orders
+        self._update_order_from_trade_ind(ind)
+
+        # Update Tasks
+        self._update_task_if_done(ind.task_id)
         
         # hook:
         self.original_on_trade(ind)
+    
+    def _update_order_from_trade_ind(self, ind):
+        order = self.orders.get(ind.entrust_no)
+        if order is None:
+            return
+        
+        order.fill_size += ind.fill_size
+
+        task = self.get_task(ind.task_id)
+        if task.function_name == 'place_order':
+            order = task.data
+            order.fill_size += ind.fill_size
+        elif task.function_name == 'place_batch_order':
+            for order in task.data:
+                order.fill_size += ind.fill_size
+        else:
+            raise NotImplementedError()
     
     def _update_trade_stat_from_trade_ind(self, ind):
         """
@@ -431,14 +557,14 @@ class PortfolioManager(object):
             pos = Position(symbol=ind.symbol)
         
         if common.ORDER_ACTION.is_positive(ind.entrust_action):
-            pos.curr_size += ind.fill_size
+            pos.current_size += ind.fill_size
         elif common.ORDER_ACTION.is_negative(ind.entrust_action):
-            pos.curr_size -= ind.fill_size
+            pos.current_size -= ind.fill_size
         
         self.positions[pos_key] = pos
         
         # if no holding, remove the position from the dict
-        if pos.curr_size == 0:
+        if pos.current_size == 0:
             self.positions.pop(pos_key)
             # TODO : remove holding_securities field
             self.holding_securities.remove(ind.symbol)
@@ -474,7 +600,7 @@ class PortfolioManager(object):
         market_value_float = 0.0
         market_value_frozen = 0.0  # suspended or high/low limit
         for sec in self.holding_securities:
-            size = self.get_position(sec).curr_size
+            size = self.get_position(sec).current_size
             # TODO PortfolioManager object should not access price
             price = ref_prices[sec]
             mv_sec = price * size
@@ -538,8 +664,8 @@ class PortfolioManager_RAW(TradeCallback):
                 pre_position = pos
                 
                 new_position = Position()
-                new_position.curr_size = pre_position.curr_size
-                new_position.init_size = new_position.curr_size
+                new_position.current_size = pre_position.current_size
+                new_position.init_size = new_position.current_size
                 new_position.symbol = pre_position.symbol
                 new_position.trade_date = date
                 self.positions[new_key] = new_position
@@ -551,8 +677,8 @@ class PortfolioManager_RAW(TradeCallback):
             if pre_key in self.positions:
                 pre_position = self.positions.get(pre_key)
                 new_position = Position()
-                new_position.curr_size = pre_position.curr_size
-                new_position.init_size = new_position.curr_size
+                new_position.current_size = pre_position.current_size
+                new_position.init_size = new_position.current_size
                 new_position.symbol = pre_position.symbol
                 new_position.trade_date = date
                 self.positions[new_key] = new_position
@@ -618,7 +744,7 @@ class PortfolioManager_RAW(TradeCallback):
         pos_key = self._make_position_key(symbol, date)
         pos = self.positions.get(pos_key)
 
-        pos.curr_size *= ratio
+        pos.current_size *= ratio
         pos.init_size *= ratio
         self.positions[pos_key] = pos
         
@@ -651,7 +777,7 @@ class PortfolioManager_RAW(TradeCallback):
             tradestat.buy_filled_size += ind.fill_size
             tradestat.buy_want_size -= ind.fill_size
             
-            position.curr_size += ind.fill_size
+            position.current_size += ind.fill_size
         
         elif (ind.entrust_action == common.ORDER_ACTION.SELL
               or ind.entrust_action == common.ORDER_ACTION.SELLTODAY
@@ -661,9 +787,9 @@ class PortfolioManager_RAW(TradeCallback):
             tradestat.sell_filled_size += ind.fill_size
             tradestat.sell_want_size -= ind.fill_size
             
-            position.curr_size -= ind.fill_size
+            position.current_size -= ind.fill_size
         
-        if position.curr_size != 0:
+        if position.current_size != 0:
             self.holding_securities.add(ind.symbol)
         else:
             self.holding_securities.remove(ind.symbol)
@@ -696,7 +822,7 @@ class PortfolioManager_RAW(TradeCallback):
             if sec in suspensions:
                 continue
             
-            size = self.get_position(sec, ref_date).curr_size
+            size = self.get_position(sec, ref_date).current_size
             # TODO PortfolioManager object should not access price
             price = ref_prices[sec]
             market_value += price * size * 100

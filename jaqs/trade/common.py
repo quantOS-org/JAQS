@@ -111,6 +111,15 @@ class ORDER_STATUS(ReprStrEnum):
 
 
 @unique
+class TASK_STATUS(ReprStrEnum):
+    NEW = "New"
+    REJECTED = "Rejected"
+    ACCEPTED = "Accepted"
+    DONE = "Done"
+    CANCELLED = "Cancelled"
+
+
+@unique
 class ORDER_TIME_IN_FORCE(ReprStrEnum):
     FOK = 'fok'
     FAK = 'fak'
