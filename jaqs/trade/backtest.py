@@ -188,7 +188,9 @@ class AlphaBacktestInstance(BacktestInstance):
         self.univ_price_dic = {}
         
         self.POSITION_ADJUST_NO = 101010
+        self.POSITION_ADJUST_TIME = 200000
         self.DELIST_ADJUST_NO = 202020
+        self.DELIST_ADJUST_TIME = 150000
         
         self.commission_rate = 20E-4
     
@@ -230,7 +232,7 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.task_id = self.POSITION_ADJUST_NO
                 trade_ind.entrust_no = self.POSITION_ADJUST_NO
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
-                trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=0, no=self.POSITION_ADJUST_NO)
+                trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=200000, no=self.POSITION_ADJUST_NO)
                 
                 self.ctx.strategy.on_trade(trade_ind)
 
@@ -261,7 +263,7 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.entrust_no = self.DELIST_ADJUST_NO
             trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
             trade_ind.set_fill_info(price=last_close_price, size=pos,
-                                    date=last_trade_date, time=0, no=self.DELIST_ADJUST_NO)
+                                    date=last_trade_date, time=150000, no=self.DELIST_ADJUST_NO)
     
             self.ctx.strategy.on_trade(trade_ind)
 

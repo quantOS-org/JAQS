@@ -775,6 +775,8 @@ class AlphaTradeApi(BaseTradeApi):
         self.seq_gen = SequenceGenerator()
 
         self.commission_rate = 0.0
+        
+        self.MATCH_TIME = 143000
 
     def _get_next_task_id(self):
         return np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next('task_id')
@@ -913,6 +915,7 @@ class AlphaTradeApi(BaseTradeApi):
     def match_finished(self):
         return self._simulator.match_finished
     
+    '''
     @abstractmethod
     def match(self, price_dict, time=0):
         """
@@ -931,6 +934,7 @@ class AlphaTradeApi(BaseTradeApi):
         """
         return self._simulator.match(price_dict, date=self.ctx.trade_date, time=time)
 
+    '''
     def calc_commission(self, trade_ind):
         to = abs(trade_ind.fill_price * trade_ind.fill_size)
         res = to * self.commission_rate
@@ -941,7 +945,7 @@ class AlphaTradeApi(BaseTradeApi):
         ind.commission = comm
         
     def match_and_callback(self, price_dict):
-        results = self._simulator.match(price_dict, date=self.ctx.trade_date, time=self.ctx.time)
+        results = self._simulator.match(price_dict, date=self.ctx.trade_date, time=self.MATCH_TIME)
     
         for trade_ind, order_status_ind in results:
             self._add_commission(trade_ind)
