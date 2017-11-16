@@ -322,9 +322,10 @@ class BaseAnalyzer(object):
         idx0 = self.returns.index
         idx = range(len(idx0))
         
-        ax0.plot(idx, self.pnl['trading_pnl'], lw=1, color='indianred', label='Trading PnL')
-        ax0.plot(idx, self.pnl['holding_pnl'], lw=1, color='royalblue', label='Holding PnL')
-        ax0.plot(idx, self.pnl['total_pnl'], lw=1.5, color='violet', label='Total PnL')
+        ax0.plot(idx, self.pnl['trading_pnl'], lw=1.5, color='indianred', label='Trading PnL')
+        ax0.plot(idx, self.pnl['holding_pnl'], lw=1.5, color='royalblue', label='Holding PnL')
+        ax0.axhline(0.0, color='k', lw=1, ls='--')
+        # ax0.plot(idx, self.pnl['total_pnl'], lw=1.5, color='violet', label='Total PnL')
         ax0.legend(loc='upper left')
         
         ax1.plot(idx, self.returns.loc[:, 'bench_cum'], label='Benchmark')

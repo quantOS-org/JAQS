@@ -23,7 +23,7 @@ class Strategy(with_metaclass(abc.ABCMeta)):
     ctx : Context object
         Used to store relevant context of the strategy.
     run_mode : int
-        Whether the strategy is under back-testing or live trading.
+        Whether the trategy is under back-testing or live trading.
     pm : trade.PortfolioManger
         Responsible for managing orders, trades and positions.
     store : dict
@@ -688,11 +688,6 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         cash_left = turnover - cash_used
         return goals, cash_left
     
-    def liquidate_all(self):
-        for sec in self.ctx.pm.holding_securities:
-            current_size = self.ctx.pm.get_position(sec).current_size
-            self.place_order(sec, common.ORDER_ACTION.SELL, 1e-3, current_size)
-    
     def query_portfolio(self):
         positions = []
         for sec in self.ctx.pm.holding_securities:
@@ -720,10 +715,12 @@ class EventDrivenStrategy(Strategy):
 
     def cancel_all_orders(self):
         for task_id, task in self.ctx.pm.tasks.items():
-            if not task.is_finished:
-                self.ctx.trade_api.cancel_order(task_id)
+            if task.trade_date == self.ctx.trade_date:
+                if not task.is_finished:
+                    self.ctx.trade_api.cancel_order(task_id)
 
     def liquidate(self, quote, n, tick_size=1.0, pos=0):
+        self.cancel_all_orders()
         if pos == 0:
             return
     
