@@ -51,6 +51,7 @@ class BaseAnalyzer(object):
         
         self._universe = []
         self._closes = None
+        self.daily_position = None
         
         self.adjust_mode = None
         
@@ -127,7 +128,10 @@ class BaseAnalyzer(object):
         """Add datetime column. """
         df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
         
-        self._trades = jutil.group_df_to_dict(df, by='symbol')
+        df = df.set_index(['symbol', 'fill_dt']).sort_index(axis=0)
+        
+        # self._trades = jutil.group_df_to_dict(df, by='symbol')
+        self._trades = df
     
     def _init_symbol_price(self):
         """Get close price of securities in the universe from data server."""
@@ -153,61 +157,44 @@ class BaseAnalyzer(object):
         self.end_date = self.configs['end_date']
         
     @staticmethod
-    def _get_avg_pos_price(pos_arr, price_arr):
-        """
-        Calculate average cost price using position and fill price.
-        When position = 0, cost price = symbol price.
-        """
-        assert len(pos_arr) == len(price_arr)
-    
-        avg_price = np.zeros_like(pos_arr, dtype=float)
-        avg_price[0] = price_arr[0]
-        for i in range(pos_arr.shape[0] - 1):
-            if pos_arr[i+1] == 0:
-                avg_price[i+1] = 0.0
-            else:
-                pos_diff = pos_arr[i+1] - pos_arr[i]
-                if pos_arr[i] == 0 or pos_diff * pos_arr[i] > 0:
-                    count = True
-                else:
-                    count = False
-            
-                if count:
-                    avg_price[i+1] = (avg_price[i] * pos_arr[i] + pos_diff * price_arr[i+1]) * 1. / pos_arr[i+1]
-                else:
-                    avg_price[i+1] = avg_price[i]
-        return avg_price
-    
-    @staticmethod
     def _process_trades(df):
         """Add various statistics to trades DataFrame."""
+        from jaqs.trade import common
+        
         # df = df.set_index('fill_date')
     
+        # pre-process
         cols_to_drop = ['task_id', 'entrust_no', 'fill_no']
         df = df.drop(cols_to_drop, axis=1)
+        
+        def _apply(gp_df):
+            # calculation of non-cumulative fields
+            direction = gp_df['entrust_action'].apply(lambda s: 1 if common.ORDER_ACTION.is_positive(s) else -1)
+            fill_size, fill_price = gp_df['fill_size'], gp_df['fill_price']
+            turnover = fill_size * fill_price
+
+            gp_df.loc[:, 'BuyVolume'] = (direction + 1) / 2 * fill_size
+            gp_df.loc[:, 'SellVolume'] = (direction - 1) / -2 * fill_size
+            
+            # Calculation of cumulative fields
+            gp_df.loc[:, 'CumVolume'] = fill_size.cumsum()
+            gp_df.loc[:, 'CumTurnOver'] = turnover.cumsum()
+            gp_df.loc[:, 'CumNetTurnOver'] = (turnover * -direction).cumsum()
     
-        fs, fp = df.loc[:, 'fill_size'], df.loc[:, 'fill_price']
-        turnover = fs * fp
+            gp_df.loc[:, 'position'] = (fill_size * direction).cumsum()
     
-        df.loc[:, 'CumTurnOver'] = turnover.cumsum()
+            gp_df.loc[:, 'AvgPosPrice'] = calc_avg_pos_price(gp_df.loc[:, 'position'].values, fill_price.values)
     
-        from jaqs.trade import common
-        direction = df.loc[:, 'entrust_action'].apply(lambda s: 1 if common.ORDER_ACTION.is_positive(s) else -1)
-    
-        df.loc[:, 'BuyVolume'] = (direction + 1) / 2 * fs
-        df.loc[:, 'SellVolume'] = (direction - 1) / -2 * fs
-        df.loc[:, 'CumVolume'] = fs.cumsum()
-        df.loc[:, 'CumNetTurnOver'] = (turnover * -direction).cumsum()
-        df.loc[:, 'position'] = (fs * direction).cumsum()
-    
-        df.loc[:, 'AvgPosPrice'] = AlphaAnalyzer._get_avg_pos_price(df.loc[:, 'position'].values, fp.values)
-    
-        df.loc[:, 'CumProfit'] = (df.loc[:, 'CumNetTurnOver'] + df.loc[:, 'position'] * fp)
-    
-        return df
+            gp_df.loc[:, 'CumProfit'] = (gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * fill_price)
+            return gp_df
+        gp = df.groupby(by='symbol')
+        res = gp.apply(_apply)
+        
+        return res
     
     def process_trades(self):
-        self._trades = {k: self._process_trades(v) for k, v in self.trades.viewitems()}
+        # self._trades = {k: self._process_trades(v) for k, v in self.trades.viewitems()}
+        self._trades = self._process_trades(self._trades)
     
     def get_pos_change_info(self):
         trades = pd.concat(self.trades.values(), axis=0)
@@ -231,40 +218,61 @@ class BaseAnalyzer(object):
         self.position_change = res
         self.account = account
 
-    @staticmethod
-    def _get_daily(close, trade):
+    def get_daily(self):
+        close = self.closes
+        trade = self.trades
+        
+        # pro-process
         trade_cols = ['fill_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
     
         trade = trade.loc[:, trade_cols]
-        gp = trade.groupby(by='fill_date')
+        gp = trade.groupby(by=['symbol', 'fill_date'])
         func_last = lambda ser: ser.iat[-1]
         trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
                         'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
-        merge = pd.concat([close, trade], axis=1, join='outer')
-    
-        cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
-        cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
-        # merge: pd.DataFrame
-        merge.loc[:, cols_nan_fill] = merge.loc[:, cols_nan_fill].fillna(method='ffill')
-        merge.loc[:, cols_nan_fill] = merge.loc[:, cols_nan_fill].fillna(0)
-    
-        merge.loc[:, cols_nan_to_zero] = merge.loc[:, cols_nan_to_zero].fillna(0)
-    
-        merge.loc[merge.loc[:, 'AvgPosPrice'] < 1e-5, 'AvgPosPrice'] = merge.loc[:, 'close']
-    
-        merge.loc[:, 'CumProfit'] = merge.loc[:, 'CumNetTurnOver'] + merge.loc[:, 'position'] * merge.loc[:, 'close']
-        merge.loc[:, 'CumProfitComm'] = merge['CumProfit'] - merge['commission'].cumsum()
-    
-        daily_net_turnover = merge['CumNetTurnOver'].diff(1).fillna(merge['CumNetTurnOver'].iat[0])
-        daily_position_change = merge['position'].diff(1).fillna(merge['position'].iat[0])
-        merge['trading_pnl'] = (daily_net_turnover + merge['close'] * daily_position_change)
-        merge['holding_pnl'] = (merge['close'].diff(1) * merge['position'].shift(1)).fillna(0.0)
-        merge.loc[:, 'total_pnl'] = merge['trading_pnl'] + merge['holding_pnl']
-    
-        return merge
+        trade.index.names = ['symbol', 'trade_date']
 
+        # get daily position
+        daily_position = trade['position'].unstack('symbol').fillna(method='ffill').fillna(0.0)
+        self.daily_position = daily_position
+        
+        # calculate statistics
+        close = pd.DataFrame(close.T.stack())
+        close.columns = ['close']
+        close.index.names = ['symbol', 'trade_date']
+        merge = pd.concat([close, trade], axis=1, join='outer')
+        
+        def _apply(gp_df):
+            cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
+            cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+            # merge: pd.DataFrame
+            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(method='ffill')
+            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(0)
+    
+            gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
+    
+            gp_df.loc[gp_df.loc[:, 'AvgPosPrice'] < 1e-5, 'AvgPosPrice'] = gp_df.loc[:, 'close']
+    
+            gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
+            gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
+    
+            daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
+            daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
+            gp_df['trading_pnl'] = (daily_net_turnover + gp_df['close'] * daily_position_change)
+            gp_df['holding_pnl'] = (gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
+            gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
+            
+            return gp_df
+
+        gp = merge.groupby(by='symbol')
+        res = gp.apply(_apply)
+        
+        self.daily = res
+
+    '''
     def get_daily(self):
         """Add various statistics to daily DataFrame."""
+        self.daily = self._get_daily(self.closes, self.trades)
         daily_dic = dict()
         for sec, df_trade in self.trades.viewitems():
             df_close = self.closes[sec].rename('close')
@@ -273,17 +281,28 @@ class BaseAnalyzer(object):
             daily_dic[sec] = res
     
         self.daily = daily_dic
+    '''
 
     def get_returns(self, compound_return=True, consider_commission=True):
         cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit']
+        '''
         dic_symbol = {sec: self.inst_map[sec]['multiplier'] * df_daily.loc[:, cols]
                       for sec, df_daily in self.daily.items()}
+                
         df_profit = pd.concat(dic_symbol, axis=1)  # this is cumulative profit
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
         df_pnl = df_profit.stack(level=1)
         df_pnl = df_pnl.sum(axis=1)
         df_pnl = df_pnl.unstack(level=1)
-        self.pnl = df_pnl
+        '''
+        
+        daily = self.daily.loc[:, cols]
+        daily = daily.stack().unstack('symbol')
+        
+        df_pnl = daily.sum(axis=1)
+        df_pnl = df_pnl.unstack(level=1)
+
+        self.df_pnl = df_pnl
     
         # TODO temperary solution
         if consider_commission:
@@ -322,8 +341,8 @@ class BaseAnalyzer(object):
         idx0 = self.returns.index
         idx = range(len(idx0))
         
-        ax0.plot(idx, self.pnl['trading_pnl'], lw=1.5, color='indianred', label='Trading PnL')
-        ax0.plot(idx, self.pnl['holding_pnl'], lw=1.5, color='royalblue', label='Holding PnL')
+        ax0.plot(idx, self.df_pnl['trading_pnl'], lw=1.5, color='indianred', label='Trading PnL')
+        ax0.plot(idx, self.df_pnl['holding_pnl'], lw=1.5, color='royalblue', label='Holding PnL')
         ax0.axhline(0.0, color='k', lw=1, ls='--')
         # ax0.plot(idx, self.pnl['total_pnl'], lw=1.5, color='violet', label='Total PnL')
         ax0.legend(loc='upper left')
@@ -368,11 +387,12 @@ class BaseAnalyzer(object):
         dic['metrics'] = self.metrics
         dic['position_change'] = self.position_change
         dic['account'] = self.account
-        dic['df_daily'] = self.daily
+        dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
+        
         self.returns.to_csv(os.path.join(out_folder, 'returns.csv'))
     
         r = Report(dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
-    
+        
         r.generate_html()
         r.output_html('report.html')
 
@@ -491,6 +511,32 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.returns = df_returns
 
     '''
+
+
+def calc_avg_pos_price(pos_arr, price_arr):
+    """
+    Calculate average cost price using position and fill price.
+    When position = 0, cost price = symbol price.
+    """
+    assert len(pos_arr) == len(price_arr)
+
+    avg_price = np.zeros_like(pos_arr, dtype=float)
+    avg_price[0] = price_arr[0]
+    for i in range(pos_arr.shape[0] - 1):
+        if pos_arr[i+1] == 0:
+            avg_price[i+1] = 0.0
+        else:
+            pos_diff = pos_arr[i+1] - pos_arr[i]
+            if pos_arr[i] == 0 or pos_diff * pos_arr[i] > 0:
+                count = True
+            else:
+                count = False
+        
+            if count:
+                avg_price[i+1] = (avg_price[i] * pos_arr[i] + pos_diff * price_arr[i+1]) * 1. / pos_arr[i+1]
+            else:
+                avg_price[i+1] = avg_price[i]
+    return avg_price
 
 
 def plot_trades(df, symbol="", save_folder="."):
