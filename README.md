@@ -1,4 +1,8 @@
 
+# DataApi
+
+标准数据API定义。
+
 # 安装步骤
 
 1、安装Python环境
@@ -44,5 +48,5 @@ result, msg = api.login("username", "password") # 示例账户，用户需要改
 print result
 print msg
 
-```python
+```
 
