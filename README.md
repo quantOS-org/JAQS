@@ -23,9 +23,7 @@
 	msgpack_python
 	python-snappy
 
-可以通过在dataapi程序目录下，执行 pip install -r requirements.txt 一次完成所有依赖的安装。
-
-也可以通过单个安装完成，例如： pip install pyzmq
+可以通过单个安装完成，例如： pip install pyzmq
 
 需要注意的是，python-snappy和msgpack-python这两个包在Windows上的安装需要比较多的编译依赖,建议从[这个网页](http://www.lfd.uci.edu/~gohlke/pythonlibs)下载编译好的包，然后安装:
 
