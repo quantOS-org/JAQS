@@ -483,7 +483,7 @@ class RemoteDataService(DataService):
         if msg != '0,':
             print msg
         df_io = df_io.set_index('symbol')
-        df_io = df_io.astype({'weight': float})
+        df_io = df_io.astype({'weight': float, 'trade_date': int})
         return df_io
 
     def get_index_weights_daily(self, index, start_date, end_date):
@@ -513,8 +513,10 @@ class RemoteDataService(DataService):
             if td > end_date:
                 break
             df = self.get_index_weights(index, td)
-            symbols_set.update(set(df.index))
-            dic[td] = df['weight']
+            update_date = df['trade_date'].iat[0]
+            if update_date >= start_date and update_date <= end_date:
+                symbols_set.update(set(df.index))
+                dic[td] = df['weight']
             td = jutil.get_next_period_day(td, 'month', 1)
         merge = pd.concat(dic, axis=1).T
         merge = merge.fillna(0.0)  # for those which are not components

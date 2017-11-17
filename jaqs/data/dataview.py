@@ -971,13 +971,17 @@ class DataView(object):
 
         merge_d, merge_q = self._prepare_daily_quarterly([field_name])
     
-        # auto decide whether is quarterly
-        is_quarterly = merge_q is not None
-        if is_quarterly:
-            merge = merge_q
+        if self._is_daily_field(field_name):
+            if self.data_d is None:
+                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+            merge, _ = self._prepare_daily_quarterly([field_name])
+            is_quarterly = False
         else:
-            merge = merge_d
-            
+            if self.data_q is None:
+                raise ValueError("Please prepare [{:s}] first.".format(field_name))
+            _, merge = self._prepare_daily_quarterly([field_name])
+            is_quarterly = True
+        
         merge = merge.loc[:, pd.IndexSlice[:, field_name]]
         merge.columns = merge.columns.droplevel(level=1)
         self.append_df(merge, field_name, is_quarterly=is_quarterly)  # whether contain only trade days is decided by existing data.
