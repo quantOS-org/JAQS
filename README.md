@@ -34,13 +34,13 @@
 
 
 
-3、使用tradeapi
+3、使用TradeApi
 --------
 
-在项目目录，验证tradeapi是否正常使用。
+在项目目录，验证TradeApi是否正常使用。
 
 ```python
-from tradeapi import TradeApi
+import TradeApi
 
 api = TradeApi(addr="tcp://gw.quantos.org:8901")
 result, msg = api.login("username", "password") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
