@@ -7,6 +7,8 @@ Welcome
 -  根据策略模板，编写自己的量化策略
 -  使用回测框架，对策略进行回测和验证
 
+|jaqsflowchart|
+
 查看完整文档，请点击\ `连接 <http://jaqs.readthedocs.io>`__\ 
 
 Dependencies
@@ -83,3 +85,7 @@ License
 =======
 
 Apache 2.0许可协议。版权所有(c)2017 quantOS-org(量化开源会)。
+
+
+
+.. |jaqsflowchart| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/jaqs.png
