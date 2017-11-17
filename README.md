@@ -1,6 +1,6 @@
-# TradeAPI
+# TradeApi
 
-标准交易API定义。
+标准交易API定义
 
 # 安装步骤
 
@@ -47,4 +47,4 @@ result, msg = api.login("username", "password") # 示例账户，用户需要改
 print result
 print msg
 
-```python
+```
