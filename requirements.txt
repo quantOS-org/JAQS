@@ -1,4 +1,4 @@
-pandas >= 0.20.3
+pandas >= 0.20.0
 pytest
 Jinja2
 matplotlib
