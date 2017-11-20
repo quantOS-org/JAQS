@@ -31,6 +31,7 @@ backtest_result_dir_path = jutil.join_relative_path('../output/fama_french')
 
 def test_save_dataview(sub_folder='test_dataview'):
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     props = {'start_date': 20150101, 'end_date': 20170930, 'universe': '000905.SH',

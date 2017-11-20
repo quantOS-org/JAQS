@@ -28,6 +28,7 @@ backtest_result_dir_path = jutil.join_relative_path('../output/select_stocks_pe_
 
 def test_save_dataview():
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     props = {'start_date': 20170101, 'end_date': 20171001, 'universe': '000300.SH',
@@ -105,7 +106,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
     
-    # test_save_dataview()
+    test_save_dataview()
     test_alpha_strategy_dataview()
     test_backtest_analyze()
     
