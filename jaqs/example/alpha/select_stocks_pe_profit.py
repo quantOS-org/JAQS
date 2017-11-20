@@ -22,8 +22,8 @@ from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
 
-dataview_dir_path = jutil.join_relative_path('../output/prepared/test_backtest')
-backtest_result_dir_path = jutil.join_relative_path('../output/select_stocks')
+dataview_dir_path = jutil.join_relative_path('../output/select_stocks_pe_profit/dataview')
+backtest_result_dir_path = jutil.join_relative_path('../output/select_stocks_pe_profit')
 
 
 def test_save_dataview():

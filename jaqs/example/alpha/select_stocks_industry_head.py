@@ -28,8 +28,8 @@ from jaqs.trade import model
 from jaqs.data.dataview import DataView
 
 
-dataview_dir_path = jutil.join_relative_path('../output/prepared/select_stocks2')
-backtest_result_dir_path = jutil.join_relative_path('../output/select_stocks2')
+dataview_dir_path = jutil.join_relative_path('../output/select_stocks_industry_head/dataview')
+backtest_result_dir_path = jutil.join_relative_path('../output/select_stocks_industry_head')
 
 
 def test_save_dataview():
