@@ -1,4 +1,5 @@
 from setuptools import setup, find_packages
+from jaqs import __version__ as ver
 import codecs
 import os
 
@@ -21,7 +22,7 @@ def read_install_requires():
 
 setup(
     name='jaqs',
-    version='0.4.0',
+    version=ver,
     description='Open source quantitative research&trading framework.',
     long_description = readme(),
     install_requires=read_install_requires(),
