@@ -37,10 +37,11 @@ backtest_result_dir_path = jutil.join_relative_path('../output/test_backtest')
 def save_dataview():
     ds = RemoteDataService()
     ds.init_from_config()
+    
     dv = DataView()
     
     props = {'start_date': 20170101, 'end_date': 20171030, 'universe': '000300.SH',
-             'fields': ('open,high,low,close,vwap,volume,turnover,'
+             'fields': ('open,high,low,close,vwap,volume,turnover,sw1,'
                         # + 'pb,net_assets,'
                         + 'eps_basic,total_mv,tot_profit,int_income'
                         ),
@@ -170,7 +171,7 @@ def test_backtest_analyze():
                   out_folder=backtest_result_dir_path,
                   selected=selected_sec)
     
-    ta.brinson()
+    ta.brinson('sw1')
 
 
 if __name__ == "__main__":
