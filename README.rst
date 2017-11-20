@@ -84,8 +84,9 @@ Change Logs
 License
 =======
 
-Apache 2.0许可协议。版权所有(c)2017 quantOS-org(量化开源会)。
+Apache 2.0许可协议。版权所有(c)2017 quantOS-org.
 
 
 
 .. |jaqsflowchart| image:: https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/jaqs.png
+
