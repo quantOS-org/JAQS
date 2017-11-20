@@ -484,6 +484,7 @@ class RemoteDataService(DataService):
             print msg
         df_io = df_io.set_index('symbol')
         df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         return df_io
 
     def get_index_weights_daily(self, index, start_date, end_date):
