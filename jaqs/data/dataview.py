@@ -260,10 +260,6 @@ class DataView(object):
     
         return res
 
-    @property
-    def data_group(self):
-        pass
-    
     # --------------------------------------------------------------------------------------------------------
     # Fields
     def _is_quarter_field(self, field_name):
@@ -401,7 +397,7 @@ class DataView(object):
         data_api : BaseDataServer
         
         """
-        data_api.init_from_config(props)
+        # data_api.init_from_config(props)
         self.data_api = data_api
     
         sep = ','
