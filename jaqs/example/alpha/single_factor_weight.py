@@ -23,7 +23,7 @@ from jaqs.trade.tradegateway import AlphaTradeApi
 from jaqs.trade import model
 from jaqs.data.dataview import DataView
 
-dataview_dir_path = jutil.join_relative_path('../output/prepared/single_factor_weight')
+dataview_dir_path = jutil.join_relative_path('../output/single_factor_weight/dataview')
 backtest_result_dir_path = jutil.join_relative_path('../output/single_factor_weight')
 
 
