@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from jaqs.data.dataservice import RemoteDataService
 from jaqs.data.dataview import DataView
 import jaqs.util as jutil
 
@@ -8,9 +9,8 @@ quarterly_path = jutil.join_relative_path('../output/tests/test_dataview_q')
 
 
 def test_write():
-    from jaqs.data.dataservice import RemoteDataService
-    
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     secs = '600030.SH,000063.SZ,000001.SZ'
@@ -33,9 +33,8 @@ def test_write():
 
 
 def test_write_future():
-    from jaqs.data.dataservice import RemoteDataService
-    
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     secs = 'rb1710.SHF,j1710.DCE'
@@ -73,16 +72,15 @@ def test_add_field():
     nrows, ncols = dv.data_d.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
-    from jaqs.data.dataservice import RemoteDataService
     ds = RemoteDataService()
+    ds.init_from_config()
     dv.add_field('total_share', ds)
     assert dv.data_d.shape == (nrows, ncols + 1 * n_securities)
 
 
 def test_add_formula_directly():
-    from jaqs.data.dataservice import RemoteDataService
-    
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     secs = '600030.SH,000063.SZ,000001.SZ'
@@ -112,9 +110,8 @@ def test_add_formula():
 
 
 def test_dataview_universe():
-    from jaqs.data.dataservice import RemoteDataService
-
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     props = {'start_date': 20170227, 'end_date': 20170327, 'universe': '000016.SH',
@@ -131,9 +128,8 @@ def test_dataview_universe():
 
 # quarterly
 def test_q():
-    from jaqs.data.dataservice import RemoteDataService
-    
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
     
     secs = '600030.SH,000063.SZ,000001.SZ'
@@ -163,8 +159,8 @@ def test_q_add_field():
     nrows, ncols = dv.data_q.shape
     n_securities = len(dv.data_d.columns.levels[0])
     
-    from jaqs.data.dataservice import RemoteDataService
     ds = RemoteDataService()
+    ds.init_from_config()
     dv.add_field('net_inc_other_ops', ds)
     """
     dv.add_field('oper_rev', ds)

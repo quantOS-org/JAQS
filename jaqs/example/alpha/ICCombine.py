@@ -42,6 +42,7 @@ custom_data_path = fileio.join_relative_path('../output/ICCombine', 'custom_date
 
 def save_dataview():
     ds = RemoteDataService()
+    ds.init_from_config()
     dv = DataView()
 
     props = {'start_date': 20150101, 'end_date': 20170930, 'universe': '000905.SH',
