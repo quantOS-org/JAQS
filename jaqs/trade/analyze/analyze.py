@@ -59,6 +59,8 @@ class BaseAnalyzer(object):
         
         self.metrics = dict()
         
+        self.report_dic = dict()
+        
     @property
     def trades(self):
         """Read-only attribute"""
@@ -392,9 +394,11 @@ class BaseAnalyzer(object):
         dic['account'] = self.account
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
         
+        self.report_dic.update(dic)
+        
         self.returns.to_csv(os.path.join(out_folder, 'returns.csv'))
     
-        r = Report(dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
+        r = Report(self.report_dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
         
         r.generate_html()
         r.output_html('report.html')
@@ -514,6 +518,139 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.returns = df_returns
 
     '''
+    
+    def _get_index_weight(self):
+        if self.dataview is not None:
+            res = self.dataview.get_ts('index_weight', start_date=self.start_date, end_date=self.end_date)
+        else:
+            res = self.data_api.get_index_weights_daily(self.universe, self.start_date, self.end_date)
+        return res
+    
+    def _brinson(self, close, pos, index_weight, group):
+        """
+        Brinson Attribution.
+        
+        Parameters
+        ----------
+        close : pd.DataFrame
+            Index is date, columns are symbols.
+        pos : pd.DataFrame
+            Index is date, columns are symbols.
+        index_weight : pd.DataFrame
+            Index is date, columns are symbols.
+        group : pd.DataFrame
+            Index is date, columns are symbols.
+
+        Returns
+        -------
+        dict
+
+        """
+        def group_sum(df, group_daily):
+            groups = np.unique(group_daily.values.flatten())
+            mask = np.isnan(groups.astype(float))
+            groups = groups[np.logical_not(mask)]
+            res = pd.DataFrame(index=df.index, columns=groups, data=np.nan)
+            for g in groups:
+                mask = group_daily == g
+                tmp = df[mask]
+                res.loc[:, g] = tmp.sum(axis=1)
+            return res
+    
+        pf_weight = pos.div(pos.sum(axis=1), axis=0)
+
+        ret = close.pct_change(1)
+        weighted_ret_pf = ret.mul(pf_weight)
+        weighted_ret_index = ret.mul(index_weight)
+    
+        index_group_weight = group_sum(index_weight, group)
+        pf_group_weight = group_sum(pf_weight, group)
+    
+        pf_group_ret = group_sum(weighted_ret_pf, group)
+        index_group_ret = group_sum(weighted_ret_index, group)
+    
+        allo_ret_group = (pf_group_weight - index_group_weight).mul(index_group_ret)
+        allo_ret = allo_ret_group.sum(axis=1)
+    
+        selection_ret_group = (pf_group_ret - index_group_ret).mul(index_group_weight)
+        selection_ret = selection_ret_group.sum(axis=1)
+    
+        active_ret = (pf_group_ret.sum(axis=1) - index_group_ret.sum(axis=1))
+        inter_ret = active_ret - selection_ret - allo_ret
+    
+        df_brinson = pd.DataFrame(index=allo_ret.index,
+                                  data={'allocation': allo_ret,
+                                        'selection': selection_ret,
+                                        'interaction': inter_ret,
+                                        'total_active': active_ret})
+        
+        
+        return {'df_brinson': df_brinson, 'allocation': allo_ret_group, 'selection': selection_ret_group}
+    
+    def brinson(self, group):
+        """
+        
+        Parameters
+        ----------
+        group : str or pd.DataFrame
+            If group is string, this function will try to fetch the corresponding DataFrame from DataView.
+            If group is pd.DataFrame, it will be used as-is.
+
+        Returns
+        -------
+
+        """
+        if isinstance(group, (str, unicode)):
+            group = self.dataview.get_ts(group, start_date=self.start_date, end_date=self.end_date)
+        elif isinstance(group, pd.DataFrame):
+            pass
+        else:
+            raise ValueError("Group must be string or DataFrame. But {} is provided.".format(group))
+        
+        if group is None or group.empty:
+            raise ValueError("group is None or group is empty")
+        
+        close = self.closes
+        pos = self.daily_position
+        index_weight = self._get_index_weight()
+        
+        res_dic = self._brinson(close, pos, index_weight, group)
+        
+        df_brinson = res_dic['df_brinson']
+        self.report_dic['df_brinson'] = df_brinson
+        # self._plot_brinson(df_brinson, save_folder=)
+    
+    def _plot_brinson(self, df, save_folder='.'):
+        """
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+
+        """
+        allo, selec, inter, total = df['allocation'], df['selection'], df['interaction'], df['total_active']
+        fig, ax1 = plt.subplots(1, 1, figsize=(21, 8), dpi=300)
+        
+        idx0 = df.index
+        idx = range(len(idx0))
+    
+        ax1.plot(idx, selec, lw=1.5, color='indianred', label='Selection Return')
+        ax1.plot(idx, allo, lw=1.5, color='royalblue', label='Allocation Return')
+        ax1.plot(idx, inter, lw=1.5, color='purple', label='Interaction Return')
+        ax1.plot(idx, total, lw=1.5, ls='--', color='k', label='Total Active Return')
+        
+        ax1.axhline(0.0, color='k', lw=1, ls='--')
+        
+        ax1.legend(loc='upper left')
+        ax1.set_xlabel("Date")
+        ax1.set_ylabel("Return")
+        ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
+    
+        plt.tight_layout()
+        fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
+        plt.close()
+        
+    
 
 
 def calc_avg_pos_price(pos_arr, price_arr):

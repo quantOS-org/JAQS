@@ -260,6 +260,10 @@ class DataView(object):
     
         return res
 
+    @property
+    def data_group(self):
+        pass
+    
     # --------------------------------------------------------------------------------------------------------
     # Fields
     def _is_quarter_field(self, field_name):

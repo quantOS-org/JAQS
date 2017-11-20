@@ -169,12 +169,14 @@ def test_backtest_analyze():
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
                   out_folder=backtest_result_dir_path,
                   selected=selected_sec)
+    
+    ta.brinson()
 
 
 if __name__ == "__main__":
     t_start = time.time()
     
-    test_alpha_strategy_dataview()
+    # test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start

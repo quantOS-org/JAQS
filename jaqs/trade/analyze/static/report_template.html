@@ -41,6 +41,13 @@
 {% endfor %}
 </table>
 
+{% if df_brinson is not none %}
+<h2>Brinson Attribution</h2>
+
+<img src="brinson_attribution.png">
+
+{% endif %}
+
 {% if position_change is not none %}
 <h2>Position Changes</h2>
 {% for date, df in position_change.items() %}
