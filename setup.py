@@ -12,23 +12,19 @@ def readme():
         return f.read()
 
 
+def read_install_requires():
+    with open('requirements.txt', 'r') as f:
+        res = f.readlines()
+    res = list(map(lambda s: s.replace('\n', ''), res))
+    return res
+
+
 setup(
     name='jaqs',
     version='0.4.0',
     description='Open source quantitative research&trading framework.',
     long_description = readme(),
-    install_requires=[
-						'pytest',
-						'Jinja2',
-						'matplotlib',
-						'msgpack_python',
-						'nose_parameterized',
-						'seaborn',
-						'six',
-						'xarray',
-						'pyzmq',
-						'python-snappy',
-    ],
+    install_requires=read_install_requires(),
     license='Apache 2',
     classifiers=[
     'Programming Language :: Python :: 2.7',
