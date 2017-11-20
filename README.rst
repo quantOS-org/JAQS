@@ -48,7 +48,7 @@ git clone https://github.com/quantOS-org/jaqs.git
 ，进入到源文件目录，执行安装命令：
 
 $ python setup.py install
-或者通过pypi地址\ https://pypi.python.org/jaqs
+或者通过pypi地址\ https://pypi.python.org/pypi/jaqs
 下载,并执行上面安装命令。
 
 3、代码升级
@@ -71,13 +71,6 @@ Questions?
 
 如果您发现任何问题，请到 \ `这里 <https://github.com/quantOSorg/jaqs/issues/new>`__\ 提交。
 
-Change Logs
-===========
-
-0.2.0 2017/10/16
-----------------
-
-1、发布第一个版本
 
 License
 =======
