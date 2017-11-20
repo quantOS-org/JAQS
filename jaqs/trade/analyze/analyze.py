@@ -233,7 +233,9 @@ class BaseAnalyzer(object):
         trade.index.names = ['symbol', 'trade_date']
 
         # get daily position
-        daily_position = trade['position'].unstack('symbol').fillna(method='ffill').fillna(0.0)
+        df_position = trade['position'].unstack('symbol').fillna(method='ffill').fillna(0.0)
+        daily_position = df_position.reindex(close.index)
+        daily_position = daily_position.fillna(method='ffill').fillna(0)
         self.daily_position = daily_position
         
         # calculate statistics
