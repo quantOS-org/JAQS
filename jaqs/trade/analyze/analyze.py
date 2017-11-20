@@ -251,7 +251,8 @@ class BaseAnalyzer(object):
     
             gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
     
-            gp_df.loc[gp_df.loc[:, 'AvgPosPrice'] < 1e-5, 'AvgPosPrice'] = gp_df.loc[:, 'close']
+            mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
+            gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
     
             gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
             gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
