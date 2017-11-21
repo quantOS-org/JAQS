@@ -16,13 +16,13 @@ import time
 import pandas as pd
 
 import jaqs.trade.analyze.analyze as ana
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.data.dataview import DataView
+from jaqs.data import RemoteDataService
+from jaqs.data import DataView
 from jaqs.trade import model
-from jaqs.trade.portfoliomanager import PortfolioManager
-from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.tradegateway import AlphaTradeApi
-from jaqs.trade.strategy import AlphaStrategy
+from jaqs.trade import PortfolioManager
+from jaqs.trade import AlphaBacktestInstance
+from jaqs.trade import AlphaTradeApi
+from jaqs.trade import AlphaStrategy
 import jaqs.util as jutil
 
 dataview_dir_path = jutil.join_relative_path('../output/fama_french/dataview')
@@ -82,7 +82,6 @@ def test_alpha_strategy_dataview():
     }
     
     trade_api = AlphaTradeApi()
-    trade_api.init_from_config(props)
     
     stock_selector = model.StockSelector()
     stock_selector.add_filter(name='myselector', func=my_selector)

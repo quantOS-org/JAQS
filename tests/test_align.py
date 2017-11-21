@@ -1,8 +1,8 @@
 # encoding: utf-8
 import pandas as pd
-from jaqs.data.dataservice import RemoteDataService
+from jaqs.data import RemoteDataService
 
-from jaqs.data.py_expression_eval import Parser
+from jaqs.data import Parser
 
 
 def test_align():

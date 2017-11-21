@@ -1,7 +1,7 @@
 # encoding: utf-8
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.data.dataview import DataView
+from jaqs.data import RemoteDataService
+from jaqs.data import DataView
 import jaqs.util as jutil
 
 daily_path = jutil.join_relative_path('../output/tests/test_dataview_d')

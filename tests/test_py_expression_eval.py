@@ -3,9 +3,9 @@
 import pandas as pd
 import numpy as np
 import pytest
-from jaqs.data.dataservice import RemoteDataService
+from jaqs.data import RemoteDataService
 
-from jaqs.data.py_expression_eval import Parser
+from jaqs.data import Parser
 
 
 def test_group_rank():

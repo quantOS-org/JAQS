@@ -1,13 +1,15 @@
+# encoding: utf-8
+
 import datetime as dt
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from jaqs.data.basic.instrument import InstManager
-from jaqs.trade.backtest import common
-from jaqs.data.basic.trade import Trade
-from jaqs.data.dataservice import Calendar
+from jaqs.data.basic import InstManager
+from jaqs.trade import common
+from jaqs.data.basic import Trade
+from jaqs.data import Calendar
 
 
 # %matplotlib inline
@@ -364,7 +366,7 @@ if __name__ == '__main__':
     props['symbol'] = '600030.SH'
     pnlmgr = PnlManager()
     
-    from jaqs.data.dataservice import RemoteDataService
+    from jaqs.data import RemoteDataService
     ds = RemoteDataService()
     pnlmgr.initFromConfig(props, ds)
     trades = []

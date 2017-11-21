@@ -3,8 +3,9 @@ import json
 import os
 import errno
 import cPickle as pickle
+import codecs
 
-from jaqs import SOURCE_ROOT_DIR
+from .. import SOURCE_ROOT_DIR
 
 
 def create_dir(filename):
@@ -40,7 +41,7 @@ def read_json(fp):
     """
     content = None
     try:
-        with open(fp, 'r') as f:
+        with codecs.open(fp, 'r', encoding='utf-8') as f:
             content = json.load(f)
     except IOError as e:
         if e.errno not in (errno.ENOENT, errno.EISDIR, errno.EINVAL):
@@ -61,7 +62,7 @@ def save_json(serializable, file_name):
     fn = os.path.abspath(file_name)
     create_dir(fn)
     
-    with open(fn, 'w') as f:
+    with codecs.open(fn, 'w', encoding='utf-8') as f:
         json.dump(serializable, f)
 
 
@@ -81,7 +82,7 @@ def load_pickle(fp):
     """
     content = None
     try:
-        with open(fp, 'r') as f:
+        with open(fp, 'rb') as f:
             content = pickle.load(f)
     except IOError as e:
         if e.errno not in (errno.ENOENT, errno.EISDIR, errno.EINVAL):
@@ -102,7 +103,7 @@ def save_pickle(obj, file_name):
     fn = os.path.abspath(file_name)
     create_dir(fn)
 
-    with open(fn, 'w') as f:
+    with open(fn, 'wb') as f:
         pickle.dump(obj, f)
 
 

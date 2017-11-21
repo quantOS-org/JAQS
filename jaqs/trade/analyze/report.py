@@ -1,7 +1,10 @@
 # encoding: utf-8
 
 import os
+import codecs
+
 import jinja2
+
 import jaqs.util as jutil
 # from weasyprint import HTML
 
@@ -47,7 +50,7 @@ class Report(object):
         path = os.path.abspath(os.path.join(self.out_folder, fn))
         
         jutil.create_dir(path)
-        with open(path, 'w') as f:
+        with codecs.open(path, 'w', encoding='utf-8') as f:
             f.write(self.html)
 
         print "HTML report: {:s}".format(path)

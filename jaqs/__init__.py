@@ -1,7 +1,16 @@
 # encoding: utf-8
+"""
+    JAQS
+    ~~~~
+    
+    Open source quantitative research&trading framework.
+    
+    copyright: (c) 2017 quantOS-org.
+    license: Apache 2.0, see LICENSE for details.
+"""
+
 import os
 
 
-SOURCE_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-
 __version__ = '0.4.5'
+SOURCE_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))

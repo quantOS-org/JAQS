@@ -2,7 +2,6 @@
 
 import numpy as np
 import pandas as pd
-from jaqs.data.dataservice import Calendar
 import jaqs.util as jutil
 
 
@@ -28,7 +27,7 @@ class Context(object):
         Broker of the strategy.
     universe : list of str
         Securities that the strategy cares about.
-    calendar : Calendar
+    _calendar : Calendar
         A certain calendar that the strategy refers to.
     snapshot : pd.DataFrame
         Current snapshot of data.
@@ -80,6 +79,7 @@ class Context(object):
             
     @property
     def calendar(self):
+        from jaqs.data import Calendar
         if self.data_api is not None:
             return self.data_api.calendar
         elif self._calendar is not None:
@@ -88,7 +88,6 @@ class Context(object):
             self._calendar = Calendar()
             return self._calendar
         
-    
     @property
     def data_api(self):
         return self._data_api

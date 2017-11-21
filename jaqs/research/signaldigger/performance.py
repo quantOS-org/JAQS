@@ -40,6 +40,18 @@ def calc_signal_ic(signal_data):
     return ic
 
 
+def calc_ic_stats_table(ic_data):
+    ic_summary_table = pd.DataFrame()
+    ic_summary_table["IC Mean"] = ic_data.mean()
+    ic_summary_table["IC Std."] = ic_data.std()
+    t_stat, p_value = scst.ttest_1samp(ic_data, 0)
+    ic_summary_table["t-stat(IC)"] = t_stat
+    ic_summary_table["p-value(IC)"] = p_value
+    ic_summary_table["IC Skew"] = scst.skew(ic_data)
+    ic_summary_table["IC Kurtosis"] = scst.kurtosis(ic_data)
+    ic_summary_table["Ann. IR"] = ic_data.mean() / ic_data.std()
+
+
 def mean_information_coefficient(ic, by_time=None):
     """
     Get the mean information coefficient of specified groups.

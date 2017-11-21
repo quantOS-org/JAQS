@@ -1,7 +1,5 @@
 # encoding: UTF-8
 
-from jaqs.data.dataservice import RemoteDataService
-
 
 class Instrument(object):
     def __init__(self):
@@ -24,6 +22,8 @@ class Instrument(object):
 
 class InstManager(object):
     def __init__(self, inst_type="", symbol="", data_api=None):
+        from jaqs.data import RemoteDataService
+        
         if data_api is None:
             self.data_api = RemoteDataService()
             self.data_api.init_from_config()

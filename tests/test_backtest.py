@@ -19,16 +19,16 @@ suspensions and limit reachers:
 """
 import time
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.trade.strategy import AlphaStrategy
+from jaqs.data import RemoteDataService
+from jaqs.trade import AlphaStrategy
 
 import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
-from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.portfoliomanager import PortfolioManager
-from jaqs.trade.tradegateway import AlphaTradeApi
+from jaqs.trade import AlphaBacktestInstance
+from jaqs.trade import PortfolioManager
+from jaqs.trade import AlphaTradeApi
 from jaqs.trade import model
-from jaqs.data.dataview import DataView
+from jaqs.data import DataView
 
 dataview_dir_path = jutil.join_relative_path('../output/prepared/test_backtest')
 backtest_result_dir_path = jutil.join_relative_path('../output/test_backtest')
@@ -177,7 +177,7 @@ def test_backtest_analyze():
 if __name__ == "__main__":
     t_start = time.time()
     
-    # test_alpha_strategy_dataview()
+    test_alpha_strategy_dataview()
     test_backtest_analyze()
     
     t3 = time.time() - t_start

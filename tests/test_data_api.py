@@ -1,7 +1,7 @@
 # encoding: UTF-8
 
 import jaqs.util as jutil
-from jaqs.data.dataapi import DataApi
+from jaqs.data import DataApi
 from jaqs.trade import common
 
 

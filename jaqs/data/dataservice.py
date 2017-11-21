@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from jaqs.trade.event import EVENT_TYPE, Event
-from jaqs.data.dataapi import DataApi
+from jaqs.data import DataApi
 from jaqs.data import align
 import jaqs.util as jutil
 
@@ -291,7 +291,7 @@ class RemoteDataService(DataService):
         else:
             print "    login success \n"
         
-        self.calendar = Calendar(self.data_api)
+        self.calendar = Calendar(self)
 
     # -----------------------------------------------------------------------------------
     # Basic APIs
@@ -514,10 +514,11 @@ class RemoteDataService(DataService):
             if td > end_date:
                 break
             df = self.get_index_weights(index, td)
-            update_date = df['trade_date'].iat[0]
-            if update_date >= start_date and update_date <= end_date:
-                symbols_set.update(set(df.index))
-                dic[td] = df['weight']
+            # update_date = df['trade_date'].iat[0]
+            # if update_date >= start_date and update_date <= end_date:
+            symbols_set.update(set(df.index))
+            dic[td] = df['weight']
+            
             td = jutil.get_next_period_day(td, 'month', 1)
         merge = pd.concat(dic, axis=1).T
         merge = merge.fillna(0.0)  # for those which are not components
@@ -844,6 +845,7 @@ class Calendar(object):
     """
     
     def __init__(self, data_api=None):
+        '''
         if data_api is not None:
             self.data_api = data_api
         else:
@@ -863,6 +865,13 @@ class Calendar(object):
                 print("DataAPI login failed: msg = '{}".format(msg))
             else:
                 print "DataAPI login success : {}@{}".format(username, address)
+        '''
+        if data_api is None:
+            ds = RemoteDataService()
+            ds.init_from_config()
+            self.data_api = ds
+        else:
+            self.data_api = data_api
     
     @staticmethod
     def _dic2url(d):

@@ -3,30 +3,8 @@
 import copy
 from collections import defaultdict
 
-from jaqs.data.basic import OrderStatusInd, Trade, Task
-from jaqs.data.basic.order import *
-from jaqs.data.basic.position import Position
-
-
-class TradeStat(object):
-    def __init__(self, symbol=""):
-        self.symbol = symbol
-        self.buy_filled_size = 0
-        self.buy_want_size = 0
-        self.sell_filled_size = 0
-        self.sell_want_size = 0
-        
-    def __repr__(self):
-        return ("        Want Size      Filled Size  \n"
-                "====================================\n"
-                "Buy     {0:8.0f}         {1:8.0f}   \n"
-                "------------------------------------\n"
-                "Sell    {2:8.0f}         {3:8.0f}   \n"
-                "".format(self.buy_want_size, self.buy_filled_size,
-                          self.sell_want_size, self.sell_filled_size))
-    
-    def __str__(self):
-        return self.__repr__()
+from jaqs.data.basic import OrderStatusInd, Trade, Task, Order, Position, TradeStat
+from jaqs.trade import common
 
 
 class PortfolioManager(object):
@@ -599,15 +577,13 @@ class PortfolioManager(object):
     # ----------------------------------------------------------------------------
     # For Alpha Strategy
     
-    def market_value(self, ref_date, ref_prices, suspensions=None):
+    def market_value(self, ref_prices, suspensions=None):
         """
         Calculate total market value according to all current positions.
         NOTE for now this func only support stocks.
 
         Parameters
         ----------
-        ref_date : int
-            The date we refer to to get symbol position.
         ref_prices : dict of {symbol: price}
             The prices we refer to to get symbol price.
         suspensions : list of securities

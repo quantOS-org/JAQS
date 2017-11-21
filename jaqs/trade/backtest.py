@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 
 from jaqs.trade import common
-from jaqs.data.basic.marketdata import Bar
-from jaqs.data.basic.trade import Trade
+from jaqs.data.basic import Bar
+from jaqs.data.basic import Trade
 import jaqs.util as jutil
 
 
@@ -253,7 +253,7 @@ class AlphaBacktestInstance(BacktestInstance):
             if value_dic is None:
                 continue
             pos = pm.get_position(symbol).current_size
-            last_trade_date = self.ctx.calendar.get_last_trade_date(value_dic['delist_date'])
+            last_trade_date = self._get_last_trade_date(value_dic['delist_date'])
             last_close_price = self.ctx.dataview.get_snapshot(last_trade_date, symbol=symbol, fields='close')
             last_close_price = last_close_price.at[symbol, 'close']
             
@@ -317,7 +317,7 @@ class AlphaBacktestInstance(BacktestInstance):
     
         # step2. calculate market value and cash
         # market value does not include those suspended
-        market_value_float, market_value_frozen = self.ctx.pm.market_value(self.ctx.trade_date, prices, all_list)
+        market_value_float, market_value_frozen = self.ctx.pm.market_value(prices, all_list)
         cash_available = self.ctx.strategy.cash + market_value_float
     
         cash_to_use = cash_available * self.ctx.strategy.position_ratio
@@ -336,12 +336,9 @@ class AlphaBacktestInstance(BacktestInstance):
     def run_alpha(self):
         tapi = self.ctx.trade_api
         
-        self.ctx.trade_date = self.start_date
+        self.ctx.trade_date = self._get_next_trade_date(self.start_date)
+        self.last_date = self._get_last_trade_date(self.ctx.trade_date)
         while True:
-            # switch trade date
-            self.go_next_rebalance_day()
-            if self.ctx.trade_date > self.end_date:
-                break
             print "\n=======new day {}".format(self.ctx.trade_date)
 
             # match uncome orders or re-balance
@@ -374,6 +371,11 @@ class AlphaBacktestInstance(BacktestInstance):
                 self.ctx.strategy.cash -= trade_ind.commission
                 
             self.on_after_market_close()
+            
+            # switch trade date
+            backtest_finish = self.go_next_rebalance_day()
+            if backtest_finish:
+                break
         
         print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
                                                                          len(self.ctx.pm.trades))
@@ -390,20 +392,53 @@ class AlphaBacktestInstance(BacktestInstance):
     
     '''
     def _is_trade_date(self, date):
-        return date in self.ctx.dataview.dates
+        if self.ctx.dataview is not None:
+            return date in self.ctx.dataview.dates
+        else:
+            return self.ctx.calendar.is_trade_date(date)
+    
+    def _get_next_trade_date(self, date):
+        if self.ctx.dataview is not None:
+            dates = self.ctx.dataview.dates
+            mask = dates > date
+            return dates[mask][0]
+        else:
+            return self.ctx.calendar.get_next_trade_date(date)
+    
+    def _get_last_trade_date(self, date):
+        if self.ctx.dataview is not None:
+            dates = self.ctx.dataview.dates
+            mask = dates < date
+            return dates[mask][-1]
+        else:
+            return self.ctx.calendar.get_last_trade_date(date)
     
     def go_next_rebalance_day(self):
-        """update self.ctx.trade_date and last_date."""
+        """
+        update self.ctx.trade_date and last_date.
+        
+        Returns
+        -------
+        bool
+            Whether the backtest is finished.
+
+        """
         current_date = self.ctx.trade_date
         if self.ctx.trade_api.match_finished:
             next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
-                                                         n=self.ctx.strategy.n_periods,
-                                                         extra_offset=self.ctx.strategy.days_delay)
+                                                        n=self.ctx.strategy.n_periods,
+                                                        extra_offset=self.ctx.strategy.days_delay)
+            if next_period_day > self.end_date:
+                return True
+            
             # update current_date: next_period_day is a workday, but not necessarily a trade date
-            if self.ctx.calendar.is_trade_date(next_period_day):
+            if self._is_trade_date(next_period_day):
                 current_date = next_period_day
             else:
-                current_date = self.ctx.calendar.get_next_trade_date(next_period_day)
+                try:
+                    current_date = self._get_next_trade_date(next_period_day)
+                except IndexError:
+                    return True
         
             # update re-balance date
             if self.current_rebalance_date > 0:
@@ -413,10 +448,14 @@ class AlphaBacktestInstance(BacktestInstance):
             self.current_rebalance_date = current_date
         else:
             # TODO here we must make sure the matching will not last to next period
-            current_date = self.ctx.calendar.get_next_trade_date(current_date)
+            try:
+                current_date = self._get_next_trade_date(current_date)
+            except IndexError:
+                return True
     
         self.ctx.trade_date = current_date
-        self.last_date = self.ctx.calendar.get_last_trade_date(current_date)
+        self.last_date = self._get_last_trade_date(current_date)
+        return False
     
     def get_suspensions(self):
         trade_status = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='trade_status')
@@ -479,7 +518,7 @@ class AlphaBacktestInstance(BacktestInstance):
         pm = self.ctx.pm
         
         prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
-        market_value_float, market_value_frozen = pm.market_value(self.ctx.trade_date, prices)
+        market_value_float, market_value_frozen = pm.market_value(prices)
         for symbol in pm.holding_securities:
             p = prices[symbol]
             size = pm.get_position(symbol).current_size

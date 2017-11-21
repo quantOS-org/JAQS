@@ -97,3 +97,24 @@ class TaskInd(object):
 
     def __str__(self):
         return self.__repr__()
+
+
+class TradeStat(object):
+    def __init__(self, symbol=""):
+        self.symbol = symbol
+        self.buy_filled_size = 0
+        self.buy_want_size = 0
+        self.sell_filled_size = 0
+        self.sell_want_size = 0
+    
+    def __repr__(self):
+        return ("        Want Size      Filled Size  \n"
+                "====================================\n"
+                "Buy     {0:8.0f}         {1:8.0f}   \n"
+                "------------------------------------\n"
+                "Sell    {2:8.0f}         {3:8.0f}   \n"
+                "".format(self.buy_want_size, self.buy_filled_size,
+                          self.sell_want_size, self.sell_filled_size))
+    
+    def __str__(self):
+        return self.__repr__()

@@ -5,13 +5,13 @@ import time
 import numpy as np
 
 from jaqs.trade import common
-from jaqs.trade.strategy import EventDrivenStrategy
-from jaqs.data.dataservice import RemoteDataService
+from jaqs.trade import EventDrivenStrategy
+from jaqs.data import RemoteDataService
 from jaqs.trade import model
-from jaqs.trade.realtime import EventRealTimeInstance
-from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.tradegateway import RealTimeTradeApi, BacktestTradeApi
-from jaqs.trade.portfoliomanager import PortfolioManager
+from jaqs.trade import EventRealTimeInstance
+from jaqs.trade import EventBacktestInstance
+from jaqs.trade import RealTimeTradeApi, BacktestTradeApi
+from jaqs.trade import PortfolioManager
 import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 

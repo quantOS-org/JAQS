@@ -3,13 +3,13 @@
 import numpy as np
 import statsmodels.api as sm
 
-from jaqs.trade.strategy import EventDrivenStrategy
+from jaqs.trade import EventDrivenStrategy
 from jaqs.trade import common, model
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.tradegateway import BacktestTradeApi
-from jaqs.trade.portfoliomanager import PortfolioManager
+from jaqs.data import RemoteDataService
+from jaqs.trade import EventBacktestInstance
+from jaqs.trade import BacktestTradeApi
+from jaqs.trade import PortfolioManager
 import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 
@@ -39,7 +39,7 @@ class CalendarSpread(EventDrivenStrategy):
         self.s1, self.s2  = self.symbol.split(',')
         self.spreadList = np.zeros(self.bufferSize)
         
-        self.output = True
+        self.output = False
 
     def on_cycle(self):
         pass
@@ -92,10 +92,11 @@ class CalendarSpread(EventDrivenStrategy):
                 self.long_spread(q1, q2)
                 
     def on_trade(self, ind):
-        print "\nStrategy on trade: "
-        print(ind)
+        if self.output:
+            print "\nStrategy on trade: "
+            print(ind)
+            print(self.ctx.pm.get_trade_stat(ind.symbol))
         self.pos = self.ctx.pm.get_pos(ind.symbol)
-        print(self.ctx.pm.get_trade_stat(ind.symbol))
 
     def on_order_status(self, ind):
         if self.output:

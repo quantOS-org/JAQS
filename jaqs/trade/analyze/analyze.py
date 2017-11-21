@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
 from jaqs.trade.analyze.report import Report
-from jaqs.data.dataservice import RemoteDataService
+from jaqs.data import RemoteDataService
 from jaqs.data.basic.instrument import InstManager
 import jaqs.util as jutil
 
@@ -126,6 +126,7 @@ class BaseAnalyzer(object):
         elif self.data_api is not None:
             inst_mgr = InstManager(symbol=symbol_str, data_api=self.data_api)
             self.inst_map = {k: v.__dict__ for k, v in inst_mgr.inst_map.items()}
+            del inst_mgr
         else:
             raise ValueError("no dataview or dataapi provided.")
         
@@ -155,7 +156,9 @@ class BaseAnalyzer(object):
         self._universe = set(securities)
     
     def _init_configs(self, folder):
-        configs = json.load(open(os.path.join(folder, 'configs.json'), 'r'))
+        import codecs
+        with codecs.open(os.path.join(folder, 'configs.json'), 'r', encoding='utf-8') as f:
+            configs = json.load(f)
         self._configs = configs
         self.init_balance = self.configs['init_balance']
         self.start_date = self.configs['start_date']

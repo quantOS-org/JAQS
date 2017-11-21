@@ -1,6 +1,6 @@
 import numpy as np
 
-from jaqs.trade.strategy import EventDrivenStrategy
+from jaqs.trade import EventDrivenStrategy
 from jaqs.trade import common
 
 

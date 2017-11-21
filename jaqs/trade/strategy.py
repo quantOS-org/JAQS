@@ -6,7 +6,7 @@ from six import with_metaclass
 
 import numpy as np
 
-from jaqs.data.basic.position import GoalPosition
+from jaqs.data.basic import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
 # import jaqs.util as jutil
 

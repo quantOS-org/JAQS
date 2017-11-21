@@ -12,3 +12,4 @@ from marketdata import *
 from order import *
 from trade import *
 from position import *
+from instrument import *

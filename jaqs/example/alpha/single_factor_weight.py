@@ -12,16 +12,16 @@ end_date   20171001
 """
 import time
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.portfoliomanager import PortfolioManager
+from jaqs.data import RemoteDataService
+from jaqs.trade import AlphaBacktestInstance
+from jaqs.trade import PortfolioManager
 
 import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
-from jaqs.trade.strategy import AlphaStrategy
-from jaqs.trade.tradegateway import AlphaTradeApi
+from jaqs.trade import AlphaStrategy
+from jaqs.trade import AlphaTradeApi
 from jaqs.trade import model
-from jaqs.data.dataview import DataView
+from jaqs.data import DataView
 
 dataview_dir_path = jutil.join_relative_path('../output/single_factor_weight/dataview')
 backtest_result_dir_path = jutil.join_relative_path('../output/single_factor_weight')

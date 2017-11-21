@@ -1182,7 +1182,7 @@ class DataView(object):
         sep = ','
     
         if not fields:
-            fields = self.fields
+            fields = slice(None)  # self.fields
         else:
             fields = fields.split(sep)
     

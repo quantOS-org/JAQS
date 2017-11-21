@@ -3,13 +3,13 @@
 import numpy as np
 import statsmodels.api as sm
 
-from jaqs.trade.strategy import EventDrivenStrategy
+from jaqs.trade import EventDrivenStrategy
 from jaqs.trade import common, model
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.trade.backtest import EventBacktestInstance
-from jaqs.trade.tradegateway import BacktestTradeApi
-from jaqs.trade.portfoliomanager import PortfolioManager
+from jaqs.data import RemoteDataService
+from jaqs.trade import EventBacktestInstance
+from jaqs.trade import BacktestTradeApi
+from jaqs.trade import PortfolioManager
 import jaqs.util as jutil
 import jaqs.trade.analyze.analyze as ana
 

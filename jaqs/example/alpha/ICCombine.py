@@ -24,20 +24,20 @@ import pandas as pd
 import scipy.stats as stats
 import jaqs.trade.analyze.analyze as ana
 
-from jaqs.trade.portfoliomanager import PortfolioManager
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.data.dataview import DataView
+from jaqs.trade import PortfolioManager
+from jaqs.data import RemoteDataService
+from jaqs.data import DataView
 from jaqs.trade import model
-from jaqs.trade.backtest import AlphaBacktestInstance
-from jaqs.trade.tradegateway import AlphaTradeApi
-from jaqs.trade.strategy import AlphaStrategy
-from jaqs.util import fileio
+from jaqs.trade import AlphaBacktestInstance
+from jaqs.trade import AlphaTradeApi
+from jaqs.trade import AlphaStrategy
+import jaqs.util as jutil
 
-dataview_dir_path = fileio.join_relative_path('../output/prepared/ICCombine/dataview')
-backtest_result_dir_path = fileio.join_relative_path('../output/ICCombine')
+dataview_dir_path = jutil.join_relative_path('../output/prepared/ICCombine/dataview')
+backtest_result_dir_path = jutil.join_relative_path('../output/ICCombine')
 
-ic_weight_hd5_path = fileio.join_relative_path('../output/ICCombine', 'ic_weight.hd5')
-custom_data_path = fileio.join_relative_path('../output/ICCombine', 'custom_date.json')
+ic_weight_hd5_path = jutil.join_relative_path('../output/ICCombine', 'ic_weight.hd5')
+custom_data_path = jutil.join_relative_path('../output/ICCombine', 'custom_date.json')
 
 
 def save_dataview():
@@ -92,7 +92,7 @@ def get_ic(dv):
     :param dv:
     :return: DataFrame recording factor IC on all dates
     """
-    factorList = fileio.read_json(custom_data_path)
+    factorList = jutil.read_json(custom_data_path)
     ICPanel = {}
     for singleDate in dv.dates:
         singleSnapshot = dv.get_snapshot(singleDate)
@@ -215,7 +215,7 @@ def store_ic_weight():
 
     factorList_adj = [x + '_adj' for x in factorList]
 
-    fileio.save_json(factorList_adj, custom_data_path)
+    jutil.save_json(factorList_adj, custom_data_path)
 
     w = get_ic_weight(dv)
 
@@ -254,7 +254,7 @@ def test_alpha_strategy_dataview():
                                  instance=bt, strategy=strategy, pm=pm)
 
     store = pd.HDFStore(ic_weight_hd5_path)
-    factorList = fileio.read_json(custom_data_path)
+    factorList = jutil.read_json(custom_data_path)
     context.ic_weight = store['ic_weight']
     context.factorList = factorList
     store.close()
@@ -299,7 +299,7 @@ def test_backtest_analyze():
     ta.plot_pnl(backtest_result_dir_path)
     
     print "generate report..."
-    static_folder = fileio.join_relative_path("trade/analyze/static")
+    static_folder = jutil.join_relative_path("trade/analyze/static")
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
                   out_folder=backtest_result_dir_path,
                   selected=selected_sec)

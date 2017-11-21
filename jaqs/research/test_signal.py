@@ -3,9 +3,9 @@
 import numpy as np
 import pandas as pd
 
-from jaqs.data.dataview import DataView
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.research import signaldigger
+from jaqs.data import DataView
+from jaqs.data import RemoteDataService
+from jaqs.research import SignalDigger
 import jaqs.util as jutil
 
 dataview_folder = jutil.join_relative_path('../output/prepared', 'test_signal')
@@ -68,8 +68,8 @@ def analyze_signal():
 
     # Step.4 analyze!
     my_period = 5
-    obj = signaldigger.digger.SignalDigger(output_folder=jutil.join_relative_path('../output'),
-                                           output_format='pdf')
+    obj = SignalDigger(output_folder=jutil.join_relative_path('../output'),
+                       output_format='pdf')
     obj.process_signal_before_analysis(signal, price=price,
                                        mask=mask_all,
                                        n_quantiles=5, period=my_period,

@@ -1,6 +1,6 @@
 # encoding: UTF-8
 
-from jaqs.data.dataservice import RemoteDataService
+from jaqs.data import RemoteDataService
 import jaqs.util as jutil
 
 
@@ -119,7 +119,7 @@ def test_remote_data_service_industry():
     # df_ann = df_ann.set_index(['symbol', 'in_date'])
     # df_ann = df_ann.unstack(level='symbol')
     
-    from jaqs.data.dataview import DataView
+    from jaqs.data import DataView
     dic_sec = jutil.group_df_to_dict(df, by='symbol')
     dic_sec = {sec: df.reset_index() for sec, df in dic_sec.viewitems()}
     
@@ -142,7 +142,7 @@ def test_remote_data_service_industry():
     
     
 def test_remote_data_service_industry_df():
-    from jaqs.data.dataservice import Calendar
+    from jaqs.data import Calendar
     cal = Calendar()
     
     ds = RemoteDataService()
@@ -206,14 +206,14 @@ def test_remote_data_service_index_weight():
     ds.init_from_config()
     df = ds.get_index_weights(index='000300.SH', trade_date=20140101)
     assert df.shape[0] == 300
-    assert abs(df['weight'].sum() - 100) < 1.0
+    assert abs(df['weight'].sum() - 1.0) < 1.0
     
     df = ds.get_index_weights(index='000016.SH', trade_date=20140101)
     assert df.shape[0] == 50
-    assert abs(df['weight'].sum() - 100) < 1.0
+    assert abs(df['weight'].sum() - 1.0) < 1.0
     
     df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
-    assert abs(df.at[20150120, '000001.SZ'] - 1.07) < 1e-2
+    assert abs(df.at[20150120, '000001.SZ'] - 1.07e-2) < 1e-2
     assert df.shape == (236, 321)
 
 

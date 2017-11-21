@@ -16,16 +16,16 @@ import time
 
 import pandas as pd
 
-from jaqs.data.dataservice import RemoteDataService
-from jaqs.trade.backtest import AlphaBacktestInstance
+from jaqs.data import RemoteDataService
+from jaqs.trade import AlphaBacktestInstance
 
 import jaqs.util as jutil
-from jaqs.trade.portfoliomanager import PortfolioManager
+from jaqs.trade import PortfolioManager
 import jaqs.trade.analyze.analyze as ana
-from jaqs.trade.strategy import AlphaStrategy
-from jaqs.trade.tradegateway import AlphaTradeApi
+from jaqs.trade import AlphaStrategy
+from jaqs.trade import AlphaTradeApi
 from jaqs.trade import model
-from jaqs.data.dataview import DataView
+from jaqs.data import DataView
 
 
 dataview_dir_path = jutil.join_relative_path('../output/select_stocks_industry_head/dataview')
