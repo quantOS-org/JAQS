@@ -39,7 +39,7 @@
 在项目目录，验证DataApi是否正常使用。
 
 ```python
-import DataApi
+from DataApi import DataApi
 
 api = DataApi(addr="tcp://data.tushare.org:8910")
 result, msg = api.login("username", "password") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
