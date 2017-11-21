@@ -373,7 +373,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.n_periods = 1
         self.days_delay = 0
         self.cash = 0
-        self.position_ratio = 0.0
+        self.position_ratio = 0.98
         
         self.risk_model = risk_model
         self.revenue_model = revenue_model

@@ -237,7 +237,6 @@ def test_alpha_strategy_dataview():
         "days_delay": 0,
     
         "init_balance": 1e8,
-        "position_ratio": 0.7,
         'commission_rate': 0.0
         }
 
