@@ -5,6 +5,10 @@ import Queue
 import threading
 import msgpack
 import snappy
+import copy
+
+qEmpty = copy.copy(Queue.Empty)
+
 
 def _unpack(str) :
 
@@ -60,10 +64,12 @@ class JRpcClient :
         t = threading.Thread(target=self._recv_run)
         t.setDaemon(True)
         t.start()
+        self._recv_thread = t
 
         t = threading.Thread(target=self._callback_run)
         t.setDaemon(True)
         t.start()
+        self._callback_thread = t
         
     def __del__(self):
         self.close()
@@ -138,11 +144,15 @@ class JRpcClient :
                 r = self._callback_queue.get(timeout = 1)
                 if r :
                     r()
-            except Queue.Empty, e:
+            except qEmpty as e:
                 pass
-
-            except Exception, e:
-                print "_callback_run", type(e), e
+            except TypeError as e:
+                if str(e) == "'NoneType' object is not callable":
+                    pass
+                else:
+                    print "_callback_run {}".format(r), type(e), e
+            except Exception as e:
+                print "_callback_run {}".format(r), type(e), e
 
     def _async_call(self, func):
         self._callback_queue.put( func )
@@ -176,7 +186,9 @@ class JRpcClient :
 
     def close(self):
         self._should_close = True
-                
+        self._callback_thread.join()
+        self._recv_thread.join()
+        
     def _on_data_arrived(self, str):
         try:
             msg = _unpack(str)
