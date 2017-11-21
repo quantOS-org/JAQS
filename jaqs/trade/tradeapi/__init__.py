@@ -1,4 +1,3 @@
-from trade_api import TradeApi,EntrustOrder,set_log_dir
+# encoding: utf-8
 
-import jzquant_trade_api
-
+from .trade_api import TradeApi, EntrustOrder, set_log_dir
