@@ -44,6 +44,8 @@ class BaseAnalyzer(object):
         
     """
     def __init__(self):
+        self.file_folder = ""
+        
         self._trades = None
         self._configs = None
         self.data_api = None
@@ -107,10 +109,11 @@ class BaseAnalyzer(object):
                     'fill_no': str,
                     'commission': float}
         abs_path = os.path.abspath(file_folder)
-        trades = pd.read_csv(os.path.join(abs_path, 'trades.csv'), ',', dtype=type_map)
+        self.file_folder = abs_path
+        trades = pd.read_csv(os.path.join(self.file_folder, 'trades.csv'), ',', dtype=type_map)
         
         self._init_universe(trades.loc[:, 'symbol'].values)
-        self._init_configs(file_folder)
+        self._init_configs(self.file_folder)
         self._init_trades(trades)
         self._init_symbol_price()
         self._init_inst_data()
@@ -151,8 +154,8 @@ class BaseAnalyzer(object):
         """Return a set of securities."""
         self._universe = set(securities)
     
-    def _init_configs(self, file_folder):
-        configs = json.load(open(os.path.join(file_folder, 'configs.json'), 'r'))
+    def _init_configs(self, folder):
+        configs = json.load(open(os.path.join(folder, 'configs.json'), 'r'))
         self._configs = configs
         self.init_balance = self.configs['init_balance']
         self.start_date = self.configs['start_date']
@@ -341,7 +344,10 @@ class BaseAnalyzer(object):
         # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
     
-    def plot_pnl(self, save_folder="."):
+    def plot_pnl(self, save_folder=None):
+        if save_folder is None:
+            save_folder = self.file_folder
+        
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(21, 8), dpi=300, sharex=True)
         idx0 = self.returns.index
         idx = range(len(idx0))
@@ -419,7 +425,7 @@ class BaseAnalyzer(object):
             for symbol in selected_sec:
                 df_daily = self.daily.get(symbol, None)
                 if df_daily is not None:
-                    plot_trades(df_daily, symbol=symbol, save_folder=result_dir)
+                    plot_trades(df_daily, symbol=symbol)
 
         print "Plot strategy PnL..."
         self.plot_pnl(result_dir)
@@ -556,26 +562,27 @@ class AlphaAnalyzer(BaseAnalyzer):
                 tmp = df[mask]
                 res.loc[:, g] = tmp.sum(axis=1)
             return res
-    
-        pf_weight = pos.div(pos.sum(axis=1), axis=0)
 
         ret = close.pct_change(1)
+
+        pf_weight = pos.div(pos.sum(axis=1), axis=0)
+
         weighted_ret_pf = ret.mul(pf_weight)
         weighted_ret_index = ret.mul(index_weight)
-    
+
         index_group_weight = group_sum(index_weight, group)
         pf_group_weight = group_sum(pf_weight, group)
-    
-        pf_group_ret = group_sum(weighted_ret_pf, group)
-        index_group_ret = group_sum(weighted_ret_index, group)
-    
+
+        pf_group_ret = group_sum(weighted_ret_pf, group).div(pf_group_weight)
+        index_group_ret = group_sum(weighted_ret_index, group).div(index_group_weight)
+
         allo_ret_group = (pf_group_weight - index_group_weight).mul(index_group_ret)
         allo_ret = allo_ret_group.sum(axis=1)
-    
+
         selection_ret_group = (pf_group_ret - index_group_ret).mul(index_group_weight)
         selection_ret = selection_ret_group.sum(axis=1)
-    
-        active_ret = (pf_group_ret.sum(axis=1) - index_group_ret.sum(axis=1))
+
+        active_ret = (weighted_ret_pf.sum(axis=1) - weighted_ret_index.sum(axis=1))
         inter_ret = active_ret - selection_ret - allo_ret
     
         df_brinson = pd.DataFrame(index=allo_ret.index,
@@ -583,7 +590,6 @@ class AlphaAnalyzer(BaseAnalyzer):
                                         'selection': selection_ret,
                                         'interaction': inter_ret,
                                         'total_active': active_ret})
-        
         
         return {'df_brinson': df_brinson, 'allocation': allo_ret_group, 'selection': selection_ret_group}
     
@@ -618,39 +624,40 @@ class AlphaAnalyzer(BaseAnalyzer):
         
         df_brinson = res_dic['df_brinson']
         self.report_dic['df_brinson'] = df_brinson
-        # self._plot_brinson(df_brinson, save_folder=)
+        plot_brinson(df_brinson, save_folder=self.file_folder)
     
-    def _plot_brinson(self, df, save_folder='.'):
-        """
-        
-        Parameters
-        ----------
-        df : pd.DataFrame
 
-        """
-        allo, selec, inter, total = df['allocation'], df['selection'], df['interaction'], df['total_active']
-        fig, ax1 = plt.subplots(1, 1, figsize=(21, 8), dpi=300)
-        
-        idx0 = df.index
-        idx = range(len(idx0))
+def plot_brinson(df, save_folder):
+    """
     
-        ax1.plot(idx, selec, lw=1.5, color='indianred', label='Selection Return')
-        ax1.plot(idx, allo, lw=1.5, color='royalblue', label='Allocation Return')
-        ax1.plot(idx, inter, lw=1.5, color='purple', label='Interaction Return')
-        ax1.plot(idx, total, lw=1.5, ls='--', color='k', label='Total Active Return')
-        
-        ax1.axhline(0.0, color='k', lw=1, ls='--')
-        
-        ax1.legend(loc='upper left')
-        ax1.set_xlabel("Date")
-        ax1.set_ylabel("Return")
-        ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
+    Parameters
+    ----------
+    df : pd.DataFrame
+
+    """
+    allo, selec, inter, total = df['allocation'], df['selection'], df['interaction'], df['total_active']
+    fig, ax1 = plt.subplots(1, 1, figsize=(21, 8), dpi=300)
     
-        plt.tight_layout()
-        fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
-        plt.close()
-        
+    idx0 = df.index
+    idx = range(len(idx0))
+
+    ax1.plot(idx, selec, lw=1.5, color='indianred', label='Selection Return')
+    ax1.plot(idx, allo, lw=1.5, color='royalblue', label='Allocation Return')
+    ax1.plot(idx, inter, lw=1.5, color='purple', label='Interaction Return')
+    # ax1.plot(idx, total, lw=1.5, ls='--', color='k', label='Total Active Return')
     
+    ax1.axhline(0.0, color='k', lw=0.5, ls='--')
+    
+    ax1.legend(loc='upper left')
+    ax1.set_xlabel("Date")
+    ax1.set_ylabel("Return")
+    ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
+
+    plt.tight_layout()
+    fig.savefig(os.path.join(save_folder, 'brinson_attribution.png'))
+    plt.close()
+    
+
 
 
 def calc_avg_pos_price(pos_arr, price_arr):
@@ -679,7 +686,7 @@ def calc_avg_pos_price(pos_arr, price_arr):
     return avg_price
 
 
-def plot_trades(df, symbol="", save_folder="."):
+def plot_trades(df, symbol="", save_folder='.'):
     idx0 = df.index
     idx = range(len(idx0))
     price = df.loc[:, 'close']
