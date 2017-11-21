@@ -26,6 +26,7 @@ class InstManager(object):
     def __init__(self, inst_type="", symbol="", data_api=None):
         if data_api is None:
             self.data_api = RemoteDataService()
+            self.data_api.init_from_config()
         else:
             self.data_api = data_api
         
