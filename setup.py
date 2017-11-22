@@ -19,19 +19,16 @@ def read_install_requires():
     res = list(map(lambda s: s.replace('\n', ''), res))
     return res
 
-tmp = readme()
-tmp1 = read_install_requires()
-
 setup(
     name='jaqs',
     version=ver,
     description='Open source quantitative research&trading framework.',
-    long_description = readme(),
+    long_description=readme(),
     install_requires=read_install_requires(),
-    license='Apache 2',
+    license='Apache 2.0',
     classifiers=[
-    'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2.7',
     ],
     packages=find_packages(),
     package_data={'': ['*.json', '*.css', '*.html']},
-    )
+)

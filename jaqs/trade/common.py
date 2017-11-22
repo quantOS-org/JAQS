@@ -71,6 +71,8 @@ class ORDER_TYPE(ReprStrEnum):
     MARKET = "market"
     LIMIT = "limit"
     STOP = "stop"  # convert to market order once symbol price meet certain conditions.
+    VWAP = "vwap"
+    
 
 
 @unique

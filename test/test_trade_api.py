@@ -14,7 +14,7 @@ def test_trade_api():
     password = trade_config.get("remote.trade.password", None)
     print address
     print username
-    print password
+    # print password
     
     if address is None or username is None or password is None:
         raise ValueError("no trade service config available!")
@@ -49,8 +49,10 @@ def test_trade_api():
     
     # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
     user_info, msg = tapi.login(username, password)
+    assert msg == '0,'
     print "msg: ", msg
     print "user_info:", user_info
+    user_strats = user_info['strategies']
 
     # 选择使用的策略帐号
     #
@@ -59,9 +61,10 @@ def test_trade_api():
     #
     # 如果成功，返回(strategy_id, msg)
     # 否则返回 (0, err_msg)
-    sid, msg = tapi.use_strategy(1)
-    assert msg == '0,'
-    print "sid: ", sid
+    if user_strats:
+        sid, msg = tapi.use_strategy(user_strats[0])
+        assert msg == '0,'
+        print "sid: ", sid
 
     # 查询Portfolio
     #

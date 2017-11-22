@@ -22,7 +22,7 @@ import numpy as np
 import numpy.linalg as nlg
 import pandas as pd
 import scipy.stats as stats
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 
 from jaqs.trade import PortfolioManager
 from jaqs.data import RemoteDataService

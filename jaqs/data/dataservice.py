@@ -252,7 +252,7 @@ class RemoteDataService(DataService):
     def __del__(self):
         self.data_api.close()
 
-    def init_from_config(self, props=None):
+    def init_from_config(self, props):
         # do not initialize and login again
         if self.data_api is not None and self.data_api._loggined:
             return

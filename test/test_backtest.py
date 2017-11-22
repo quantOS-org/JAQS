@@ -22,7 +22,7 @@ import time
 from jaqs.data import RemoteDataService
 from jaqs.trade import AlphaStrategy
 
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.trade import AlphaBacktestInstance
 from jaqs.trade import PortfolioManager
 from jaqs.trade import AlphaTradeApi
@@ -110,7 +110,7 @@ def test_alpha_strategy_dataview():
     bt = AlphaBacktestInstance()
     
     risk_model = model.FactorRiskModel()
-    signal_model = model.FactorRevenueModel()
+    signal_model = model.FactorSignalModel()
     cost_model = model.SimpleCostModel()
     stock_selector = model.StockSelector()
     
@@ -119,11 +119,11 @@ def test_alpha_strategy_dataview():
     stock_selector.add_filter(name='total_profit_growth', func=my_selector)
     stock_selector.add_filter(name='no_new_stocks', func=my_selector_no_new_stocks)
     
-    strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
+    strategy = AlphaStrategy(signal_model=signal_model, stock_selector=stock_selector,
                              cost_model=cost_model, risk_model=risk_model,
                              pc_method='factor_value_weight')
     pm = PortfolioManager()
-    # strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
+    # strategy = AlphaStrategy(signal_model=signal_model, pc_method='factor_value_weight')
     # strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='market_value_weight')
     # strategy = AlphaStrategy()
 

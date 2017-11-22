@@ -9,7 +9,7 @@ from jaqs.data import RemoteDataService
 from jaqs.trade import EventBacktestInstance
 from jaqs.trade import BacktestTradeApi
 from jaqs.trade import PortfolioManager
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 import jaqs.util as jutil
 
 from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH

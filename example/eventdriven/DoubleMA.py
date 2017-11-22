@@ -12,7 +12,7 @@ from jaqs.trade import EventRealTimeInstance
 from jaqs.trade import EventBacktestInstance
 from jaqs.trade import RealTimeTradeApi, BacktestTradeApi
 from jaqs.trade import PortfolioManager
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 import jaqs.util as jutil
 
 from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH
@@ -20,7 +20,7 @@ data_config = jutil.read_json(DATA_CONFIG_PATH)
 trade_config = jutil.read_json(TRADE_CONFIG_PATH)
 
 result_dir_path = '../../output/double_ma'
-is_backtest = True
+is_backtest = False
 
 
 class DoubleMaStrategy(EventDrivenStrategy):
@@ -130,13 +130,13 @@ def run_strategy():
         ins = EventBacktestInstance()
         
     else:
-        props = {'symbol': 'rb1801.SHF'}
+        props = {'symbol': 'rb1801.SHF',
+                 'strategy.no': 'Your Strategy Number'}
         tapi = RealTimeTradeApi(trade_config)
         ins = EventRealTimeInstance()
 
     props.update(data_config)
     props.update(trade_config)
-    tapi.use_strategy(8)
     
     ds = RemoteDataService()
     strat = DoubleMaStrategy()

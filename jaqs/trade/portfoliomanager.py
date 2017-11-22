@@ -143,6 +143,9 @@ class PortfolioManager(object):
             return
         
         df_acc, msg = self.ctx.trade_api.query_account()
+        if msg != '0,':
+            print(msg)
+            raise RuntimeError("Query account failed")
         account_info = df_acc.set_index('type').to_dict(orient='index')
         
         df_univ, msg = self.ctx.trade_api.query_universe()

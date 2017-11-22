@@ -21,7 +21,7 @@ from jaqs.trade import AlphaBacktestInstance
 
 import jaqs.util as jutil
 from jaqs.trade import PortfolioManager
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.trade import AlphaStrategy
 from jaqs.trade import AlphaTradeApi
 from jaqs.trade import model

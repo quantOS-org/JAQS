@@ -47,14 +47,14 @@ series)和信号（float series）权重
         trade_api = AlphaTradeApi()
         bt = AlphaBacktestInstance()
         
-        signal_model = model.FactorRevenueModel()
+        signal_model = model.FactorSignalModel()
         stock_selector = model.StockSelector()
         
         signal_model.add_signal(name='my_factor', func=my_singal)
         stock_selector.add_filter(name='total_profit_growth', func=my_selector)
         stock_selector.add_filter(name='no_new_stocks', func=my_selector_no_new_stocks)
         
-        strategy = AlphaStrategy(revenue_model=signal_model, stock_selector=stock_selector,
+        strategy = AlphaStrategy(signal_model=signal_model, stock_selector=stock_selector,
                                  pc_method='factor_value_weight')
         pm = PortfolioManager()
 
@@ -99,6 +99,9 @@ series)和信号（float series）权重
 
 格雷厄姆选股策略
 ~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/Graham.py>`__\ 。
 
 主要介绍基于回测框架实现格雷厄姆模型。格雷厄姆模型分为两步，首先是条件选股，其次按照市值从小到大排序，选出排名前五的股票。
 
@@ -237,26 +240,26 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
     stock_selector = model.StockSelector(context)
     stock_selector.add_filter(name='myselector', func=my_selector)
 
-3. FactorRevenueModel模块
+3. FactorSignalModel模块
 '''''''''''''''''''''''''
 
-在进行条件选股后，使用FactorRevenueModel模块对所选股票进行排序
+在进行条件选股后，使用FactorSignalModel模块对所选股票进行排序
 
 .. code:: python
 
-    signal_model = model.FactorRevenueModel(context)
+    signal_model = model.FactorSignalModel(context)
     signal_model.add_signal(name='signalsize', func = signal_size)
 
 4. 策略回测模块
 '''''''''''''''
 
-将上面定义的stockSelector和FactorRevenueModel载入AlphaStrategy函数进行回测
+将上面定义的stockSelector和FactorSignalModel载入AlphaStrategy函数进行回测
 
 .. code:: python
 
         strategy = AlphaStrategy(
                     stock_selector=stock_selector,
-                    revenue_model=signal_model，
+                    signal_model=signal_model，
                     pc_method='factor_value_weight')
 
 5. 启动数据准备及回测模块
@@ -296,6 +299,9 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
 
 基于因子IC的多因子选股模型
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/ICCombine.py>`__\ 。
 
 主要介绍基于回测框架实现基于因子IC的因子权重优化模型。
 
@@ -614,6 +620,9 @@ b.接着根据各因子IC的权重，对当天各股票的IC值进行加权求�
 Calendar Spread交易策略
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/CalendarSpread.py>`__\ 。
+
 本帖主要介绍了基于事件驱动回测框架实现calendar spread交易策略。
 
 一. 策略介绍
@@ -728,6 +737,9 @@ Calendar Spread交易策略
 
 商品期货的Dual Thrust日内交易策略
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/DualThrust.py>`__\ 。
 
 本帖主要介绍了基于事件驱动回测框架实现Dual Thrust日内交易策略。
 
@@ -915,6 +927,9 @@ Thrust系统使用
 
 版块内股票轮动策略
 ~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/SectorRolling.py>`__\ 。
 
 本帖主要介绍了基于事件驱动回测框架实现版块内股票轮动策略。
 

@@ -356,7 +356,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     benchmark : str
         The benchmark symbol.
     risk_model : model.RiskModel
-    revenue_model : model.ReturnModel
+    signal_model : model.ReturnModel
     cost_model : model.CostModel
 
     Methods
@@ -364,7 +364,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
     """
     # TODO register context
-    def __init__(self, revenue_model=None, stock_selector=None,
+    def __init__(self, signal_model=None, stock_selector=None,
                  cost_model=None, risk_model=None,
                  pc_method="equal_weight"):
         super(AlphaStrategy, self).__init__()
@@ -376,7 +376,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.position_ratio = 0.98
         
         self.risk_model = risk_model
-        self.revenue_model = revenue_model
+        self.signal_model = signal_model
         self.cost_model = cost_model
         self.stock_selector = stock_selector
         
@@ -396,7 +396,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.position_ratio = props.get('position_ratio', 0.98)
 
         self.use_pc_method(name='equal_weight', func=self.equal_weight, options=None)
-        self.use_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_revenue,
+        self.use_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_signal,
                                                                            'constraints': None,
                                                                            'initial_value': None})
         self.use_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
@@ -408,11 +408,11 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
     def _validate_parameters(self):
         if self.pc_method in ['mc', 'quad_opt']:
-            if self.revenue_model is None and self.cost_model is None and self.risk_model is None:
-                raise ValueError("At least one model of revenue, cost and risk must be provided.")
+            if self.signal_model is None and self.cost_model is None and self.risk_model is None:
+                raise ValueError("At least one model of signal, cost and risk must be provided.")
         elif self.pc_method in ['factor_value_weight']:
-            if self.revenue_model is None:
-                raise ValueError("revenue_model must be provided when pc_method = 'factor_value_weight'")
+            if self.signal_model is None:
+                raise ValueError("signal_model must be provided when pc_method = 'factor_value_weight'")
         elif self.pc_method in ['equal_weight', 'index_weight', 'market_value_weight']:
             pass
         else:
@@ -442,9 +442,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 univ_pos_dic[sec] = 0
         return univ_pos_dic
 
-    def util_net_revenue(self, weights_target):
+    def util_net_signal(self, weights_target):
         """
-        util = net_revenue = revenue - all costs.
+        util = net_signal = signal - all costs.
         
         Parameters
         ----------
@@ -453,15 +453,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         """
         weights_last = self._get_weights_last()
     
-        revenue = self.revenue_model.forecast_revenue(weights_target)
+        signal = self.signal_model.forecast_signal(weights_target)
         cost = self.cost_model.calc_cost(weights_last, weights_target)
         # liquid = self.liquid_model.calc_liquid(weight_now)
         risk = self.risk_model.calc_risk(weights_target)
     
         risk_coef = 1.0
         cost_coef = 1.0
-        net_revenue = revenue - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
-        return net_revenue
+        net_signal = signal - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
+        return net_signal
     
     def portfolio_construction(self, universe_list=None):
         """
@@ -560,7 +560,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 w = {k: v + delta for k, v in w.viewitems()}
             return w
         
-        dic_forecasts = self.revenue_model.make_forecast()
+        dic_forecasts = self.signal_model.make_forecast()
         weights = {k: 0.0 if (np.isnan(v) or np.isinf(v)) else v for k, v in dic_forecasts.viewitems()}
         weights = long_only_weight_adjust(weights)
         return weights, ""

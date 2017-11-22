@@ -19,7 +19,7 @@ import time
 import numpy as np
 import pandas as pd
 
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.data import RemoteDataService
 from jaqs.data import DataView
 from jaqs.trade import model
@@ -120,11 +120,11 @@ def test_alpha_strategy_dataview():
     stock_selector = model.StockSelector()
     stock_selector.add_filter(name='myselector', func=my_selector)
     
-    signal_model = model.FactorRevenueModel()
+    signal_model = model.FactorSignalModel()
     signal_model.add_signal(name='signalsize', func=signal_size)
     
     strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='factor_value_weight',
-                             revenue_model=signal_model)
+                             signal_model=signal_model)
     pm = PortfolioManager()
     
     bt = AlphaBacktestInstance()

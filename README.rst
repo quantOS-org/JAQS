@@ -14,14 +14,14 @@ Welcome
 Dependencies
 ============
 
+- pandas >= 0.20.0
+- enum34
 - pytest
 - Jinja2
 - matplotlib
-- msgpack\_python
-- nose\_parameterized
+- msgpack_python
 - seaborn
 - six
-- xarray
 - pyzmq
 - python-snappy
 
@@ -41,29 +41,39 @@ Installation
 1、使用\ ``pip``\ 进行安装
 --------------------------
 
+.. code:: shell
+
     $ pip install jaqs
 
 2、通过源代码安装
 -----------------
 
-git clone https://github.com/quantOS-org/jaqs.git
+.. code:: shell
+
+    git clone https://github.com/quantOS-org/jaqs.git
+
 ，进入到源文件目录，执行安装命令：
 
-$ python setup.py install
+.. code:: shell
+
+    $ python setup.py install
+
 或者通过pypi地址\ https://pypi.python.org/pypi/jaqs
 下载,并执行上面安装命令。
 
 3、代码升级
 -----------
 
-$ pip install jaqs --upgrade
+.. code:: shell
+
+    $ pip install jaqs --upgrade
 
 Quickstart
 ==========
 
 参见 `入门指南 <doc/source/user_guide.rst>`__
 
-更多的示例保存在 ``jaqs/examples``
+更多的示例保存在 ``examples``
 
 
 查看完整文档，请访问： `http://jaqs.readthedocs.io <http://jaqs.readthedocs.io>`__\ 

@@ -33,10 +33,10 @@ def test_align():
     # demo usage of parser
     parser = Parser()
     parser.register_function('Myfunc', lambda x: x * 0 + 1)  # simultaneously test register function and align
-    expr_formula = 'revenue / Myfunc(close)'
+    expr_formula = 'signal / Myfunc(close)'
     expression = parser.parse(expr_formula)
     for i in range(100):
-        df_res = parser.evaluate({'revenue': df_value, 'close': df_close}, df_ann, date_arr)
+        df_res = parser.evaluate({'signal': df_value, 'close': df_close}, df_ann, date_arr)
     
     # -------------------------------------------------------------------------------------
     sec = '600000.SH'

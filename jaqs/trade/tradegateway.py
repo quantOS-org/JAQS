@@ -646,6 +646,7 @@ class RealTimeTradeApi(TradeApi):
         super(RealTimeTradeApi, self).__init__(address)
         
         self.ctx = None
+        self.user_info = dict()
         
     def init_from_config(self, props):
         self.set_trade_api_callbacks()
@@ -677,6 +678,11 @@ class RealTimeTradeApi(TradeApi):
         else:
             print("    login success. user info: \n"
                   "    {:s}\n".format(user_info))
+            
+        self.user_info = user_info
+        
+        strategy_no = get_from_list_of_dict(dic_list, "strategy.no", 0)
+        self.use_strategy(strategy_no)
     
     def set_trade_api_callbacks(self):
         self.set_task_callback(self.on_task_status)
@@ -1254,6 +1260,10 @@ class OrderBook(object):
                     fill_price = min(entrust_price, high)
                     # fill_size = min(entrust_size, self.participation_rate * volume)
                     fill_size = entrust_size
+            
+            elif order.order_type == common.ORDER_TYPE.VWAP:
+                fill_price = quote.vwap
+                fill_size = entrust_size
 
             if not fill_size:
                 continue
@@ -1360,10 +1370,15 @@ class BacktestTradeApi(BaseTradeApi):
             print("Invalid size {}".format(size))
             return
         
-        # Generate Task
+        # Generate Order
+        if algo == 'vwap':
+            order_type = common.ORDER_TYPE.VWAP
+        else:
+            order_type = common.ORDER_TYPE.LIMIT
         order = Order.new_order(security, action, price, size, self.ctx.trade_date, self.ctx.time,
-                                order_type=common.ORDER_TYPE.LIMIT)
-        
+                                order_type=order_type)
+
+        # Generate Task
         task_id = self._get_next_task_id()
         order.task_id = task_id
         

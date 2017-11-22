@@ -17,7 +17,7 @@ from jaqs.trade import AlphaBacktestInstance
 from jaqs.trade import PortfolioManager
 
 import jaqs.util as jutil
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.trade import AlphaStrategy
 from jaqs.trade import AlphaTradeApi
 from jaqs.trade import model
@@ -77,10 +77,10 @@ def test_alpha_strategy_dataview():
         res = np.power(context.snapshot['gq30'], 8)
         return res
     
-    signal_model = model.FactorRevenueModel()
+    signal_model = model.FactorSignalModel()
     signal_model.add_signal('signal_gq30', singal_gq30)
 
-    strategy = AlphaStrategy(revenue_model=signal_model, pc_method='factor_value_weight')
+    strategy = AlphaStrategy(signal_model=signal_model, pc_method='factor_value_weight')
     pm = PortfolioManager()
 
     bt = AlphaBacktestInstance()

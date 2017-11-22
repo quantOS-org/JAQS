@@ -15,7 +15,7 @@ import time
 
 import pandas as pd
 
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.data import RemoteDataService
 from jaqs.data import DataView
 from jaqs.trade import model

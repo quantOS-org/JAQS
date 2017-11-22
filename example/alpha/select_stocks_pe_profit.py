@@ -15,7 +15,7 @@ from jaqs.data import RemoteDataService
 from jaqs.trade import AlphaBacktestInstance
 
 import jaqs.util as jutil
-import jaqs.trade.analyze.analyze as ana
+import jaqs.trade.analyze as ana
 from jaqs.trade import PortfolioManager
 from jaqs.trade import AlphaStrategy
 from jaqs.trade import AlphaTradeApi
