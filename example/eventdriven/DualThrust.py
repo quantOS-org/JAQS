@@ -174,7 +174,7 @@ def analyze():
     ta = ana.EventAnalyzer()
     
     ds = RemoteDataService()
-    ds.init_from_config()
+    ds.init_from_config(data_config)
     
     ta.initialize(data_server_=ds, file_folder=result_dir_path)
     

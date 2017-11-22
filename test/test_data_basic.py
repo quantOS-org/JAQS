@@ -1,6 +1,6 @@
 # encoding: utf-8
-from jaqs.data.basic.instrument import InstManager
-from jaqs.data.basic import Bar
+from jaqs.data.basic import Bar, InstManager
+from jaqs.data import RemoteDataService
 import jaqs.util as jutil
 
 from config_path import DATA_CONFIG_PATH
@@ -8,7 +8,10 @@ data_config = jutil.read_json(DATA_CONFIG_PATH)
 
 
 def test_inst_manager():
-    mgr = InstManager()
+    ds = RemoteDataService()
+    ds.init_from_config(data_config)
+    
+    mgr = InstManager(ds)
     mgr.load_instruments()
     sym = '000001.SZ'
     inst_obj = mgr.get_instrument(sym)

@@ -8,15 +8,18 @@ from jaqs.data import RemoteDataService
 from jaqs.research import SignalDigger
 import jaqs.util as jutil
 
+from config_path import DATA_CONFIG_PATH
+data_config = jutil.read_json(DATA_CONFIG_PATH)
+
 dataview_folder = '../../output/prepared/test_signal'
 
 
 def save_dataview():
     ds = RemoteDataService()
-    ds.init_from_config()
+    ds.init_from_config(data_config)
     dv = DataView()
     
-    props = {'start_date': 20140101, 'end_date': 20171001, 'universe': '000300.SH',
+    props = {'start_date': 20150101, 'end_date': 20171001, 'universe': '000300.SH',
              'fields': 'volume,turnover,float_mv,pb,total_mv',
              'freq': 1}
     
@@ -83,5 +86,5 @@ def analyze_signal():
 
 
 if __name__ == "__main__":
-    # save_dataview()
+    save_dataview()
     analyze_signal()

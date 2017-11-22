@@ -933,6 +933,8 @@ class RemoteDataService(DataService):
         
 
 
+
+'''
 class Calendar_OLD(object):
     """
     A calendar for manage trade date.
@@ -1059,7 +1061,7 @@ class Calendar_OLD(object):
         return res
 
 
-
+'''
 
 
 

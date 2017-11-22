@@ -124,7 +124,7 @@ class BaseAnalyzer(object):
             data_inst = self.dataview.data_inst
             self.inst_map = data_inst.to_dict(orient='index')
         elif self.data_api is not None:
-            inst_mgr = InstManager(symbol=symbol_str, data_api=self.data_api)
+            inst_mgr = InstManager(data_api=self.data_api, symbol=symbol_str)
             self.inst_map = {k: v.__dict__ for k, v in inst_mgr.inst_map.items()}
             del inst_mgr
         else:
