@@ -12,14 +12,6 @@ jaqs\.trade\.tradeapi\.jrpc\_py module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.trade\.tradeapi\.jzquant\_trade\_api module
--------------------------------------------------
-
-.. automodule:: jaqs.trade.tradeapi.jzquant_trade_api
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 jaqs\.trade\.tradeapi\.trade\_api module
 ----------------------------------------
 

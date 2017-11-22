@@ -24,7 +24,7 @@ price = dv.get_ts('close_adj')
 price_bench = dv.data_benchmark
 
 my_period = 5
-obj = signaldigger.digger.SignalDigger(output_folder='.', output_format='plot')
+obj = SignalDigger(output_folder='.', output_format='plot')
 obj.process_factor_before_analysis(factor, price=price,
                                    mask=mask_all,
                                    n_quantiles=5, period=my_period,

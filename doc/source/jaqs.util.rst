@@ -20,14 +20,6 @@ jaqs\.util\.fileio module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.util\.md2rst module
--------------------------
-
-.. automodule:: jaqs.util.md2rst
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 jaqs\.util\.numeric module
 --------------------------
 

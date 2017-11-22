@@ -345,12 +345,12 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
                 res = default
             return res
     
-        props_default = jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
+        props_default = dict()  # jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
         dic_list = [props, props_default]
     
-        address = get_from_list_of_dict(dic_list, "remote.address", "")
-        username = get_from_list_of_dict(dic_list, "remote.username", "")
-        password = get_from_list_of_dict(dic_list, "remote.password", "")
+        address = get_from_list_of_dict(dic_list, "remote.trade.address", "")
+        username = get_from_list_of_dict(dic_list, "remote.trade.username", "")
+        password = get_from_list_of_dict(dic_list, "remote.trade.password", "")
         if address is None or username is None or password is None:
             raise ValueError("no address, username or password available!")
     
@@ -640,10 +640,8 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
 
 
 class RealTimeTradeApi(TradeApi):
-    def __init__(self, address=None):
-        if address is None:
-            props_default = jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
-            address = props_default["remote.address"]
+    def __init__(self, props):
+        address = props['remote.trade.address']
         
         super(RealTimeTradeApi, self).__init__(address)
         
@@ -662,12 +660,12 @@ class RealTimeTradeApi(TradeApi):
                 res = default
             return res
 
-        props_default = jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
+        props_default = dict()  # jutil.read_json(jutil.join_relative_path('etc/trade_config.json'))
         dic_list = [props, props_default]
 
-        address = get_from_list_of_dict(dic_list, "remote.address", "")
-        username = get_from_list_of_dict(dic_list, "remote.username", "")
-        password = get_from_list_of_dict(dic_list, "remote.password", "")
+        address = get_from_list_of_dict(dic_list, "remote.trade.address", "")
+        username = get_from_list_of_dict(dic_list, "remote.trade.username", "")
+        password = get_from_list_of_dict(dic_list, "remote.trade.password", "")
         if address is None or username is None or password is None:
             raise ValueError("no address, username or password available!")
         

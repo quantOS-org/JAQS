@@ -1,4 +1,5 @@
 pandas >= 0.20.0
+enum34
 pytest
 Jinja2
 matplotlib
