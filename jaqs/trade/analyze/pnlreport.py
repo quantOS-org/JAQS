@@ -9,7 +9,7 @@ import pandas as pd
 from jaqs.data.basic import InstManager
 from jaqs.trade import common
 from jaqs.data.basic import Trade
-from jaqs.data import Calendar
+# from jaqs.data import Calendar
 
 
 # %matplotlib inline

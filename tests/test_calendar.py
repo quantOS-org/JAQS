@@ -2,12 +2,13 @@
 
 import datetime
 
-from jaqs.data import Calendar
+from jaqs.data import RemoteDataService
 from jaqs.util import dtutil
 
 
 def test_calendar():
-    calendar = Calendar()
+    calendar = RemoteDataService()
+    calendar.init_from_config()
 
     res1 = calendar.get_trade_date_range(20121224, 20130201)
     assert len(res1) == 27

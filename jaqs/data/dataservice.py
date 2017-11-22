@@ -247,7 +247,7 @@ class RemoteDataService(DataService):
         self.data_api = None
         
         self.REPORT_DATE_FIELD_NAME = 'report_date'
-        self.calendar = None
+        # self.calendar = None
         
     def __del__(self):
         self.data_api.close()
@@ -291,7 +291,7 @@ class RemoteDataService(DataService):
         else:
             print "    login success \n"
         
-        self.calendar = Calendar(self)
+        # self.calendar = Calendar(self)
 
     # -----------------------------------------------------------------------------------
     # Basic APIs
@@ -346,7 +346,7 @@ class RemoteDataService(DataService):
 
     # -----------------------------------------------------------------------------------
     # Convenient Functions
-    def get_trade_date_range(self, start_date, end_date):
+    def get_trade_date_range_OLD(self, start_date, end_date):
         return self.calendar.get_trade_date_range(start_date, end_date)
     
     @staticmethod
@@ -832,9 +832,104 @@ class RemoteDataService(DataService):
         # print quote
         e.dic = {'quote': quote}
         self.ctx.instance.put(e)
+    
+    # ---------------------------------------------------------------------
+    # Calendar
+    
+    def get_trade_date_range(self, start_date, end_date):
+        """
+        Get array of trade dates within given range.
+        Return zero size array if no trade dates within range.
+        
+        Parameters
+        ----------
+        start_date : int
+            YYmmdd
+        end_date : int
+
+        Returns
+        -------
+        trade_dates_arr : np.ndarray
+            dtype = int
+
+        """
+        filter_argument = self._dic2url({'start_date': start_date,
+                                         'end_date': end_date})
+    
+        df_raw, msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
+                                          filter=filter_argument, orderby="")
+        if df_raw.empty:
+            return np.array([], dtype=int)
+    
+        trade_dates_arr = df_raw['trade_date'].values.astype(int)
+        return trade_dates_arr
+
+    def get_last_trade_date(self, date):
+        """
+        
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        res : int
+
+        """
+        dt = jutil.convert_int_to_datetime(date)
+        delta = pd.Timedelta(weeks=2)
+        dt_old = dt - delta
+        date_old = jutil.convert_datetime_to_int(dt_old)
+    
+        dates = self.get_trade_date_range(date_old, date)
+        mask = dates < date
+        res = dates[mask][-1]
+    
+        return res
+
+    def is_trade_date(self, date):
+        """
+        Check whether date is a trade date.
+
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        bool
+
+        """
+        dates = self.get_trade_date_range(date, date)
+        return len(dates) > 0
+
+    def get_next_trade_date(self, date):
+        """
+        
+        Parameters
+        ----------
+        date : int
+
+        Returns
+        -------
+        res : int
+
+        """
+        dt = jutil.convert_int_to_datetime(date)
+        delta = pd.Timedelta(weeks=2)
+        dt_new = dt + delta
+        date_new = jutil.convert_datetime_to_int(dt_new)
+    
+        dates = self.get_trade_date_range(date, date_new)
+        mask = dates > date
+        res = dates[mask][0]
+    
+        return res
+
+        
 
 
-class Calendar(object):
+class Calendar_OLD(object):
     """
     A calendar for manage trade date.
     

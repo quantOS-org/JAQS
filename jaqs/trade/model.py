@@ -42,7 +42,7 @@ class Context(object):
                  dataview=None,
                  strategy=None, pm=None, instance=None):
         # TODO: should also support get calendar from dataview
-        self._calendar = None
+        # self._calendar = None
 
         self.universe = []
         self._data_api = data_api
@@ -77,6 +77,7 @@ class Context(object):
         if s is not None:
             self.storage = s
             
+    '''
     @property
     def calendar(self):
         from jaqs.data import Calendar
@@ -88,6 +89,7 @@ class Context(object):
             self._calendar = Calendar()
             return self._calendar
         
+    '''
     @property
     def data_api(self):
         return self._data_api

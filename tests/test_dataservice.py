@@ -142,8 +142,7 @@ def test_remote_data_service_industry():
     
     
 def test_remote_data_service_industry_df():
-    from jaqs.data import Calendar
-    cal = Calendar()
+    # from jaqs.data import Calendar
     
     ds = RemoteDataService()
     ds.init_from_config()
@@ -163,7 +162,7 @@ def test_remote_data_service_industry_df():
         if in_date in df.index:
             assert df.loc[in_date, sec] == value
         else:
-            idx = cal.get_next_trade_date(in_date)
+            idx = ds.get_next_trade_date(in_date)
             assert df.loc[idx, sec] == value
         
 

@@ -395,7 +395,7 @@ class AlphaBacktestInstance(BacktestInstance):
         if self.ctx.dataview is not None:
             return date in self.ctx.dataview.dates
         else:
-            return self.ctx.calendar.is_trade_date(date)
+            return self.ctx.data_api.is_trade_date(date)
     
     def _get_next_trade_date(self, date):
         if self.ctx.dataview is not None:
@@ -403,7 +403,7 @@ class AlphaBacktestInstance(BacktestInstance):
             mask = dates > date
             return dates[mask][0]
         else:
-            return self.ctx.calendar.get_next_trade_date(date)
+            return self.ctx.data_api.get_next_trade_date(date)
     
     def _get_last_trade_date(self, date):
         if self.ctx.dataview is not None:
@@ -411,7 +411,7 @@ class AlphaBacktestInstance(BacktestInstance):
             mask = dates < date
             return dates[mask][-1]
         else:
-            return self.ctx.calendar.get_last_trade_date(date)
+            return self.ctx.data_api.get_last_trade_date(date)
     
     def go_next_rebalance_day(self):
         """
@@ -538,7 +538,7 @@ class EventBacktestInstance(BacktestInstance):
         self.bar_type = props.get("bar_type", "1d")
         
     def go_next_trade_date(self):
-        next_dt = self.ctx.calendar.get_next_trade_date(self.ctx.trade_date)
+        next_dt = self.ctx.data_api.get_next_trade_date(self.ctx.trade_date)
         
         self.ctx.trade_date = next_dt
     
@@ -577,7 +577,7 @@ class EventBacktestInstance(BacktestInstance):
     
     def _run_bar(self):
         """Quotes of different symbols will be aligned into one dictionary."""
-        trade_dates = self.ctx.calendar.get_trade_date_range(self.start_date, self.end_date)
+        trade_dates = self.ctx.data_api.get_trade_date_range(self.start_date, self.end_date)
 
         for trade_date in trade_dates:
             self.on_new_day(trade_date)
