@@ -96,9 +96,7 @@ def test_alpha_strategy_dataview():
 
     trade_api = AlphaTradeApi()
 
-    context = model.Context(dataview=dv, gateway=trade_api)
-
-    stock_selector = model.StockSelector(context)
+    stock_selector = model.StockSelector()
     stock_selector.add_filter(name='myrank', func=my_selector)
 
     strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
