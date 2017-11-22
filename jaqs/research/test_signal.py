@@ -10,6 +10,7 @@ import jaqs.util as jutil
 
 dataview_folder = jutil.join_relative_path('../output/prepared', 'test_signal')
 
+
 def save_dataview():
     ds = RemoteDataService()
     ds.init_from_config()
@@ -81,6 +82,45 @@ def analyze_signal():
     # pickle.dump(res, open('_res.pic', 'w'))
 
 
+def analyze_event():
+    # --------------------------------------------------------------------------------
+    # Step.1 load dataview
+    dv = DataView()
+    dv.load_dataview(dataview_folder)
+    
+    # --------------------------------------------------------------------------------
+    # Step.2 calculate mask (to mask those ill data points)
+    trade_status = dv.get_ts('trade_status')
+    mask_sus = trade_status == u'停牌'.encode('utf-8')
+    
+    df_index_member = dv.get_ts('index_member')
+    mask_index_member = ~(df_index_member > 0)
+    
+    dv.add_formula('limit_reached', 'Abs((open - Delay(close, 1)) / Delay(close, 1)) > 0.095', is_quarterly=False)
+    df_limit_reached = dv.get_ts('limit_reached')
+    mask_limit_reached = df_limit_reached > 0
+    
+    mask_all = np.logical_or(mask_sus, np.logical_or(mask_index_member, mask_limit_reached))
+    
+    # --------------------------------------------------------------------------------
+    # Step.3 get signal, benchmark and price data
+    dv.add_formula('new_high', 'close_adj >= Ts_Max(close_adj, 300)', is_quarterly=False)
+    dv.add_formula('new_high_delay', 'Delay(Ts_Max(new_high, 300), 1)', is_quarterly=False)
+    dv.add_formula('sig', 'new_high && (! new_high_delay)', is_quarterly=False)
+    
+    signal = dv.get_ts('sig').shift(0, axis=0)  # avoid look-ahead bias
+    price = dv.get_ts('close_adj')
+    price_bench = dv.data_benchmark
+    
+    # Step.4 analyze!
+    obj = SignalDigger(output_folder=jutil.join_relative_path('../output'),
+                       output_format='pdf')
+    
+    obj.create_binary_event_report(signal, price, mask_all, 5, price_bench, periods=[5, 20, 40])
+    
+    # import cPickle as pickle
+    # pickle.dump(res, open('_res.pic', 'w'))
+
 if __name__ == "__main__":
-    # save_dataview()
+    save_dataview()
     analyze_signal()

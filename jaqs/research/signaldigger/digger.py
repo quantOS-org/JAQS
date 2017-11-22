@@ -304,7 +304,84 @@ class SignalDigger(object):
         
         self.ic_report_data = {'daily_ic': ic,
                                'monthly_ic': monthly_ic}
+    
+    '''
+    def OLS_create_binary_event_report(self, before, after):
+        """
+        
+        Parameters
+        ----------
+        before : int
+        after : int
 
+        Returns
+        -------
+
+        """
+        event = self.signal_data['signal']
+        ret = self.signal_data['return']
+        
+        event = event.unstack('symbol')
+        ret = ret.unstack('symbol')
+        event = event.astype(bool)
+        
+        index_len = event.shape[0]
+        l = []
+        idx = range(-before, after+1)
+        for day_zero_index in range(before, index_len - after):
+            date = event.index[day_zero_index]
+            row = event.iloc[day_zero_index, :]
+            
+            equities_slice = row.values
+            if not any(equities_slice):
+                continue
+            
+            starting_index = day_zero_index - before
+            ending_index = day_zero_index + after
+            
+            ser_events = ret.iloc[starting_index: ending_index + 1, equities_slice]
+            ser_events.index = idx
+    
+            l.append(ser_events)
+        
+        res = pd.concat(l, axis=1)
+        res = pfm.ret2cum(res, compound=False, axis=0)
+        res = res - res.loc[0, :]
+        
+        return res.mean(axis=1), res.std(axis=1)
+    
+    '''
+    
+    def create_binary_event_report(self, signal, price, mask, n_quantiles, benchmark_price, periods=None):
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+        import scipy.stats as scst
+        
+        if periods is None:
+            periods = [3, 20, 40]
+            
+        dic = dict()
+        for my_period in periods:
+            self.process_signal_before_analysis(signal, price=price,
+                                                mask=mask,
+                                                n_quantiles=5, period=my_period,
+                                                benchmark_price=benchmark_price,
+                                               )
+            dic[my_period] = self.signal_data
+
+        dic2 = {k: v['return'] for k, v in dic.items()}
+        dic2['signal'] = dic[my_period]['signal'].astype(bool)
+        res = pd.concat(dic2, axis=1, join='inner')
+        res = res.loc[res['signal']]
+
+        for my_period in periods:
+            print(scst.ttest_1samp(res[my_period], 0))
+            plt.figure(figsize=(10, 5))
+            sns.distplot(res[my_period])
+
+        mean, std = res.mean(axis=0), res.std(axis=0)
+        print(mean)
+        
     @plotting.customize
     def create_full_report(self):
         """
