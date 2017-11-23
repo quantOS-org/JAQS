@@ -1,5 +1,5 @@
 
-## Backtest
+## 回测
 
 这里回测指**基于权重调仓**的Alpha策略回测，支持自定义**选股**和自定义**信号**。
 
@@ -24,13 +24,17 @@ def my_singal(context, user_options=None):
     res = -context.snapshot_sub.loc[:, 'price_volume_divert']
     return res
 
+
 def test_alpha_strategy_dataview():
-    save_dataview()
-    
-    dv = DataView()
-    dv.load_dataview(folder_path=dataview_dir_path)
+##     dv = DataView()
+
+##     fullpath = '/home/bliu/pytrade_dir/ipynb/prepared/compare'
+##     dv.load_dataview(folder=fullpath)
     
     props = {
+        "benchmark": "000300.SH",
+        "universe": ','.join(dv.symbol),
+
         "start_date": dv.start_date,
         "end_date": dv.end_date,
     
@@ -437,7 +441,7 @@ store.close()
 ##### 3. StockSelector选股模块
 接着我们使用StockSelector选股模块。基于因子IC及相应权重的选股过程在my_selector中实现。
 ```python
-stock_selector = model.StockSelector
+stock_selector = model.StockSelector(context)
 stock_selector.add_filter(name='myselector', func=my_selector)
 ```
 a.首先载入因子ic的权重context.ic_weight，回测日期列表context.trade_date记忆因子名称列表factorList

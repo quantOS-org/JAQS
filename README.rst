@@ -18,18 +18,24 @@ Features
 Installation
 ============
 
-参见 \ `安装文档 <https://github.com/quantOS-org/JAQS/blob/master/doc/install.md>`__\
+参见 \ `安装指南 <https://github.com/quantOS-org/JAQS/blob/master/doc/install.md>`__\
 
 Quickstart
 ==========
 
-参见 \ `入门指南 <https://github.com/quantOS-org/JAQS/blob/master/doc/user_guide.md>`__\.
+参见 \ `用户手册 <http://www.quantos.org/jaqs/doc.html>`__\.
 
 更多示例可在项目的 ``example`` 文件夹下找到，如 ``example/alpha/select_stocks_pe_profit.py`` .
 
 查看完整文档，请访问： \ `jaqs.readthedocs.io <http://jaqs.readthedocs.io>`__\ 
 
-Questions?
+Contribute
+===========
+
+欢迎参与开发！可以通过Pull Request的方式提交代码。
+
+
+Questions
 ==========
 
 如果您发现任何问题，请到\ `这里 <https://github.com/quantOSorg/jaqs/issues/new>`__\提交。
