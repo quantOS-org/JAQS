@@ -50,6 +50,7 @@ def calc_ic_stats_table(ic_data):
     ic_summary_table["IC Skew"] = scst.skew(ic_data)
     ic_summary_table["IC Kurtosis"] = scst.kurtosis(ic_data)
     ic_summary_table["Ann. IR"] = ic_data.mean() / ic_data.std()
+    return ic_summary_table
 
 
 def mean_information_coefficient(ic, by_time=None):
