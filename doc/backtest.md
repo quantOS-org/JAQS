@@ -203,7 +203,7 @@ props = {
 ##### 2. StockSelector选股模块
 接着我们使用StockSelector选股模块，将之前定义的my_selector载入
 ```python
-stock_selector = model.StockSelector(context)
+stock_selector = model.StockSelector
 stock_selector.add_filter(name='myselector', func=my_selector)
 ```
 ##### 3. FactorSignalModel模块
@@ -437,7 +437,7 @@ store.close()
 ##### 3. StockSelector选股模块
 接着我们使用StockSelector选股模块。基于因子IC及相应权重的选股过程在my_selector中实现。
 ```python
-stock_selector = model.StockSelector(context)
+stock_selector = model.StockSelector
 stock_selector.add_filter(name='myselector', func=my_selector)
 ```
 a.首先载入因子ic的权重context.ic_weight，回测日期列表context.trade_date记忆因子名称列表factorList

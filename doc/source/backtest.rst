@@ -237,11 +237,11 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
 
 .. code:: python
 
-    stock_selector = model.StockSelector(context)
+    stock_selector = model.StockSelector
     stock_selector.add_filter(name='myselector', func=my_selector)
 
 3. FactorSignalModel模块
-'''''''''''''''''''''''''
+''''''''''''''''''''''''
 
 在进行条件选股后，使用FactorSignalModel模块对所选股票进行排序
 
@@ -544,7 +544,7 @@ context是一个类用来保存一些中间结果，可在程序中任意位置�
 
 .. code:: python
 
-    stock_selector = model.StockSelector(context)
+    stock_selector = model.StockSelector
     stock_selector.add_filter(name='myselector', func=my_selector)
 
 a.首先载入因子ic的权重context.ic\_weight，回测日期列表context.trade\_date记忆因子名称列表factorList
