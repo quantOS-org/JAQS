@@ -491,7 +491,40 @@ class RemoteDataService(DataService):
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         return df_io
 
-    def get_index_weights_daily(self, index, start_date, end_date):
+    def get_index_weights_range(self, index, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+        
+        Parameters
+        ----------
+        index : str
+            separated by ','
+        trade_date : int
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        if index == '000300.SH':
+            index = '399300.SZ'
+    
+        filter_argument = self._dic2url({'index_code': index,
+                                         'start_date': start_date,
+                                         'end_date': end_date})
+    
+        df_io, msg = self.query("lb.indexWeightRange", fields="",
+                                filter=filter_argument)
+        if msg != '0,':
+            print msg
+        # df_io = df_io.set_index('symbol')
+        df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io.loc[:, 'weight'] = df_io['weight'] / 100.
+        df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
+        df_io = df_io.fillna(0.0)
+        return df_io
+
+    def get_index_weights_daily_OLD(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
         
@@ -531,7 +564,37 @@ class RemoteDataService(DataService):
         res = res.fillna(method='ffill')
         res = res.loc[start_date: end_date]
         return res
-    
+
+    def get_index_weights_daily(self, index, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+        
+        Parameters
+        ----------
+        index : str
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Index is trade_date, columns are symbols.
+
+        """
+        
+        start_dt = jutil.convert_int_to_datetime(start_date)
+        start_dt_extended = start_dt - pd.Timedelta(days=45)
+        start_date_extended = jutil.convert_datetime_to_int(start_dt_extended)
+        trade_dates = self.get_trade_date_range(start_date_extended, end_date)
+        
+        df_weight_raw = self.get_index_weights_range(index, start_date=start_date_extended, end_date=end_date)
+        res = df_weight_raw.reindex(index=trade_dates)
+        res = res.fillna(method='ffill')
+        res = res.loc[res.index >= start_date]
+        res = res.loc[res.index <= end_date]
+        
+        return res
+
     def _get_index_comp(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
