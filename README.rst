@@ -38,7 +38,7 @@ Contribute
 Questions
 ==========
 
-如果您发现任何问题，请到\ `这里 <https://github.com/quantOSorg/jaqs/issues/new>`__\提交。
+如果您发现任何问题，请到\ `这里 <https://github.com/quantOS-org/JAQS/issues/new>`__\提交。
 
 
 License
