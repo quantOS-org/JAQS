@@ -612,4 +612,21 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
 
 # -----------------------------------------------------------------------------------
 # Functions to Plot Others
+def plot_event_bar(mean_ret, ax):
+    ax.bar(mean_ret.index, mean_ret.values * DECIMAL_TO_BPS)
+    
+    ax.set(xlabel='Period Length', ylabel='bps')
+    ax.legend(list(map(lambda x: str(x), mean_ret.index.values)))
+    return ax
 
+
+def plot_event_dist(df_events, periods, axs):
+    for i, my_period in enumerate(periods):
+        ax = axs[i]
+        sns.distplot(df_events[my_period], ax=ax)
+        ax.set(xlabel='Return', ylabel='',
+               title="Distribution of return after {:d} trade dats".format(my_period))
+        # self.show_fig(fig, 'event_return_{:d}days.png'.format(my_period))
+    
+    # print(mean)
+    

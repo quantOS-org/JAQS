@@ -8,6 +8,7 @@ from . import performance as pfm
 from . import plotting
 
 import jaqs.util as jutil
+from jaqs.trade import common
 
 
 class SignalDigger(object):
@@ -360,27 +361,46 @@ class SignalDigger(object):
         if periods is None:
             periods = [3, 20, 40]
             
-        dic = dict()
+        dic_signal_data = dict()
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price,
                                                 mask=mask,
                                                 n_quantiles=5, period=my_period,
                                                 benchmark_price=benchmark_price,
                                                )
-            dic[my_period] = self.signal_data
+            dic_signal_data[my_period] = self.signal_data
 
-        dic2 = {k: v['return'] for k, v in dic.items()}
-        dic2['signal'] = dic[my_period]['signal'].astype(bool)
-        res = pd.concat(dic2, axis=1, join='inner')
+        # analyze ret: annualized
+        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
+        dic_ret['signal'] = dic_signal_data[my_period]['signal'].astype(bool)
+        res = pd.concat(dic_ret, axis=1, join='inner')
         res = res.loc[res['signal']]
 
+        mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
+        
+        df_ttest = pd.DataFrame(index=periods, columns=['statistic', 'pvalue'], data=0.0)
         for my_period in periods:
-            print(scst.ttest_1samp(res[my_period], 0))
-            plt.figure(figsize=(10, 5))
-            sns.distplot(res[my_period])
+            test_res = scst.ttest_1samp(res[my_period], 0)
+            df_ttest.loc[my_period, :] = test_res[0], test_res[1]
+        df_res = pd.DataFrame(mean, columns=['mean_ret']).join(df_ttest)
+        print(df_res)
 
-        mean, std = res.mean(axis=0), res.std(axis=0)
-        print(mean)
+        # return
+        res_dic = dict()
+        for key, df in dic_signal_data.items():
+            df_events = df.loc[df['signal'].astype(bool)]
+            res_dic[key] = df_events
+
+        # plot
+        gf = plotting.GridFigure(rows=len(periods) + 1, cols=2)
+        gf.fig.suptitle("Event Return Analysis (annualized)")
+
+        plotting.plot_event_bar(mean, ax=gf.next_row())
+        plotting.plot_event_dist(res, periods, axs=[gf.next_cell() for _ in periods])
+        
+        self.show_fig(gf.fig, 'event_report')
+
+        return res_dic
         
     @plotting.customize
     def create_full_report(self):
