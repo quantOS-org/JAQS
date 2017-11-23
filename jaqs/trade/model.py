@@ -243,20 +243,20 @@ class StockSelector(FuncRegisterable):
         return selected
 
 
-class BaseRevenueModel(FuncRegisterable):
+class BaseSignalModel(FuncRegisterable):
     def __init__(self, context=None):
-        super(BaseRevenueModel, self).__init__(context=context)
+        super(BaseSignalModel, self).__init__(context=context)
         pass
 
     def add_signal(self, name, func, options=None):
         self._register_func(name, func, options)
 
-    def forecast_revenue(self, weights):
+    def forecast_signal(self, weights):
         pass
 
 
 '''
-class FactorRevenueModel(BaseRevenueModel):
+class FactorSignalModel(BaseSignalModel):
     """
     Forecast profit of target weight (portfolio), where:
     
@@ -267,7 +267,7 @@ class FactorRevenueModel(BaseRevenueModel):
     
     """
     def __init__(self):
-        super(FactorRevenueModel, self).__init__()
+        super(FactorSignalModel, self).__init__()
         
         self.total_forecast = None
     
@@ -314,9 +314,9 @@ class FactorRevenueModel(BaseRevenueModel):
             res += f * w
         return res
     
-    def forecast_revenue(self, weights):
+    def forecast_signal(self, weights):
         """
-        Forecast total revenue of the portfolio with weights.
+        Forecast total signal of the portfolio with weights.
         
         Parameters
         ----------
@@ -327,19 +327,19 @@ class FactorRevenueModel(BaseRevenueModel):
         res : float
 
         """
-        total_revenue = 0.0
+        total_signal = 0.0
         for sec, w in weights.viewitems():
             forecasts = self.forecast_individual(sec)
             forecast = self.combine_sum(forecasts)
             
-            total_revenue += w * forecast
+            total_signal += w * forecast
         
-        return total_revenue
+        return total_signal
 
 '''
 
 
-class FactorRevenueModel(BaseRevenueModel):
+class FactorSignalModel(BaseSignalModel):
     """
     Forecast profit of target weight (portfolio), where:
     
@@ -350,7 +350,7 @@ class FactorRevenueModel(BaseRevenueModel):
     
     """
     def __init__(self, context=None):
-        super(FactorRevenueModel, self).__init__(context=context)
+        super(FactorSignalModel, self).__init__(context=context)
     
         self.total_forecast = None
 
@@ -432,9 +432,9 @@ class FactorRevenueModel(BaseRevenueModel):
         forecast = self.combine_sum(forecasts)
         return forecast
         
-    def forecast_revenue(self, weights):
+    def forecast_signal(self, weights):
         """
-        Forecast total revenue of the portfolio with weights.
+        Forecast total signal of the portfolio with weights.
         
         Parameters
         ----------
@@ -445,23 +445,23 @@ class FactorRevenueModel(BaseRevenueModel):
         res : float
 
         """
-        total_revenue = 0.0
+        total_signal = 0.0
         forecast_dic = self.make_forecast()
         
-        weighted_revenue = {key: value * forecast_dic[key] for key, value in weights.viewitems()}
-        total_revenue = np.sum(weighted_revenue.values())
+        weighted_signal = {key: value * forecast_dic[key] for key, value in weights.viewitems()}
+        total_signal = np.sum(weighted_signal.values())
         
-        return total_revenue
+        return total_signal
 
 
-class FactorRevenueModel_custom(FactorRevenueModel):
+class FactorSignalModel_custom(FactorSignalModel):
     """
     Custom weight.
 
     """
 
     def __init__(self, context=None, signal_weights=None):
-        super(FactorRevenueModel_custom, self).__init__(context=context)
+        super(FactorSignalModel_custom, self).__init__(context=context)
 
         self.signal_weights = signal_weights
 
@@ -664,14 +664,14 @@ def test_models():
     weight_last = {k: v * portfolio for k, v in weight_last.viewitems()}
     weight_now = {k: v * portfolio for k, v in weight_now.viewitems()}
     
-    revenue = FactorRevenueModel().forecast_revenue(weight_now)
+    signal = FactorSignalModel().forecast_signal(weight_now)
     cost = SimpleCostModel().calc_cost(weight_last, weight_now)
     # liquid = Liquidation().calc_liquid(weight_now)
     risk = FactorRiskModel().calc_risk(weight_now)
     
     risk_coef = 1.0
     cost_coef = 1.0
-    util = revenue - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
+    util = signal - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
     
     """
     obj.: h(x) = argmax(util)

@@ -21,14 +21,8 @@ class Instrument(object):
 
 
 class InstManager(object):
-    def __init__(self, inst_type="", symbol="", data_api=None):
-        from jaqs.data import RemoteDataService
-        
-        if data_api is None:
-            self.data_api = RemoteDataService()
-            self.data_api.init_from_config()
-        else:
-            self.data_api = data_api
+    def __init__(self, data_api, inst_type="", symbol=""):
+        self.data_api = data_api
         
         self.inst_map = {}
         self.load_instruments(inst_type=inst_type, symbol=symbol)

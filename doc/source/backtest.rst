@@ -1,5 +1,5 @@
-Backtest
---------
+回测
+----
 
 这里回测指\ **基于权重调仓**\ 的Alpha策略回测，支持自定义\ **选股**\ 和自定义\ **信号**\ 。
 
@@ -32,37 +32,47 @@ series)和信号（float series）权重
 
     ##     fullpath = '/home/bliu/pytrade_dir/ipynb/prepared/compare'
     ##     dv.load_dataview(folder=fullpath)
+        
         props = {
             "benchmark": "000300.SH",
             "universe": ','.join(dv.symbol),
 
             "start_date": dv.start_date,
             "end_date": dv.end_date,
-
-            "period": "month",
+        
+            "period": "week",
             "days_delay": 0,
-            "n_periods": 1,
+        
+            "init_balance": 1e8,
+            "position_ratio": 0.7,
+            'commission_rate': 0.0
+            }
 
-            "init_balance": 1e9,
-            "position_ratio": 0.5,
-        }
-
-        gateway = AlphaTradeApi()
-        gateway.init_from_config(props)
-
-        context = model.Context(dataview=dv, gateway=gateway)
-
-        signal_model = model.FactorRevenueModel(context)
-        signal_model.add_signal('my_singal', my_singal)
-
-        strategy = AlphaStrategy(revenue_model=signal_model, pc_method='equal_weight')
-
+        trade_api = AlphaTradeApi()
         bt = AlphaBacktestInstance()
-        bt.init_from_config(props, strategy, context=context)
+        
+        signal_model = model.FactorSignalModel()
+        stock_selector = model.StockSelector()
+        
+        signal_model.add_signal(name='my_factor', func=my_singal)
+        stock_selector.add_filter(name='total_profit_growth', func=my_selector)
+        stock_selector.add_filter(name='no_new_stocks', func=my_selector_no_new_stocks)
+        
+        strategy = AlphaStrategy(signal_model=signal_model, stock_selector=stock_selector,
+                                 pc_method='factor_value_weight')
+        pm = PortfolioManager()
+
+        context = model.AlphaContext(dataview=dv, trade_api=trade_api,
+                                     instance=bt, strategy=strategy, pm=pm)
+        for mdl in [risk_model, signal_model, cost_model, stock_selector]:
+            mdl.register_context(context)
+
+        bt.init_from_config(props)
 
         bt.run_alpha()
+        
+        bt.save_results(folder_path=backtest_result_dir_path)
 
-        bt.save_results('output/divert')
 
     test_alpha_strategy_dataview()
 
@@ -70,38 +80,13 @@ series)和信号（float series）权重
 
     def test_backtest_analyze():
         ta = ana.AlphaAnalyzer()
-        #data_service = RemoteDataService()
+        dv = DataView()
+        dv.load_dataview(folder_path=dataview_dir_path)
+        
+        ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
 
-        out_folder = "output/jli"
+        ta.do_analyze(result_dir=backtest_result_dir_path, selected_sec=list(ta.universe)[:3])
 
-        ta.initialize(dataview=dv, file_folder=out_folder)
-
-        print "process trades..."
-        ta.process_trades()
-        print "get daily stats..."
-        ta.get_daily()
-        print "calc strategy return..."
-        ta.get_returns(compound_return=False)
-        # position change info is huge!
-        # print "get position change..."
-        # ta.get_pos_change_info()
-
-        selected_sec = [] # list(ta.universe)[:5]
-        if len(selected_sec) > 0:
-            print "Plot single securities PnL"
-            for symbol in selected_sec:
-                df_daily = ta.daily.get(symbol, None)
-                if df_daily is not None:
-                    ana.plot_trades(df_daily, symbol=symbol, save_folder=out_folder)
-
-        print "Plot strategy PnL..."
-        ta.plot_pnl(out_folder)
-
-        print "generate report..."
-        static_folder = fileio.join_relative_path("trade/analyze/static")
-        ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
-                      out_folder=out_folder,
-                      selected=selected_sec)
 
     test_backtest_analyze()
 
@@ -118,6 +103,9 @@ series)和信号（float series）权重
 
 格雷厄姆选股策略
 ~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/Graham.py>`__\ 。
 
 主要介绍基于回测框架实现格雷厄姆模型。格雷厄姆模型分为两步，首先是条件选股，其次按照市值从小到大排序，选出排名前五的股票。
 
@@ -253,29 +241,29 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
 
 .. code:: python
 
-    stock_selector = model.StockSelector(context)
+    stock_selector = model.StockSelector
     stock_selector.add_filter(name='myselector', func=my_selector)
 
-3. FactorRevenueModel模块
-'''''''''''''''''''''''''
+3. FactorSignalModel模块
+''''''''''''''''''''''''
 
-在进行条件选股后，使用FactorRevenueModel模块对所选股票进行排序
+在进行条件选股后，使用FactorSignalModel模块对所选股票进行排序
 
 .. code:: python
 
-    signal_model = model.FactorRevenueModel(context)
+    signal_model = model.FactorSignalModel(context)
     signal_model.add_signal(name='signalsize', func = signal_size)
 
 4. 策略回测模块
 '''''''''''''''
 
-将上面定义的stockSelector和FactorRevenueModel载入AlphaStrategy函数进行回测
+将上面定义的stockSelector和FactorSignalModel载入AlphaStrategy函数进行回测
 
 .. code:: python
 
         strategy = AlphaStrategy(
                     stock_selector=stock_selector,
-                    revenue_model=signal_model，
+                    signal_model=signal_model，
                     pc_method='factor_value_weight')
 
 5. 启动数据准备及回测模块
@@ -315,6 +303,9 @@ c. 由于第二步中需要按流通市值排序，我们将这一变量也放�
 
 基于因子IC的多因子选股模型
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/ICCombine.py>`__\ 。
 
 主要介绍基于回测框架实现基于因子IC的因子权重优化模型。
 
@@ -633,6 +624,9 @@ b.接着根据各因子IC的权重，对当天各股票的IC值进行加权求�
 Calendar Spread交易策略
 ~~~~~~~~~~~~~~~~~~~~~~~
 
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/CalendarSpread.py>`__\ 。
+
 本帖主要介绍了基于事件驱动回测框架实现calendar spread交易策略。
 
 一. 策略介绍
@@ -747,6 +741,9 @@ Calendar Spread交易策略
 
 商品期货的Dual Thrust日内交易策略
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/DualThrust.py>`__\ 。
 
 本帖主要介绍了基于事件驱动回测框架实现Dual Thrust日内交易策略。
 
@@ -934,6 +931,9 @@ Thrust系统使用
 
 版块内股票轮动策略
 ~~~~~~~~~~~~~~~~~~
+
+本策略完整实现代码见
+`这里 <https://github.com/quantOS-org/JAQS/blob/master/example/alpha/SectorRolling.py>`__\ 。
 
 本帖主要介绍了基于事件驱动回测框架实现版块内股票轮动策略。
 

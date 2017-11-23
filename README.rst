@@ -1,77 +1,44 @@
-Welcome
-=======
+Introduction
+============
 
-在这里，你将可以获得：
-
--  使用数据API，轻松获取研究数据
--  根据策略模板，编写自己的量化策略
--  使用回测框架，对策略进行回测和验证
+JAQS是一个开源量化策略研究平台，由交易专家和金融技术专家共同设计，实现了自动化信号研究、高效策略开发和多维度回测分析，支持Alpha、CTA、套利等策略的实现。JAQS从实战而来，经实盘检验，本地化开发部署，保障策略安全。
 
 |jaqsflowchart|
 
-查看完整文档，请点击\ `连接 <http://jaqs.readthedocs.io>`__\ 
+Features
+========
 
-Dependencies
-============
-
-- pytest
-- Jinja2
-- matplotlib
-- msgpack\_python
-- nose\_parameterized
-- seaborn
-- six
-- xarray
-- pyzmq
-- python-snappy
+- 通过统一的DataApi，获取、存储和管理数据。
+- 通过数学公式快速定义并分析信号；实现Alpha选股、CTA、套利等各类量化交易策略，对策略进行历史回测。
+- 通过统一的TradeApi，接入在线仿真系统进行仿真交易，跟踪策略表现。对接实盘通道实现实盘交易（当然需要用户搞定交易通道）。
+- 完全本地化，代码可以部署在任意个人电脑或服务器上，本地化运行，策略安全性有保证。
+- 模块化设计，通过标准的输入输出接口，做到数据与回测分离，交易与分析分离， 每一个环节都清晰可控，达到机构级别的标准化、流程化。
+- 面向实盘编程，数据构建时进行严格的对齐，回测时提供当前快照而不是数据查询接口，防止未来函数的出现；通过对策略类的精巧设计，使回测与实盘/仿真交易可使用同一套策略代码，始于开展严谨的研究、回测。
 
 Installation
 ============
 
-目前可以在如下操作系统上安装
-
--  Windows 64-bit
--  GNU/Linux 64-bit
-
-如果还没有Python环境，建议先安装所对应操作系统的Python集成开发环境
-`Anaconda <http://www.continuum.io/downloads>`__\ ，再安装jaqs。
-
-安装方式主要有以下几种：
-
-1、使用\ ``pip``\ 进行安装
---------------------------
-
-    $ pip install jaqs
-
-2、通过源代码安装
------------------
-
-git clone https://github.com/quantOS-org/jaqs.git
-，进入到源文件目录，执行安装命令：
-
-$ python setup.py install
-或者通过pypi地址\ https://pypi.python.org/pypi/jaqs
-下载,并执行上面安装命令。
-
-3、代码升级
------------
-
-$ pip install jaqs --upgrade
+参见 \ `安装指南 <https://github.com/quantOS-org/JAQS/blob/master/doc/install.md>`__\
 
 Quickstart
 ==========
 
-参见 `入门指南 <doc/source/user_guide.rst>`__
+参见 \ `用户手册 <http://www.quantos.org/jaqs/doc.html>`__\.
 
-更多的示例保存在 ``jaqs/examples``
+更多示例可在项目的 ``example`` 文件夹下找到，如 ``example/alpha/select_stocks_pe_profit.py`` .
+
+查看完整文档，请访问： \ `jaqs.readthedocs.io <http://jaqs.readthedocs.io>`__\ 
+
+Contribute
+===========
+
+欢迎参与开发！可以通过Pull Request的方式提交代码。
 
 
-查看完整文档，请访问： `http://jaqs.readthedocs.io <http://jaqs.readthedocs.io>`__\ 
-
-Questions?
+Questions
 ==========
 
-如果您发现任何问题，请到 \ `这里 <https://github.com/quantOSorg/jaqs/issues/new>`__\ 提交。
+如果您发现任何问题，请到\ `这里 <https://github.com/quantOS-org/JAQS/issues/new>`__\提交。
 
 
 License

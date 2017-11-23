@@ -136,10 +136,10 @@ def demo_usage():
     # -------------------------------------------------------------------------------------
     # demo usage of parser
     parser = Parser()
-    # expr_formula = 'Delta(revenue, 1) / Delay(revenue,1)'
-    expr_formula = 'Delay(revenue,0)'
+    # expr_formula = 'Delta(signal, 1) / Delay(signal,1)'
+    expr_formula = 'Delay(signal,0)'
     expression = parser.parse(expr_formula)
-    df_res = parser.evaluate({'revenue': df_value}, df_ann, date_arr)
+    df_res = parser.evaluate({'signal': df_value}, df_ann, date_arr)
     
     # -------------------------------------------------------------------------------------
     # print to validate results

@@ -1,0 +1,5 @@
+{
+  "remote.trade.address": "tcp://gw.quantos.org:8901",
+  "remote.trade.username": "Your Username",
+  "remote.trade.password": "Your Password"
+}

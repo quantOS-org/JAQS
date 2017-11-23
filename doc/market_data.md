@@ -1,4 +1,4 @@
-# 行情数据
+# 市场数据
 
 ## 字典定义
 
@@ -17,11 +17,11 @@
 | 港交所 | HK |
 
 
-### <span id="symbol">标的代码（symbol）</span>
+### 标的代码（symbol）
 
 由标的原始代码加市场代码（表1）组合而成，中间以&#39;.&#39;隔开，如&#39;000001.SH&#39;，多标的输入时以逗号 (&#39;,&#39;) 隔开，如：&#39;000001.SH, cu1709.SHF&#39;
 
-### <span id="bar">Bar类型（freq）</span>
+### Bar类型（freq）
 
 | Bar类型 | 说明 | 
 | --- | --- |
@@ -40,12 +40,12 @@
 
 输入参数：
 
-1. [标的代码](#symbol)，支持多标的查询
+1. 标的代码，支持多标的查询
 2. 需要返回字段(fields)，多字段以&#39;,&#39;隔开
 
 | 字段 | 类型 | 说明 | 缺省 |
 | --- | --- | --- | --- |
-| symbol | string | [标的代码](#symbol)，支持多标的查询 | 不可缺省 |
+| symbol | string | 标的代码，支持多标的查询 | 不可缺省 |
 | fields | string | 需要返回字段，多字段以&#39;,&#39;隔开；为&quot;&quot;时返回所有字段 | &quot;&quot; |
 
 
@@ -57,11 +57,11 @@ df, msg = api.quote(
                 fields="open,high,low,last,volume")
 ```
 
-<span id="quote_output">输出字段</span>：
+输出字段：
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) |
+| symbol | string | 标的代码 |
 | code | string | 交易所原始代码 |
 | date | int | 自然日,YYYYMMDD格式，如20170823 |
 | time | int | 时间，精确到毫秒，如14:21:05.330记为142105330 |
@@ -108,8 +108,8 @@ df, msg = api.quote(
 
 输入参数：
 
-1. [标的代码](#symbol)，支持多标的查询
-2. 回调函数(func)，格式为func(k, v)。k为数据类型，目前只支持实时行情("quote")； v为实时行情数据，dictionary格式，数据含义参考[quote函数输出字段定义](#quote_output)。
+1. 标的代码，支持多标的查询
+2. 回调函数(func)，格式为func(k, v)。k为数据类型，目前只支持实时行情("quote")； v为实时行情数据，dictionary格式，数据含义参考quote函数输出字段定义。
 3. 需要返回字段(fields)，多字段以&#39;,&#39;隔开。
 
 |字段 | 类型|说明 |缺省值|
@@ -133,16 +133,16 @@ subs_list,msg = api.subscribe("000001.SH, cu1709.SHF",func=on_quote,fields="symb
 
 输入参数：
 
-1. [标的代码](#symbol)，支持多标的查询，必要参数
+1. 标的代码，支持多标的查询，必要参数
 2. 开始日期 (start\_date)，string或者int类型：若为string类型，格式&#39;YYYY-MM-DD&#39;，如&#39;2017-08-01&#39;；若为int类型，格式为YYYYMMDD，如20170801。必要参数。
 3. 结束日期 (end\_date)，string或者int类型：若为string类型，格式&#39;YYYY-MM-DD&#39;，如&#39;2017-08-01&#39;；若为int类型，格式为YYYYMMDD，如20170801。必要参数。
-4. [Bar类型](#bar)(freq)，支持日线(&#39;1d&#39;)，周线(&#39;1w&#39;)和月线(&#39;1m&#39;)。缺省为日线(&#39;1d&#39;)。
+4. Bar类型(freq)，支持日线(&#39;1d&#39;)，周线(&#39;1w&#39;)和月线(&#39;1m&#39;)。缺省为日线(&#39;1d&#39;)。
 4. 复权类型(adjust\_mode)，string类型，&#39;pre&#39;为前复权，None不复权，&#39;post&#39;为后复权。缺省为None
 5. 返回字段 (fields)，多字段以 &#39;,&#39; 隔开，缺省时全字段返回。可选参数。
 
 | 字段 | 类型 | 说明 | 缺省值 |
 | --- | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) ，支持多标的查询 | 不可缺省 |
+| symbol | string | 标的代码 ，支持多标的查询 | 不可缺省 |
 | start\_date | int或者string | 开始日期, int时为YYYYMMDD格式(如20170809)；string时为&#39;YYYY-MM-DD&#39;格式，如&#39;2017-08-09&#39; | 不可缺省 |
 | end\_date | int或者string | 结束日期，int时为YYYYMMDD格式(如20170809)；string时为&#39;YYYY-MM-DD&#39;格式，如&#39;2017-08-09&#39; | 不可缺省 |
 | freq | string | 日线类型 | &quot;1d&quot; |
@@ -163,7 +163,7 @@ df, msg = api.daily(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) |
+| symbol | string | 标的代码 |
 | code | string | 交易所原始代码 |
 | trade\_date | int | YYYYMMDD格式，如20170823 |
 | freq | string | 日线类型 | 
@@ -185,16 +185,16 @@ df, msg = api.daily(
 
 输入参数：
 
-1. [标的代码](#symbol)，支持多标的查询，必要参数。
+1. 标的代码，支持多标的查询，必要参数。
 2. 开始时间 (start\_time)，精确到秒，string或者int类型：若为string类型，格式为&#39;HH:MM:SS&#39;，如&#39;09:32:35&#39;；若为int类型，格式为HHMMSS，如93235。缺省为为开盘时间。
 3. 结束时间 (end\_time)，精确到秒，string或者int类型：若为string类型，格式为&#39;HH:MM:SS&#39;，如&#39;09:32:35&#39;；若为int类型，格式为HHMMSS，如9323。缺省为当前时间（日内）或者收盘时间（历史）。
 4. 交易日 (trade\_date)，string或者int类型：若为string类型，格式&#39;YYYY-MM-DD&#39;，如&#39;2017-08-01&#39;；若为int类型，格式为YYYYMMDD，如20170801。缺省为当前交易日。
-5. [Bar类型](#bar)(freq)，支持一分钟线(&#39;1M&#39;)，五分钟线(&#39;5M&#39;)和十五分钟线(&#39;15M&#39;)。缺省为一分钟线 (&#39;1M&#39;)。
+5. Bar类型(freq)，支持一分钟线(&#39;1M&#39;)，五分钟线(&#39;5M&#39;)和十五分钟线(&#39;15M&#39;)。缺省为一分钟线 (&#39;1M&#39;)。
 6. 返回字段 (fields)，多字段以 &#39;,&#39; 隔开，缺省时全字段返回。
 
 | 字段 | 类型 | 说明 | 缺省值 |
 | --- | --- | --- | --- |
-| symbol | string | [标的代码](#symbol)，支持多标的查询 | 不可缺省 |
+| symbol | string | 标的代码，支持多标的查询 | 不可缺省 |
 | start\_time | int或string | 开始时间 | 开盘时间 |
 | end\_time | int或string | 结束时间 | 收盘时间 |
 | trade\_date | int或string | 交易日 | 当前交易日 |
@@ -216,7 +216,7 @@ df,msg = api.bar(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) |
+| symbol | string | 标的代码 |
 | code | string | 交易所原始代码 |
 | date | int | 自然日,YYYYMMDD格式，如20170823 |
 | time | int | 时间，精确到毫秒，如14:21:05.330记为142105330 |
@@ -239,16 +239,16 @@ df,msg = api.bar(
 
 输入参数：
 
-1. [标的代码](#symbol)，支持多标的查询，必要参数。
+1. 标的代码，支持多标的查询，必要参数。
 2. 开始时间 (start\_time)，精确到秒，string或者int类型：若为string类型，格式为&#39;HH:MM:SS&#39;，如&#39;09:32:35&#39;；若为int类型，格式为HHMMSS，如93235。缺省为为开盘时间。
 3. 结束时间 (end\_time)，精确到秒，string或者int类型：若为string类型，格式为&#39;HH:MM:SS&#39;，如&#39;09:32:35&#39;；若为int类型，格式为HHMMSS，如9323。缺省为当前时间（日内）或者收盘时间（历史）。
 4. 交易日 (trade\_date)，string或者int类型：若为string类型，格式&#39;YYYY-MM-DD&#39;，如&#39;2017-08-01&#39;；若为int类型，格式为YYYYMMDD，如20170801。缺省为当前交易日。
-5. [Bar类型](#bar)(freq)，支持一分钟线(&#39;1M&#39;)，五分钟线(&#39;5M&#39;)和十五分钟线(&#39;15M&#39;)。缺省为一分钟线 (&#39;1M&#39;)。
+5. Bar类型(freq)，支持一分钟线(&#39;1M&#39;)，五分钟线(&#39;5M&#39;)和十五分钟线(&#39;15M&#39;)。缺省为一分钟线 (&#39;1M&#39;)。
 6. 返回字段 (fields)，多字段以 &#39;,&#39; 隔开，缺省时全字段返回。
 
 | 字段 | 类型 | 说明 | 缺省值 |
 | --- | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) ，支持多标的查询 | 不可缺省 |
+| symbol | string | 标的代码 ，支持多标的查询 | 不可缺省 |
 | start\_time | int或string | 开始时间 | 开盘时间 |
 | end\_time | int或string | 结束时间 | 收盘时间 |
 | trade\_date | int或string | 交易日 | 当前交易日 |
@@ -271,7 +271,7 @@ df,msg = api.bar_quote(
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| symbol | string | [标的代码](#symbol) |
+| symbol | string | 标的代码 |
 | code | string | 交易所原始代码 |
 | date | int | 自然日，YYYYMMDD格式，如20170823 |
 | time | int | 时间，精确到毫秒，如14:21:05.330记为142105330 |

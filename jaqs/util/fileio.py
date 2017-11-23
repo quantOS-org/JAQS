@@ -36,10 +36,10 @@ def read_json(fp):
 
     Returns
     -------
-    dict or None
+    dict
 
     """
-    content = None
+    content = dict()
     try:
         with codecs.open(fp, 'r', encoding='utf-8') as f:
             content = json.load(f)

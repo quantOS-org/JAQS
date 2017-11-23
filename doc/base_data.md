@@ -1,4 +1,4 @@
-# 参考数据
+# 基础数据
 
 ## 调用说明
 - 每个数据表都是通过api.query函数调用，第一个参数view需填入对应的接口名，如：`view="lb.instrumentInfo"` 

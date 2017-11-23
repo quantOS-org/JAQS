@@ -1,4 +1,4 @@
-## DataApi
+## 数据API
 
 本产品提供了金融数据api，方便用户调用接口获取各种数据，通过python的api调用接口，返回DataFrame格式的数据和消息，以下是用法
 
@@ -143,7 +143,7 @@ df,msg = api.bar_quote(
                     start_time = "09:56:00", 
                     end_time="13:56:00", 
                     trade_date=20170823, 
-                    freq= "5m",
+                    freq= "5M",
                     fields="open,high,low,last,volume")
 ```
 

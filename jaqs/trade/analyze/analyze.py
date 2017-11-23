@@ -124,7 +124,7 @@ class BaseAnalyzer(object):
             data_inst = self.dataview.data_inst
             self.inst_map = data_inst.to_dict(orient='index')
         elif self.data_api is not None:
-            inst_mgr = InstManager(symbol=symbol_str, data_api=self.data_api)
+            inst_mgr = InstManager(data_api=self.data_api, symbol=symbol_str)
             self.inst_map = {k: v.__dict__ for k, v in inst_mgr.inst_map.items()}
             del inst_mgr
         else:
@@ -432,11 +432,12 @@ class BaseAnalyzer(object):
 
         print "Plot strategy PnL..."
         self.plot_pnl(result_dir)
-
+        
         print "generate report..."
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
                         out_folder=result_dir,
                         selected=selected_sec)
+        
 
 
 class EventAnalyzer(BaseAnalyzer):
@@ -628,7 +629,43 @@ class AlphaAnalyzer(BaseAnalyzer):
         df_brinson = res_dic['df_brinson']
         self.report_dic['df_brinson'] = df_brinson
         plot_brinson(df_brinson, save_folder=self.file_folder)
+
+    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None):
+        if selected_sec is None:
+            selected_sec = []
     
+        print "process trades..."
+        self.process_trades()
+        print "get daily stats..."
+        self.get_daily()
+        print "calc strategy return..."
+        self.get_returns(consider_commission=False)
+    
+        not_none_sec = []
+        if len(selected_sec) > 0:
+            print "Plot single securities PnL"
+            for symbol in selected_sec:
+                df_daily = self.daily.loc[pd.IndexSlice[symbol, :], :]
+                df_daily.index = df_daily.index.droplevel(0)
+                if df_daily is not None:
+                    not_none_sec.append(symbol)
+                    plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
+    
+        print "Plot strategy PnL..."
+        self.plot_pnl(result_dir)
+        
+        if brinson_group is not None:
+            print("Do brinson attribution.")
+            group = self.dataview.get_ts(brinson_group)
+            if group is None:
+                raise ValueError("group data is None.")
+            self.brinson(group)
+    
+        print "generate report..."
+        self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
+                        out_folder=result_dir,
+                        selected=not_none_sec)
+
 
 def plot_brinson(df, save_folder):
     """

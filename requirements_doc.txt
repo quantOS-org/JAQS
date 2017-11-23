@@ -1,9 +1,9 @@
-numpy
 enum34
-matplotlib
-sphinx_rtd_theme
 Jinja2
 msgpack_python
+pandas >= 0.20.0
+pyzmq
+python-snappy
 seaborn
 six
-pyzmq
+sphinx_rtd_theme

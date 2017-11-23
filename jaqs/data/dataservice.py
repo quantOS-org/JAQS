@@ -252,7 +252,11 @@ class RemoteDataService(DataService):
     def __del__(self):
         self.data_api.close()
 
-    def init_from_config(self, props=None):
+    def init_from_config(self, props):
+        # do not initialize and login again
+        if self.data_api is not None and self.data_api._loggined:
+            return
+        
         if props is None:
             props = dict()
             
@@ -272,12 +276,12 @@ class RemoteDataService(DataService):
                 res = default
             return res
         
-        props_default = jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
+        props_default = dict()  # jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
         dic_list = [props, props_default]
         
-        address = get_from_list_of_dict(dic_list, "remote.address", "")
-        username = get_from_list_of_dict(dic_list, "remote.username", "")
-        password = get_from_list_of_dict(dic_list, "remote.password", "")
+        address = get_from_list_of_dict(dic_list, "remote.data.address", "")
+        username = get_from_list_of_dict(dic_list, "remote.data.username", "")
+        password = get_from_list_of_dict(dic_list, "remote.data.password", "")
         if address is None or username is None or password is None:
             raise ValueError("no address, username or password available!")
         time_out = get_from_list_of_dict(dic_list, "timeout", 60)
@@ -929,6 +933,8 @@ class RemoteDataService(DataService):
         
 
 
+
+'''
 class Calendar_OLD(object):
     """
     A calendar for manage trade date.
@@ -940,27 +946,6 @@ class Calendar_OLD(object):
     """
     
     def __init__(self, data_api=None):
-        '''
-        if data_api is not None:
-            self.data_api = data_api
-        else:
-            props = jutil.read_json(jutil.join_relative_path('etc/data_config.json'))
-            
-            address = props.get("remote.address", "")
-            username = props.get("remote.username", "")
-            password = props.get("remote.password", "")
-            if address is None or username is None or password is None:
-                raise ValueError("no address, username or password available!")
-            time_out = props.get("timeout", 60)
-            
-            self.data_api = DataApi(address, use_jrpc=False)
-            self.data_api.set_timeout(timeout=time_out)
-            r, msg = self.data_api.login(username=username, password=password)
-            if not r:
-                print("DataAPI login failed: msg = '{}".format(msg))
-            else:
-                print "DataAPI login success : {}@{}".format(username, address)
-        '''
         if data_api is None:
             ds = RemoteDataService()
             ds.init_from_config()
@@ -1076,7 +1061,7 @@ class Calendar_OLD(object):
         return res
 
 
-
+'''
 
 
 

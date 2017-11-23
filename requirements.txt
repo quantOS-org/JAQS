@@ -1,9 +1,8 @@
-pandas >= 0.20.0
-pytest
+enum34
 Jinja2
-matplotlib
 msgpack_python
-seaborn
-six
+pandas >= 0.20.0
 pyzmq
 python-snappy
+seaborn
+six
