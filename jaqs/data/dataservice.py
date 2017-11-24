@@ -11,6 +11,21 @@ from jaqs.data import align
 import jaqs.util as jutil
 
 
+class InitializeError(Exception):
+    def __init__(self, *args):
+        super(InitializeError, self).__init__(*args)
+
+
+class NotLoginError(Exception):
+    def __init__(self, *args):
+        super(NotLoginError, self).__init__(*args)
+
+
+class QueryDataError(Exception):
+    def __init__(self, *args):
+        super(QueryDataError, self).__init__(*args)
+
+
 class DataService(object):
     """
     Abstract base class providing both historic and live data
@@ -85,7 +100,7 @@ class DataService(object):
         Returns
         -------
         df : pd.DataFrame
-        msg : str
+        err_msg : str
             error code and error message joined by comma
 
         """
@@ -118,12 +133,12 @@ class DataService(object):
         df : pd.DataFrame
             columns:
                 symbol, code, trade_date, open, high, low, close, volume, turnover, vwap, oi, suspended
-        msg : str
+        err_msg : str
             error code and error message joined by comma
 
         Examples
         --------
-        df, msg = api.daily("00001.SH,cu1709.SHF",start_date=20170503, end_date=20170708,
+        df, err_msg = api.daily("00001.SH,cu1709.SHF",start_date=20170503, end_date=20170708,
                             fields="open,high,low,last,volume", fq=None, skip_suspended=True)
 
         """
@@ -154,12 +169,12 @@ class DataService(object):
         df : pd.DataFrame
             columns:
                 symbol, code, date, time, trade_date, freq, open, high, low, close, volume, turnover, vwap, oi
-        msg : str
+        err_msg : str
             error code and error message joined by comma
 
         Examples
         --------
-        df, msg = api.bar("000001.SH,cu1709.SHF", start_time="09:56:00", end_time="13:56:00",
+        df, err_msg = api.bar("000001.SH,cu1709.SHF", start_time="09:56:00", end_time="13:56:00",
                           trade_date="20170823", fields="open,high,low,last,volume", freq="5m")
 
         """
@@ -236,36 +251,41 @@ class Singleton(type):
 class RemoteDataService(DataService):
     """
     RemoteDataService is a concrete class using data from remote server's database.
+    It wraps DataApi and simplify usage.
 
     """
     __metaclass__ = Singleton
-    # TODO no validity check for input parameters
     
     def __init__(self):
         DataService.__init__(self)
         
         self.data_api = None
+
+        self._address = ""
+        self._username = ""
+        self._password = ""
+        self._timeout = 60
         
-        self.REPORT_DATE_FIELD_NAME = 'report_date'
-        # self.calendar = None
+        self._REPORT_DATE_FIELD_NAME = 'report_date'
         
     def __del__(self):
         self.data_api.close()
 
     def init_from_config(self, props):
-        # do not initialize and login again
-        if self.data_api is not None and self.data_api._loggined:
-            return
+        """
         
-        if props is None:
-            props = dict()
-            
-        if self.data_api is not None:
-            if len(props) == 0:
-                return
-            else:
-                self.data_api.close()
-            
+        Parameters
+        ----------
+        props : dict
+            Configurations used for initialization.
+
+        Example
+        -------
+        {"remote.data.address": "tcp://Address:Port",
+        "remote.data.username": "your username",
+        "remote.data.password": "your password"}
+
+        """
         def get_from_list_of_dict(l, key, default=None):
             res = None
             for dic in l:
@@ -282,28 +302,57 @@ class RemoteDataService(DataService):
         address = get_from_list_of_dict(dic_list, "remote.data.address", "")
         username = get_from_list_of_dict(dic_list, "remote.data.username", "")
         password = get_from_list_of_dict(dic_list, "remote.data.password", "")
-        if address is None or username is None or password is None:
-            raise ValueError("no address, username or password available!")
         time_out = get_from_list_of_dict(dic_list, "timeout", 60)
 
-        self.data_api = DataApi(address, use_jrpc=False)
-        self.data_api.set_timeout(timeout=time_out)
-        print("\nDataApi login: {}@{}".format(username, address))
-        r, msg = self.data_api.login(username=username, password=password)
-        if not r:
-            print("    login failed: msg = '{}'\n".format(msg))
-        else:
-            print "    login success \n"
+        print("\nBegin: DataApi login {}@{}".format(username, address))
+        INDENT = ' ' * 4
         
-        # self.calendar = Calendar(self)
+        if self.data_api is None:
+            if (address == "") or (username == "") or (password == ""):
+                raise InitializeError("no address, username or password available!")
+        elif self.data_api._loggined:
+            if ((address == self._address) and (time_out == self._timeout)
+                and (username == self._username) and (password == self._password)):
+                print(INDENT + "Already login as {:s}, skip init_from_config".format(username))
+                return  # do not login with the same props again
+            else:
+                self.data_api.close()
+                self.data_api = None
 
+        self._address = address
+        self._username = username
+        self._password = password
+        self._timeout = time_out
+        
+        data_api = DataApi(self._address, use_jrpc=False)
+        data_api.set_timeout(timeout=self._timeout)
+        r, err_msg = data_api.login(username=self._username, password=self._password)
+        if not r:
+            print(INDENT + "login failed: err_msg = '{}'\n".format(err_msg))
+        else:
+            self.data_api = data_api
+            print(INDENT + "login success \n")
+        
+    def _raise_error_if_no_data_api(self):
+        if self.data_api is None:
+            raise NotLoginError("Please first login using init_from_config.")
+    
+    @staticmethod
+    def _raise_error_if_msg(err_msg):
+        if err_msg != '0,':
+            raise QueryDataError(err_msg)
+    
     # -----------------------------------------------------------------------------------
     # Basic APIs
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):
+        self._raise_error_if_no_data_api()
+        
         df, err_msg = self.data_api.daily(symbol=symbol, start_date=start_date, end_date=end_date,
                                           fields=fields, adjust_mode=adjust_mode, data_format="")
-        # trade_status performance warning
+
+        self._raise_error_if_msg(err_msg)
+        
         # TODO there will be duplicate entries when on stocks' IPO day
         df = df.drop_duplicates()
         return df, err_msg
@@ -311,10 +360,14 @@ class RemoteDataService(DataService):
     def bar(self, symbol,
             start_time=200000, end_time=160000, trade_date=None,
             freq='1M', fields=""):
-        df, msg = self.data_api.bar(symbol=symbol, fields=fields,
-                                    start_time=start_time, end_time=end_time, trade_date=trade_date,
-                                    freq='1M', data_format="")
-        return df, msg
+        self._raise_error_if_no_data_api()
+        
+        df, err_msg = self.data_api.bar(symbol=symbol, fields=fields,
+                                        start_time=start_time, end_time=end_time, trade_date=trade_date,
+                                        freq=freq, data_format="")
+        
+        self._raise_error_if_msg(err_msg)
+        return df, err_msg
     
     def query(self, view, filter="", fields="", **kwargs):
         """
@@ -333,25 +386,27 @@ class RemoteDataService(DataService):
         Returns
         -------
         df : pd.DataFrame
-        msg : str
+        err_msg : str
             error code and error message, joined by ','
         
         Examples
         --------
-        res3, msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",\
+        res3, err_msg3 = ds.query("lb.secDailyIndicator", fields="price_level,high_52w_adj,low_52w_adj",\
                               filter="start_date=20170907&end_date=20170907",\
                               orderby="trade_date",\
                               data_format='pandas')
             view does not change. fileds can be any field predefined in reference data api.
 
         """
-        df, msg = self.data_api.query(view, fields=fields, filter=filter, data_format="", **kwargs)
-        return df, msg
+        self._raise_error_if_no_data_api()
+        
+        df, err_msg = self.data_api.query(view, fields=fields, filter=filter, data_format="", **kwargs)
+        
+        self._raise_error_if_msg(err_msg)
+        return df, err_msg
 
     # -----------------------------------------------------------------------------------
     # Convenient Functions
-    def get_trade_date_range_OLD(self, start_date, end_date):
-        return self.calendar.get_trade_date_range(start_date, end_date)
     
     @staticmethod
     def _dic2url(d):
@@ -392,7 +447,7 @@ class RemoteDataService(DataService):
         -------
         df : pd.DataFrame
             index date, columns fields
-        msg : str
+        err_msg : str
 
         """
         view_map = {'income': 'lb.income', 'cash_flow': 'lb.cashFlow', 'balance_sheet': 'lb.balanceSheet',
@@ -415,8 +470,9 @@ class RemoteDataService(DataService):
         
         filter_argument = self._dic2url(dic_argument)  # 0 means first time, not update
         
-        res, msg = self.query(view_name, fields=fields, filter=filter_argument,
-                              order_by=self.REPORT_DATE_FIELD_NAME)
+        res, err_msg = self.query(view_name, fields=fields, filter=filter_argument,
+                                  order_by=self._REPORT_DATE_FIELD_NAME)
+        self._raise_error_if_msg(err_msg)
         
         # change data type
         try:
@@ -430,7 +486,7 @@ class RemoteDataService(DataService):
             res = res.sort_values(by=drop_dup_cols, axis=0)
             res = res.drop_duplicates(subset=drop_dup_cols, keep='first')
         
-        return res, msg
+        return res, err_msg
 
     def query_lb_dailyindicator(self, symbol, start_date, end_date, fields=""):
         """
@@ -449,17 +505,17 @@ class RemoteDataService(DataService):
         -------
         df : pd.DataFrame
             index date, columns fields
-        msg : str
+        err_msg : str
         
         """
         filter_argument = self._dic2url({'symbol': symbol,
                                          'start_date': start_date,
                                          'end_date': end_date})
     
-        return self.query("lb.secDailyIndicator",
-                          fields=fields,
-                          filter=filter_argument,
-                          orderby="trade_date")
+        res, err_msg = self.query("lb.secDailyIndicator", fields=fields,
+                                  filter=filter_argument, orderby="trade_date")
+        self._raise_error_if_msg(err_msg)
+        return res, err_msg
 
     def get_index_weights(self, index, trade_date):
         """
@@ -482,10 +538,9 @@ class RemoteDataService(DataService):
         filter_argument = self._dic2url({'index_code': index,
                                          'trade_date': trade_date})
     
-        df_io, msg = self.query("lb.indexWeight", fields="",
-                                filter=filter_argument)
-        if msg != '0,':
-            print msg
+        df_io, err_msg = self.query("lb.indexWeight", fields="", filter=filter_argument)
+        self._raise_error_if_msg(err_msg)
+        
         df_io = df_io.set_index('symbol')
         df_io = df_io.astype({'weight': float, 'trade_date': int})
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
@@ -552,9 +607,10 @@ class RemoteDataService(DataService):
                                          'start_date': start_date,
                                          'end_date': end_date})
     
-        df_io, msg = self.query("lb.indexCons", fields="",
-                                filter=filter_argument, orderby="symbol")
-        return df_io, msg
+        df_io, err_msg = self.query("lb.indexCons", fields="",
+                                    filter=filter_argument, orderby="symbol")
+        self._raise_error_if_msg(err_msg)
+        return df_io, err_msg
     
     def get_index_comp(self, index, start_date, end_date):
         """
@@ -572,9 +628,9 @@ class RemoteDataService(DataService):
         list
 
         """
-        df_io, msg = self._get_index_comp(index, start_date, end_date)
-        if msg != '0,':
-            print msg
+        df_io, err_msg = self._get_index_comp(index, start_date, end_date)
+        if err_msg != '0,':
+            print err_msg
         return list(np.unique(df_io.loc[:, 'symbol']))
     
     def get_index_comp_df(self, index, start_date, end_date):
@@ -595,9 +651,9 @@ class RemoteDataService(DataService):
             values are 0 (not in) or 1 (in)
 
         """
-        df_io, msg = self._get_index_comp(index, start_date, end_date)
-        if msg != '0,':
-            print msg
+        df_io, err_msg = self._get_index_comp(index, start_date, end_date)
+        if err_msg != '0,':
+            print err_msg
         
         def str2int(s):
             if isinstance(s, (str, unicode)):
@@ -703,10 +759,9 @@ class RemoteDataService(DataService):
                                          'industry_src': src})
         fields_list = ['symbol', 'industry{:d}_code'.format(level), 'industry{:d}_name'.format(level)]
     
-        df_raw, msg = self.query("lb.secIndustry", fields=','.join(fields_list),
+        df_raw, err_msg = self.query("lb.secIndustry", fields=','.join(fields_list),
                                  filter=filter_argument, orderby="symbol")
-        if msg != '0,':
-            print msg
+        self._raise_error_if_msg(err_msg)
         
         df_raw = df_raw.astype(dtype={'in_date': int,
                                       # 'out_date': int
@@ -787,10 +842,10 @@ class RemoteDataService(DataService):
                                          'start_date': start_date, 'end_date': end_date})
         fields_list = ['symbol', 'trade_date', 'adjust_factor']
 
-        df_raw, msg = self.query("lb.secAdjFactor", fields=','.join(fields_list),
+        df_raw, err_msg = self.query("lb.secAdjFactor", fields=','.join(fields_list),
                                  filter=filter_argument, orderby="symbol")
-        if msg != '0,':
-            print msg
+        self._raise_error_if_msg(err_msg)
+        
         df_raw = df_raw.astype(dtype={'symbol': str,
                                     'trade_date': int,
                                     'adjust_factor': float
@@ -804,10 +859,9 @@ class RemoteDataService(DataService):
         filter_argument = self._dic2url({'symbol': symbol,
                                          'inst_type': inst_type})
     
-        df_raw, msg = self.query("jz.instrumentInfo", fields=fields,
-                                 filter=filter_argument, orderby="symbol")
-        if msg != '0,':
-            print msg
+        df_raw, err_msg = self.query("jz.instrumentInfo", fields=fields,
+                                     filter=filter_argument, orderby="symbol")
+        self._raise_error_if_msg(err_msg)
 
         dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int, 'inst_type': int}
         cols = set(df_raw.columns)
@@ -860,8 +914,10 @@ class RemoteDataService(DataService):
         filter_argument = self._dic2url({'start_date': start_date,
                                          'end_date': end_date})
     
-        df_raw, msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
-                                          filter=filter_argument, orderby="")
+        df_raw, err_msg = self.query("jz.secTradeCal", fields="trade_date",
+                                     filter=filter_argument, orderby="")
+        self._raise_error_if_msg(err_msg)
+        
         if df_raw.empty:
             return np.array([], dtype=int)
     
@@ -990,7 +1046,7 @@ class Calendar_OLD(object):
         filter_argument = self._dic2url({'start_date': start_date,
                                          'end_date': end_date})
         
-        df_raw, msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
+        df_raw, err_msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
                                           filter=filter_argument, orderby="")
         if df_raw.empty:
             return np.array([], dtype=int)

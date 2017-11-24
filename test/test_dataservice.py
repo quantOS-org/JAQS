@@ -194,6 +194,29 @@ def test_remote_data_service_index_weight():
     assert df.shape == (236, 321)
 
 
+'''
+def test_remote_data_service_exception():
+    from jaqs.data.dataservice import NotLoginError, InitializeError
+    
+    del ds
+    ds2 = RemoteDataService()
+    try:
+        ds2.daily('000001.SH', 20170101, 20170109)
+    except NotLoginError:
+        pass
+    except Exception as exc:
+        raise exc
+    
+    try:
+        ds2.init_from_config({'remote.data.address': 'blabla'})
+    except InitializeError:
+        pass
+    except Exception as exc:
+        raise exc
+
+'''
+
+
 @pytest.fixture(autouse=True)
 def my_globals(request):
     ds = RemoteDataService()
