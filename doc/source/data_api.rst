@@ -501,7 +501,7 @@
 .. code:: python
 
     df, msg = api.query(
-                    view="wd.secDailyIndicator",
+                    view="lb.secDailyIndicator",
                     fields='pb,net_assets,ncf,price_level',
                     filter='symbol=000063.SZ&start_date=20170605&end_date=20170701')
 
