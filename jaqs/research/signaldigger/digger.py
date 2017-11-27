@@ -82,6 +82,8 @@ class SignalDigger(object):
             raise ValueError("Only one of price / ret should be provided.")
         if ret is not None and benchmark_price is not None:
             raise ValueError("You choose 'return' mode but benchmark_price is given.")
+        if not (n_quantiles > 0 and isinstance(n_quantiles, int)):
+            raise ValueError("n_quantiles must be a positive integer. Input is: {}".format(n_quantiles))
         
         data = price if price is not None else ret
         assert np.all(signal.index == data.index)
@@ -133,7 +135,11 @@ class SignalDigger(object):
         # calculate quantile
         signal_masked = signal.copy()
         signal_masked = signal_masked[~mask]
-        df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
+        if n_quantiles == 1:
+            df_quantile = signal_masked.copy()
+            df_quantile.loc[:, :] = 1.0
+        else:
+            df_quantile = jutil.to_quantile(signal_masked, n_quantiles=n_quantiles)
 
         # ----------------------------------------------------------------------
         # stack
