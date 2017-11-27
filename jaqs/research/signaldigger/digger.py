@@ -359,54 +359,71 @@ class SignalDigger(object):
     
     '''
     
-    def create_binary_event_report(self, signal, price, mask, n_quantiles, benchmark_price, periods=None):
-        import seaborn as sns
-        import matplotlib.pyplot as plt
+    def create_binary_event_report(self, signal, price, mask, benchmark_price, periods):
         import scipy.stats as scst
         
-        if periods is None:
-            periods = [3, 20, 40]
-            
         dic_signal_data = dict()
         for my_period in periods:
-            self.process_signal_before_analysis(signal, price=price,
-                                                mask=mask,
-                                                n_quantiles=5, period=my_period,
-                                                benchmark_price=benchmark_price,
-                                               )
+            self.process_signal_before_analysis(signal, price=price, mask=mask,
+                                                n_quantiles=1, period=my_period,
+                                                benchmark_price=benchmark_price)
             dic_signal_data[my_period] = self.signal_data
 
         # analyze ret: annualized
+        '''
+        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
+        res = pd.concat(dic_ret, axis=1, join='outer')
+
+        mask = dic_signal_data[20]['signal'].astype(bool)
+        res = res.loc[mask[mask].index, :]
+        '''
+        df_res = pd.DataFrame(index=periods, columns=['mean', 'std', 't-stat', 'p-value', 'skewness', 'kurtosis'], data=np.nan)
+        dic_res = dict()
+        for period, df in dic_signal_data.items():
+            ser_ret = df['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
+            ser_sig = df['signal'].astype(bool)
+            events_ret = ser_ret.loc[ser_sig]
+            
+            mean, std = events_ret.mean(), events_ret.std()
+            
+            n_all = len(ser_ret)
+            n_events = len(events_ret)
+            print("For period={}, Probability of event = {:.1f}%".format(period, n_events * 100. / n_all))
+            
+            t_stat, p_value = scst.ttest_1samp(events_ret, 0)
+            df_res.loc[period, ['t-stat']] = t_stat
+            df_res.loc[period, ['p-value']] = round(p_value, 5)
+            df_res.loc[period, "skewness"] = scst.skew(events_ret)
+            df_res.loc[period, "kurtosis"] = scst.kurtosis(events_ret)
+            df_res.loc[period, ['mean']] = mean
+            df_res.loc[period, ['std']] = std
+            dic_res[period] = events_ret
+            
+            # print(events_ret.sort_values().tail())
+
+        '''
         dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
         dic_ret['signal'] = dic_signal_data[my_period]['signal'].astype(bool)
         res = pd.concat(dic_ret, axis=1, join='inner')
-        res = res.loc[res['signal']]
-
+        mask = res['signal']
+        res = res.loc[mask[mask].index, :]
+        print(res.shape)
         mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
         
-        df_ttest = pd.DataFrame(index=periods, columns=['statistic', 'pvalue'], data=0.0)
-        for my_period in periods:
-            test_res = scst.ttest_1samp(res[my_period], 0)
-            df_ttest.loc[my_period, :] = test_res[0], test_res[1]
-        df_res = pd.DataFrame(mean, columns=['mean_ret']).join(df_ttest)
+        '''
         print(df_res)
 
         # return
-        res_dic = dict()
-        for key, df in dic_signal_data.items():
-            df_events = df.loc[df['signal'].astype(bool)]
-            res_dic[key] = df_events
-
         # plot
-        gf = plotting.GridFigure(rows=len(periods) + 1, cols=2)
+        gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
-        plotting.plot_event_bar(mean, ax=gf.next_row())
-        plotting.plot_event_dist(res, periods, axs=[gf.next_cell() for _ in periods])
+        plotting.plot_event_bar(df_res['mean'], ax=gf.next_row())
+        plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')
 
-        return res_dic
+        return dic_res
         
     @plotting.customize
     def create_full_report(self):

@@ -121,10 +121,10 @@ def axes_style(style='darkgrid', rc=None):
 
 
 class GridFigure(object):
-    def __init__(self, rows, cols):
+    def __init__(self, rows, cols, height_ratio=1.0):
         self.rows = rows
         self.cols = cols
-        self.fig = plt.figure(figsize=(14, rows * 7))
+        self.fig = plt.figure(figsize=(14, rows * 7 * height_ratio))
         self.gs = gridspec.GridSpec(rows, cols, wspace=0.1, hspace=0.5)
         self.curr_row = 0
         self.curr_col = 0
@@ -613,20 +613,21 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
 # -----------------------------------------------------------------------------------
 # Functions to Plot Others
 def plot_event_bar(mean_ret, ax):
-    ax.bar(mean_ret.index, mean_ret.values * DECIMAL_TO_BPS)
+    ax.bar(mean_ret.index, mean_ret.values * DECIMAL_TO_BPS, width=8.0)
     
     ax.set(xlabel='Period Length', ylabel='bps')
     ax.legend(list(map(lambda x: str(x), mean_ret.index.values)))
     return ax
 
 
-def plot_event_dist(df_events, periods, axs):
-    for i, my_period in enumerate(periods):
+def plot_event_dist(df_events, axs):
+    i = 0
+    for period, ser in df_events.items():
         ax = axs[i]
-        sns.distplot(df_events[my_period], ax=ax)
+        sns.distplot(ser, ax=ax)
         ax.set(xlabel='Return', ylabel='',
-               title="Distribution of return after {:d} trade dats".format(my_period))
+               title="Distribution of return after {:d} trade dats".format(period))
         # self.show_fig(fig, 'event_return_{:d}days.png'.format(my_period))
+        i += 1
     
     # print(mean)
-    
