@@ -15,6 +15,17 @@ def test_read_save_pickle():
     assert d3 is None
 
 
+def test_combine_date_time():
+    date = 20170101
+    time = 145930
+    assert jutil.combine_date_time(date, time) == 20170101145930
+
+    import numpy as np
+    a = np.arange(20170101, 20170101+500, dtype=np.int64)
+    b = np.arange(93000, 93000+500, dtype=np.int64)
+    assert np.all(jutil.combine_date_time(a, b) == a * 1000000 + b)
+
+
 if __name__ == "__main__":
     import time
     t_start = time.time()

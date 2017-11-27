@@ -97,7 +97,7 @@ def shift(date, n_weeks=0):
 
 
 def combine_date_time(date, time):
-    return date * 1000000 + time
+    return np.int64(date) * 1000000 + np.int64(time)
 
 
 def split_date_time(dt):

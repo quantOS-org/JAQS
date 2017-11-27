@@ -7,6 +7,7 @@ import numpy as np
 from jaqs.trade import common
 from jaqs.trade import EventDrivenStrategy
 from jaqs.data import RemoteDataService
+from jaqs.data.basic import Bar, Quote
 from jaqs.trade import model
 from jaqs.trade import EventRealTimeInstance
 from jaqs.trade import EventBacktestInstance
@@ -20,7 +21,7 @@ data_config = jutil.read_json(DATA_CONFIG_PATH)
 trade_config = jutil.read_json(TRADE_CONFIG_PATH)
 
 result_dir_path = '../../output/double_ma'
-is_backtest = False
+is_backtest = True
 
 
 class DoubleMaStrategy(EventDrivenStrategy):
@@ -49,7 +50,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
         self.init_balance = props.get('init_balance')
     
     def buy(self, quote, size=1):
-        if hasattr(quote, 'bidprice1'):
+        if isinstance(quote, Quote):
             ref_price = (quote.bidprice1 + quote.askprice1) / 2.0
         else:
             ref_price = quote.close
@@ -59,7 +60,7 @@ class DoubleMaStrategy(EventDrivenStrategy):
             print("place_order FAILED! msg = {}".format(msg))
     
     def sell(self, quote, size=1):
-        if hasattr(quote, 'bidprice1'):
+        if isinstance(quote, Quote):
             ref_price = (quote.bidprice1 + quote.askprice1) / 2.0
         else:
             ref_price = quote.close
@@ -68,11 +69,25 @@ class DoubleMaStrategy(EventDrivenStrategy):
         if (task_id is None) or (task_id == 0):
             print("place_order FAILED! msg = {}".format(msg))
     
+    """
+    `on_tick` accepts single Quote, while `on_quote` accepts
+    'on_tick' is used for real-time trading, while 'on_quote' is used for backtest
+    """
     def on_tick(self, quote):
-        if hasattr(quote, 'bidprice1'):
-            mid = (quote.bidprice1 + quote.askprice1) / 2.0
+        # 'quote' can be:
+        #     - Quote (at real-time trading, data comes as ticks)
+        #     - Bar (backtest on minutely or daily frequency)
+        # we use 'isinstance' to check whether 'quote' is Quote or Bar
+        if isinstance(quote, Quote):
+            bid, ask = quote.bidprice1, quote.askprice1
+            if bid > 0 and ask > 0:
+                mid = (quote.bidprice1 + quote.askprice1) / 2.0
+            else:
+                # price reached high_limit or low_limit, we do not trade
+                return
         else:
             mid = quote.close
+        
         self.price_arr[0: self.window - 1] = self.price_arr[1: self.window]
         self.price_arr[-1] = mid
         self.window_count += 1
@@ -131,7 +146,7 @@ def run_strategy():
         
     else:
         props = {'symbol': 'rb1801.SHF',
-                 'strategy.no': 'Your Strategy Number'}
+                 'strategy.no': 46}
         tapi = RealTimeTradeApi(trade_config)
         ins = EventRealTimeInstance()
 

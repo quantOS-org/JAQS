@@ -17,6 +17,11 @@ import jaqs.util as jutil
 STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
 
 
+class TradeRecordEmptyError(Exception):
+    def __init__(self, *args):
+        super(TradeRecordEmptyError, self).__init__(*args)
+
+
 class MyFormatter(Formatter):
     def __init__(self, dates, fmt='%Y%m'):
         self.dates = dates
@@ -111,6 +116,8 @@ class BaseAnalyzer(object):
         abs_path = os.path.abspath(file_folder)
         self.file_folder = abs_path
         trades = pd.read_csv(os.path.join(self.file_folder, 'trades.csv'), ',', dtype=type_map)
+        if trades.empty:
+            raise TradeRecordEmptyError("No trade records found in your 'trades.csv' file. Analysis stopped.")
         
         self._init_universe(trades.loc[:, 'symbol'].values)
         self._init_configs(self.file_folder)
