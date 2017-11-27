@@ -31,9 +31,11 @@
 
 <img src="pnl_img.png">
 
+<h2> Strategy Performance </h2>
+<h3> Strategy Performance Metrics (In terms of active return, risk free rate equals zero)</h3>
 <table border="1">
 <caption></caption>
-{% for key, value in metrics.items() %}
+{% for key, value in performance_metrics.items() %}
 <tr>
   <td>{{key}}</td>
   <td>{{value | round_if_float(3) }}</td>
@@ -41,35 +43,32 @@
 {% endfor %}
 </table>
 
-{% if df_brinson is not none %}
+<h3> Strategy Risk Metrics </h3>
+<table border="1">
+  <caption></caption>
+  {% for key, value in risk_metrics.items() %}
+  <tr>
+    <td>{{key}}</td>
+    <td>{{value | round_if_float(3) }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if df_brinson is defined and df_brinson is not none %}
 <h2>Brinson Attribution</h2>
 
 <img src="brinson_attribution.png">
 
 {% endif %}
 
-{% if position_change is not none %}
-<h2>Position Changes</h2>
-{% for date, df in position_change.items() %}
-
-<span>{{ date }}</span>
-<br>
-market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k, 
-cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k, 
-<br>
-{{ df.to_html() }}
-
-{% endfor %}
-{% endif %}
-
+<!-- Selected Assets Investigation -->
 {% if selected_securities|length > 0 %}
-<h2>Selected Security Visualization</h2>
+<h2>Visualization for Selected Security </h2>
 {% for symbol in selected_securities %}
   <img src="{{symbol}}.png">
 {% endfor %}
 
-{% if df_daily is not none %}
-<h2>Daily PnL for Each Security</h2>
+<h2>Daily PnL for Selected Security</h2>
 {% for symbol in selected_securities %}
 
 <span> {{ symbol }} </span>
@@ -78,9 +77,30 @@ cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
 <br>
 
 {% endfor %}
-{% endif %}
 
 {% endif %}
+
+<!-- Daily Position -->
+{% if daily_position is not none %}
+  <h2> Table of Daily Position </h2>
+  {{ daily_position.to_html() }}
+{% endif %}
+
+<!-- Position Changes -->
+{% if position_change is not none %}
+<h2>Table of Records of Position Changes</h2>
+{% for date, df in position_change.items() %}
+
+<span>{{ date }}</span>
+<br>
+market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k,
+cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
+<br>
+{{ df.to_html() }}
+
+{% endfor %}
+{% endif %}
+
 
 </body>
 </html>

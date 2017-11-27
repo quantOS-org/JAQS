@@ -12,6 +12,7 @@ from matplotlib.ticker import Formatter
 from jaqs.trade.analyze.report import Report
 from jaqs.data import RemoteDataService
 from jaqs.data.basic.instrument import InstManager
+from jaqs.trade import common
 import jaqs.util as jutil
 
 STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
@@ -64,7 +65,8 @@ class BaseAnalyzer(object):
         
         self.inst_map = dict()
         
-        self.metrics = dict()
+        self.performance_metrics = dict()
+        self.risk_metrics = dict()
         
         self.report_dic = dict()
         
@@ -345,10 +347,13 @@ class BaseAnalyzer(object):
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
         years = (end - start).days / 365.0
     
-        self.metrics['yearly_return'] = np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1
-        self.metrics['yearly_vol'] = df_returns.loc[:, 'active'].std() * np.sqrt(225.)
-        self.metrics['beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
-        self.metrics['sharpe'] = self.metrics['yearly_return'] / self.metrics['yearly_vol']
+        self.performance_metrics['Annual Return'] = np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1
+        self.performance_metrics['Annual Volatility'] = (df_returns.loc[:, 'active'].std()
+                                                         * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
+        self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return']
+                                                    / self.performance_metrics['Annual Volatility'])
+        
+        self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
     
         # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
         # df_returns = df_returns.join(bt_strat_mv, how='right')
@@ -405,10 +410,12 @@ class BaseAnalyzer(object):
         dic['html_title'] = "Alpha Strategy Backtest Result"
         dic['selected_securities'] = selected
         dic['props'] = self.configs
-        dic['metrics'] = self.metrics
+        dic['performance_metrics'] = self.performance_metrics
+        dic['risk_metrics'] = self.risk_metrics
         dic['position_change'] = self.position_change
         dic['account'] = self.account
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
+        dic['daily_position'] = self.daily_position
         
         self.report_dic.update(dic)
         
@@ -433,9 +440,10 @@ class BaseAnalyzer(object):
         if len(selected_sec) > 0:
             print "Plot single securities PnL"
             for symbol in selected_sec:
-                df_daily = self.daily.get(symbol, None)
+                df_daily = self.daily.loc[pd.IndexSlice[symbol, :], :]
+                df_daily.index = df_daily.index.droplevel(0)
                 if df_daily is not None:
-                    plot_trades(df_daily, symbol=symbol)
+                    plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
 
         print "Plot strategy PnL..."
         self.plot_pnl(result_dir)
@@ -444,7 +452,6 @@ class BaseAnalyzer(object):
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
                         out_folder=result_dir,
                         selected=selected_sec)
-        
 
 
 class EventAnalyzer(BaseAnalyzer):
@@ -478,6 +485,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.returns = None  # OrderedDict
         self.position_change = None  # OrderedDict
         self.account = None  # OrderedDict
+        
+        self.df_brinson = None
         
         self.data_benchmark = None
 
@@ -634,6 +643,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         res_dic = self._brinson(close, pos, index_weight, group)
         
         df_brinson = res_dic['df_brinson']
+        self.df_brinson = df_brinson
         self.report_dic['df_brinson'] = df_brinson
         plot_brinson(df_brinson, save_folder=self.file_folder)
 
