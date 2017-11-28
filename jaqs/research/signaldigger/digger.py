@@ -377,7 +377,11 @@ class SignalDigger(object):
         mask = dic_signal_data[20]['signal'].astype(bool)
         res = res.loc[mask[mask].index, :]
         '''
-        df_res = pd.DataFrame(index=periods, columns=['Annual Return', 'Annual Volatility', 't-stat', 'p-value', 'skewness', 'kurtosis'], data=np.nan)
+        df_res = pd.DataFrame(index=periods,
+                              columns=['Annual Return', 'Annual Volatility',
+                                       'Annual Return (all sample)', 'Annual Volatility (all sample)',
+                                       't-stat', 'p-value', 'skewness', 'kurtosis'],
+                              data=np.nan)
         dic_res = dict()
         for period, df in dic_signal_data.items():
             ser_ret = df['return']
@@ -386,6 +390,7 @@ class SignalDigger(object):
             
             ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
             annual_ret, annual_vol = events_ret.mean() * ratio, events_ret.std() * np.sqrt(ratio)
+            annual_ret_allsamp, annual_vol_allsamp = ser_ret.mean() * ratio, ser_ret.std() * np.sqrt(ratio)
             
             n_all = len(ser_ret)
             n_events = len(events_ret)
@@ -398,6 +403,8 @@ class SignalDigger(object):
             df_res.loc[period, "kurtosis"] = scst.kurtosis(events_ret)
             df_res.loc[period, ['Annual Return']] = annual_ret
             df_res.loc[period, ['Annual Volatility']] = annual_vol
+            df_res.loc[period, ['Annual Return (all sample)']] = annual_ret_allsamp
+            df_res.loc[period, ['Annual Volatility (all sample)']] = annual_vol_allsamp
             dic_res[period] = events_ret
             
             # print(events_ret.sort_values().tail())
@@ -412,7 +419,7 @@ class SignalDigger(object):
         mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
         
         '''
-        print(df_res)
+        print(df_res.applymap(lambda x: round(x, 5)))
 
         # return
         # plot
@@ -424,6 +431,7 @@ class SignalDigger(object):
         
         self.show_fig(gf.fig, 'event_report')
 
+        dic_res['df_res'] = df_res
         return dic_res
         
     @plotting.customize
