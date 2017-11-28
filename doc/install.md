@@ -65,4 +65,4 @@ pip install jaqs
 ```
 
 ## 6、策略样例
-策略参考样例，请访问[https://github.com/quantOS-org/JAQS/tree/release-0.5.0/example](https://github.com/quantOS-org/JAQS/tree/release-0.5.0/example)
+策略参考样例，请访问[https://github.com/quantOS-org/JAQS/tree/master/example](https://github.com/quantOS-org/JAQS/tree/master/example)
