@@ -366,7 +366,7 @@ class SignalDigger(object):
         
         ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
         
-        dic_signal_data = dict()
+        dic_signal_data = OrderedDict()
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price, mask=mask,
                                                 n_quantiles=1, period=my_period,
