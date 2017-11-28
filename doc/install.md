@@ -60,6 +60,9 @@ python setup.py install
 ## 5、升级JAQS
 如果有新的release，可通过如下命令升级：
 ```shell
-pip install jaqs --upgrade
+pip uninstall jaqs
+pip install jaqs
 ```
 
+## 6、策略样例
+策略参考样例，请访问[https://github.com/quantOS-org/JAQS/tree/release-0.5.0/example](https://github.com/quantOS-org/JAQS/tree/release-0.5.0/example)
