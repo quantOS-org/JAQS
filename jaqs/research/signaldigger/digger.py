@@ -430,7 +430,9 @@ class SignalDigger(object):
         gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
-        plotting.plot_calendar_distribution(ser_signal_raw, monthly_signal=monthly_signal, yearly_signal=yearly_signal)
+        plotting.plot_calendar_distribution(ser_signal_raw,
+                                            monthly_signal=monthly_signal, yearly_signal=yearly_signal,
+                                            ax1=gf.next_row(), ax2=gf.next_row())
         plotting.plot_event_bar(mean=df_res['Annual Return'], std=df_res['Annual Volatility'], ax=gf.next_row())
         plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         

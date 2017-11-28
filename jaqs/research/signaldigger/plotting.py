@@ -641,13 +641,15 @@ def plot_event_dist(df_events, axs):
     # print(mean)
 
 
-def plot_calendar_distribution(signal, monthly_signal, yearly_signal):
+def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
     idx = signal.index.values
     start = jutil.convert_int_to_datetime(idx[0]).date()
     end = jutil.convert_int_to_datetime(idx[-1]).date()
     count = np.sum(yearly_signal.values.flatten())
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), dpi=72)
+    print("\n       " + "Calendar Distribution    ({} occurance from {} to {}):".format(count, start, end))
+
+    # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), dpi=72)
 
     # sns.barplot(data=monthly_signal.reset_index(), x='Month', y='Times', ax=ax1£©
     # sns.barplot(x=monthly_signal.index.values, y=monthly_signal.values, ax=ax1)
@@ -666,6 +668,3 @@ def plot_calendar_distribution(signal, monthly_signal, yearly_signal):
     ax2.set(xticks=yearly_signal.index,
             title="Yearly Distribution",
             xlabel='Month', ylabel='Time')
-    
-    fig.suptitle("\n       " + "Calendar Distribution    "
-                               "({} occurance from {} to {}):".format(count, start, end))
