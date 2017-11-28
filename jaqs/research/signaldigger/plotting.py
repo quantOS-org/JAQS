@@ -123,27 +123,43 @@ def axes_style(style='darkgrid', rc=None):
 
 class GridFigure(object):
     def __init__(self, rows, cols, height_ratio=1.0):
-        self.rows = rows
+        self.rows = rows * 2
         self.cols = cols
         self.fig = plt.figure(figsize=(14, rows * 7 * height_ratio))
-        self.gs = gridspec.GridSpec(rows, cols, wspace=0.1, hspace=0.5)
+        self.gs = gridspec.GridSpec(self.rows, self.cols, wspace=0.1, hspace=0.5)
         self.curr_row = 0
         self.curr_col = 0
+        
+        self._in_row = False
     
     def next_row(self):
-        if self.curr_col != 0:
-            self.curr_row += 1
+        if self._in_row:
+            self.curr_row += 2
             self.curr_col = 0
+            self._in_row = False
+        
+        subplt = plt.subplot(self.gs[self.curr_row: self.curr_row + 2, :])
+        self.curr_row += 2
+        return subplt
+    
+    def next_subrow(self):
+        if self._in_row:
+            self.curr_row += 2
+            self.curr_col = 0
+            self._in_row = False
+        
         subplt = plt.subplot(self.gs[self.curr_row, :])
         self.curr_row += 1
         return subplt
     
     def next_cell(self):
-        if self.curr_col >= self.cols:
-            self.curr_row += 1
-            self.curr_col = 0
-        subplt = plt.subplot(self.gs[self.curr_row, self.curr_col])
+        subplt = plt.subplot(self.gs[self.curr_row: self.curr_row + 2, self.curr_col])
         self.curr_col += 1
+        self._in_row = True
+        if self.curr_col >= self.cols:
+            self.curr_row += 2
+            self.curr_col = 0
+            self._in_row = False
         return subplt
 
 
@@ -668,3 +684,14 @@ def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
     ax2.set(xticks=yearly_signal.index,
             title="Yearly Distribution",
             xlabel='Month', ylabel='Time')
+
+
+def plot_event_pvalue(pv, ax):
+    idx = pv.index
+    v = pv.values
+    ax.plot(idx, v)
+    
+    ax.set(xlabel='Period Length (trade days)', ylabel='p-value',
+           title="P Value of Test: Mean(return) == 0")
+    ax.set(xticks=idx)
+    return ax

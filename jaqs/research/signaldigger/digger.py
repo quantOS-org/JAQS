@@ -436,6 +436,7 @@ class SignalDigger(object):
                                             monthly_signal=monthly_signal, yearly_signal=yearly_signal,
                                             ax1=gf.next_row(), ax2=gf.next_row())
         plotting.plot_event_bar(mean=df_res['Annual Return'], std=df_res['Annual Volatility'], ax=gf.next_row())
+        plotting.plot_event_pvalue(df_res['p-value'], ax=gf.next_subrow())
         plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')
