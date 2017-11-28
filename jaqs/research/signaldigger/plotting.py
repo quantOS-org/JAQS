@@ -620,7 +620,7 @@ def plot_event_bar(mean, std, ax):
                 ecolor='lightblue', elinewidth=5)
     
     ax.set(xlabel='Period Length (trade days)', ylabel='Return (%)',
-           title="Mean and StdDev")
+           title="Annual Return Mean and StdDev")
     ax.set(xticks=idx)
     return ax
 

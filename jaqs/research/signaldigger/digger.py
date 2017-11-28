@@ -421,7 +421,7 @@ class SignalDigger(object):
         mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
         
         '''
-        print(df_res.applymap(lambda x: round(x, 5)))
+        #print(df_res.applymap(lambda x: round(x, 5)))
 
         # return
         # plot
