@@ -630,7 +630,7 @@ def plot_event_dist(df_events, axs):
     for period, ser in df_events.items():
         ax = axs[i]
         sns.distplot(ser, ax=ax)
-        ax.axvline(ser.mean(), lw=1, ls='--', label='Average')
+        ax.axvline(ser.mean(), lw=1, ls='--', label='Average', color='red')
         ax.legend(loc='upper left')
         ax.set(xlabel='Return', ylabel='',
                title="Distribution of return after {:d} trade dats".format(period))
