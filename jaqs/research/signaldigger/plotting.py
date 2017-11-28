@@ -12,6 +12,7 @@ import matplotlib.gridspec as gridspec
 import seaborn as sns
 
 from . import performance as pfm
+import jaqs.util as jutil
 
 
 DECIMAL_TO_BPS = 10000
@@ -638,3 +639,33 @@ def plot_event_dist(df_events, axs):
         i += 1
     
     # print(mean)
+
+
+def plot_calendar_distribution(signal, monthly_signal, yearly_signal):
+    idx = signal.index.values
+    start = jutil.convert_int_to_datetime(idx[0]).date()
+    end = jutil.convert_int_to_datetime(idx[-1]).date()
+    count = np.sum(yearly_signal.values.flatten())
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), dpi=72)
+
+    # sns.barplot(data=monthly_signal.reset_index(), x='Month', y='Times', ax=ax1£©
+    # sns.barplot(x=monthly_signal.index.values, y=monthly_signal.values, ax=ax1)
+    ax1.bar(monthly_signal.index, monthly_signal.values)
+    ax1.axhline(monthly_signal.values.mean(), lw=1, ls='--', color='red', label='Average')
+    ax1.legend(loc='upper right')
+    months_str = ['Jan', 'Feb', 'March', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    ax1.set(xticks=range(len(months_str)), xticklabels=months_str,
+            title="Monthly Distribution",
+            xlabel='Month', ylabel='Time')
+
+    # sns.barplot(data=yearly_signal.reset_index(), x='Year', y='Times', ax=ax2, color='forestgreen')
+    ax2.bar(yearly_signal.index, yearly_signal.values)
+    ax2.axhline(yearly_signal.values.mean(), lw=1, ls='--', color='red', label='Average')
+    ax2.legend(loc='upper right')
+    ax2.set(xticks=yearly_signal.index,
+            title="Yearly Distribution",
+            xlabel='Month', ylabel='Time')
+    
+    fig.suptitle("\n       " + "Calendar Distribution    "
+                               "({} occurance from {} to {}):".format(count, start, end))

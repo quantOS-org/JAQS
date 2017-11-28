@@ -362,6 +362,8 @@ class SignalDigger(object):
     def create_binary_event_report(self, signal, price, mask, benchmark_price, periods):
         import scipy.stats as scst
         
+        ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
+        
         dic_signal_data = dict()
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price, mask=mask,
@@ -428,6 +430,7 @@ class SignalDigger(object):
         gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
+        plotting.plot_calendar_distribution(ser_signal_raw, monthly_signal=monthly_signal, yearly_signal=yearly_signal)
         plotting.plot_event_bar(mean=df_res['Annual Return'], std=df_res['Annual Volatility'], ax=gf.next_row())
         plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         
@@ -464,3 +467,21 @@ def calc_quantile_stats_table(signal_data):
     quantile_stats = signal_data.groupby('quantile').agg(['min', 'max', 'mean', 'std', 'count'])['signal']
     quantile_stats['count %'] = quantile_stats['count'] / quantile_stats['count'].sum() * 100.
     return quantile_stats
+
+
+def calc_calendar_distribution(df_signal):
+    daily_signal = df_signal.sum(axis=1)
+    daily_signal = daily_signal.fillna(0).astype(int)
+    idx = daily_signal.index.values
+    month = idx % 10000 // 100
+    year = idx // 10000
+    
+    monthly_signal = daily_signal.groupby(by=month).sum()
+    yearly_signal = daily_signal.groupby(by=year).sum()
+    
+    monthly_signal = pd.DataFrame(monthly_signal, columns=['Times'])
+    yearly_signal = pd.DataFrame(yearly_signal, columns=['Times'])
+    monthly_signal.index.name = 'Month'
+    yearly_signal.index.name = 'Year'
+    
+    return df_signal, monthly_signal, yearly_signal
