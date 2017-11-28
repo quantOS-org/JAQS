@@ -1,6 +1,8 @@
 # encoding: utf-8
 
 import os
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
 
@@ -385,7 +387,7 @@ class SignalDigger(object):
                                        't-stat', 'p-value', 'skewness', 'kurtosis', 'occurance'],
                               data=np.nan)
         df_res.index.name = 'Period'
-        dic_res = dict()
+        dic_res = OrderedDict()
         for period, df in dic_signal_data.items():
             ser_ret = df['return']
             ser_sig = df['signal'].astype(bool)
