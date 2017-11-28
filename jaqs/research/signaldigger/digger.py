@@ -380,8 +380,9 @@ class SignalDigger(object):
         df_res = pd.DataFrame(index=periods,
                               columns=['Annual Return', 'Annual Volatility',
                                        'Annual Return (all sample)', 'Annual Volatility (all sample)',
-                                       't-stat', 'p-value', 'skewness', 'kurtosis'],
+                                       't-stat', 'p-value', 'skewness', 'kurtosis', 'occurance'],
                               data=np.nan)
+        df_res.index.name = 'Period'
         dic_res = dict()
         for period, df in dic_signal_data.items():
             ser_ret = df['return']
@@ -405,6 +406,7 @@ class SignalDigger(object):
             df_res.loc[period, ['Annual Volatility']] = annual_vol
             df_res.loc[period, ['Annual Return (all sample)']] = annual_ret_allsamp
             df_res.loc[period, ['Annual Volatility (all sample)']] = annual_vol_allsamp
+            df_res.loc[period, ['occurance']] = len(events_ret)
             dic_res[period] = events_ret
             
             # print(events_ret.sort_values().tail())
@@ -426,7 +428,7 @@ class SignalDigger(object):
         gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
-        plotting.plot_event_bar(df_res['Annual Return'], ax=gf.next_row())
+        plotting.plot_event_bar(mean=df_res['Annual Return'], std=df_res['Annual Volatility'], ax=gf.next_row())
         plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')

@@ -612,11 +612,16 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
 
 # -----------------------------------------------------------------------------------
 # Functions to Plot Others
-def plot_event_bar(mean_ret, ax):
-    ax.bar(mean_ret.index, mean_ret.values * DECIMAL_TO_BPS, width=8.0)
+def plot_event_bar(mean, std, ax):
+    idx = mean.index
     
-    ax.set(xlabel='Period Length', ylabel='bps')
-    ax.legend(list(map(lambda x: str(x), mean_ret.index.values)))
+    DECIMAL_TO_PERCENT = 100.0
+    ax.errorbar(idx, mean * DECIMAL_TO_PERCENT, yerr=std * DECIMAL_TO_PERCENT,
+                ecolor='lightblue', elinewidth=5)
+    
+    ax.set(xlabel='Period Length (trade days)', ylabel='Return (%)',
+           title="Mean and StdDev")
+    ax.set(xticks=idx)
     return ax
 
 
