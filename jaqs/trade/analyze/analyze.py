@@ -59,6 +59,7 @@ class BaseAnalyzer(object):
         
         self._universe = []
         self._closes = None
+        self._closes_adj = None
         self.daily_position = None
         
         self.adjust_mode = None
@@ -89,7 +90,12 @@ class BaseAnalyzer(object):
     def closes(self):
         """Read-only attribute, close prices of securities in the universe"""
         return self._closes
-    
+
+    @property
+    def closes_adj(self):
+        """Read-only attribute, close prices of securities in the universe"""
+        return self._closes_adj
+
     def initialize(self, data_api=None, dataview=None, file_folder='.'):
         """
         Read trades from csv file to DataFrame of given data type.
@@ -152,13 +158,21 @@ class BaseAnalyzer(object):
         """Get close price of securities in the universe from data server."""
         if self.dataview is not None:
             df_close = self.dataview.get_ts('close', start_date=self.start_date, end_date=self.end_date)
+            df_close_adj = self.dataview.get_ts('close_adj', start_date=self.start_date, end_date=self.end_date)
         else:
             df, msg = self.data_api.daily(symbol=','.join(self.universe), fields='trade_date,symbol,close',
                                           start_date=self.start_date, end_date=self.end_date)
             if msg != '0,':
                 print(msg)
             df_close = df.pivot(index='trade_date', columns='symbol', values='close')
+
+            df_adj, msg = self.data_api.daily(symbol=','.join(self.universe), fields='trade_date,symbol,close',
+                                          start_date=self.start_date, end_date=self.end_date)
+            if msg != '0,':
+                print(msg)
+            df_close_adj = df_adj.pivot(index='trade_date', columns='symbol', values='close')
         self._closes = df_close
+        self._closes_adj = df_close_adj
 
     def _init_universe(self, securities):
         """Return a set of securities."""
@@ -586,6 +600,9 @@ class AlphaAnalyzer(BaseAnalyzer):
         ret = close.pct_change(1)
 
         pf_weight = pos.div(pos.sum(axis=1), axis=0)
+        assert pf_weight.isnull().sum().sum() == 0
+        pf_weight = pf_weight.reindex(index=ret.index, columns=ret.columns)
+        pf_weight = pf_weight.fillna(0.0)
 
         weighted_ret_pf = ret.mul(pf_weight)
         weighted_ret_index = ret.mul(index_weight)
@@ -636,7 +653,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         if group is None or group.empty:
             raise ValueError("group is None or group is empty")
         
-        close = self.closes
+        close = self.closes_adj
         pos = self.daily_position
         index_weight = self._get_index_weight()
         
