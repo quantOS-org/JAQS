@@ -314,57 +314,8 @@ class SignalDigger(object):
         self.ic_report_data = {'daily_ic': ic,
                                'monthly_ic': monthly_ic}
     
-    '''
-    def OLS_create_binary_event_report(self, before, after):
-        """
-        
-        Parameters
-        ----------
-        before : int
-        after : int
-
-        Returns
-        -------
-
-        """
-        event = self.signal_data['signal']
-        ret = self.signal_data['return']
-        
-        event = event.unstack('symbol')
-        ret = ret.unstack('symbol')
-        event = event.astype(bool)
-        
-        index_len = event.shape[0]
-        l = []
-        idx = range(-before, after+1)
-        for day_zero_index in range(before, index_len - after):
-            date = event.index[day_zero_index]
-            row = event.iloc[day_zero_index, :]
-            
-            equities_slice = row.values
-            if not any(equities_slice):
-                continue
-            
-            starting_index = day_zero_index - before
-            ending_index = day_zero_index + after
-            
-            ser_events = ret.iloc[starting_index: ending_index + 1, equities_slice]
-            ser_events.index = idx
-    
-            l.append(ser_events)
-        
-        res = pd.concat(l, axis=1)
-        res = pfm.ret2cum(res, compound=False, axis=0)
-        res = res - res.loc[0, :]
-        
-        return res.mean(axis=1), res.std(axis=1)
-    
-    '''
-    
     def create_binary_event_report(self, signal, price, mask, benchmark_price, periods):
         import scipy.stats as scst
-        
-        ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
         
         dic_signal_data = OrderedDict()
         for my_period in periods:
@@ -415,17 +366,7 @@ class SignalDigger(object):
             
             # print(events_ret.sort_values().tail())
 
-        '''
-        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
-        dic_ret['signal'] = dic_signal_data[my_period]['signal'].astype(bool)
-        res = pd.concat(dic_ret, axis=1, join='inner')
-        mask = res['signal']
-        res = res.loc[mask[mask].index, :]
-        print(res.shape)
-        mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
-        
-        '''
-        #print(df_res.applymap(lambda x: round(x, 5)))
+        ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
 
         # return
         # plot
