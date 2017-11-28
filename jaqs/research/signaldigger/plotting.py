@@ -634,6 +634,7 @@ def plot_event_bar(mean, std, ax):
     
     DECIMAL_TO_PERCENT = 100.0
     ax.errorbar(idx, mean * DECIMAL_TO_PERCENT, yerr=std * DECIMAL_TO_PERCENT,
+                marker='o',
                 ecolor='lightblue', elinewidth=5)
     
     ax.set(xlabel='Period Length (trade days)', ylabel='Return (%)',
@@ -689,7 +690,7 @@ def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
 def plot_event_pvalue(pv, ax):
     idx = pv.index
     v = pv.values
-    ax.plot(idx, v)
+    ax.plot(idx, v, marker='D')
     
     ax.set(xlabel='Period Length (trade days)', ylabel='p-value',
            title="P Value of Test: Mean(return) == 0")
