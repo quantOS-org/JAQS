@@ -377,14 +377,15 @@ class SignalDigger(object):
         mask = dic_signal_data[20]['signal'].astype(bool)
         res = res.loc[mask[mask].index, :]
         '''
-        df_res = pd.DataFrame(index=periods, columns=['mean', 'std', 't-stat', 'p-value', 'skewness', 'kurtosis'], data=np.nan)
+        df_res = pd.DataFrame(index=periods, columns=['Annual Return', 'Annual Volatility', 't-stat', 'p-value', 'skewness', 'kurtosis'], data=np.nan)
         dic_res = dict()
         for period, df in dic_signal_data.items():
-            ser_ret = df['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
+            ser_ret = df['return']
             ser_sig = df['signal'].astype(bool)
             events_ret = ser_ret.loc[ser_sig]
             
-            mean, std = events_ret.mean(), events_ret.std()
+            ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
+            annual_ret, annual_vol = events_ret.mean() * ratio, events_ret.std() * np.sqrt(ratio)
             
             n_all = len(ser_ret)
             n_events = len(events_ret)
@@ -395,8 +396,8 @@ class SignalDigger(object):
             df_res.loc[period, ['p-value']] = round(p_value, 5)
             df_res.loc[period, "skewness"] = scst.skew(events_ret)
             df_res.loc[period, "kurtosis"] = scst.kurtosis(events_ret)
-            df_res.loc[period, ['mean']] = mean
-            df_res.loc[period, ['std']] = std
+            df_res.loc[period, ['Annual Return']] = annual_ret
+            df_res.loc[period, ['Annual Volatility']] = annual_vol
             dic_res[period] = events_ret
             
             # print(events_ret.sort_values().tail())
@@ -418,7 +419,7 @@ class SignalDigger(object):
         gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
-        plotting.plot_event_bar(df_res['mean'], ax=gf.next_row())
+        plotting.plot_event_bar(df_res['Annual Return'], ax=gf.next_row())
         plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')
