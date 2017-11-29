@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from jaqs.trade.tradeapi import TradeApi
 import pandas as pd
 import jaqs.util as jutil
@@ -12,8 +13,8 @@ def test_trade_api():
     address = trade_config.get("remote.trade.address", None)
     username = trade_config.get("remote.trade.username", None)
     password = trade_config.get("remote.trade.password", None)
-    print address
-    print username
+    print(address)
+    print(username)
     # print password
     
     if address is None or username is None or password is None:
@@ -25,23 +26,23 @@ def test_trade_api():
 
     # 订单状态推送
     def on_orderstatus(order):
-        print "on_orderstatus:" #, order
-        for key in order:    print "%20s : %s" % (key, str(order[key]))
-        print ""
+        print("on_orderstatus:") #, order
+        for key in order:    print("%20s : %s" % (key, str(order[key])))
+        print("")
 
 
     # 成交回报推送
     def on_trade(trade):
-        print "on_trade:"
-        for key in trade:    print "%20s : %s" % (key, str(trade[key]))
-        print ""
+        print("on_trade:")
+        for key in trade:    print("%20s : %s" % (key, str(trade[key])))
+        print("")
 
     # 委托任务执行状态推送
     # 通常可以忽略该回调函数
     def on_taskstatus(task):
-        print "on_taskstatus:"
-        for key in task:    print "%20s : %s" % (key, str(task[key]))
-        print ""
+        print("on_taskstatus:")
+        for key in task:    print("%20s : %s" % (key, str(task[key])))
+        print("")
 
     tapi.set_ordstatus_callback(on_orderstatus)
     tapi.set_trade_callback(on_trade)
@@ -50,8 +51,8 @@ def test_trade_api():
     # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
     user_info, msg = tapi.login(username, password)
     assert msg == '0,'
-    print "msg: ", msg
-    print "user_info:", user_info
+    print("msg: ", msg)
+    print("user_info:", user_info)
     user_strats = user_info['strategies']
 
     # 选择使用的策略帐号
@@ -64,7 +65,7 @@ def test_trade_api():
     if user_strats:
         sid, msg = tapi.use_strategy(user_strats[0])
         assert msg == '0,'
-        print "sid: ", sid
+        print("sid: ", sid)
 
     # 查询Portfolio
     #
@@ -72,7 +73,7 @@ def test_trade_api():
 
     df, msg = tapi.query_account()
     assert msg == '0,'
-    print df
+    print(df)
     
     # 查询当前策略帐号的所有持仓
     #
@@ -80,7 +81,7 @@ def test_trade_api():
     # 返回的 size 不带方向，全部为 正
     df, msg = tapi.query_position()
     assert msg == '0,'
-    print df
+    print(df)
     
     # Query Universe
     df_univ, msg = tapi.query_universe()
@@ -99,15 +100,15 @@ def test_trade_api():
     # 返回 task_id 可以用改 task_id
     task_id, msg = tapi.place_order("000718.SZ", "Buy", 57, 100)
     assert msg == '0,'
-    print "task_id:", task_id
+    print("task_id:", task_id)
     
     df_order, msg = tapi.query_order(task_id=task_id)
     assert msg == '0,'
-    print df_order
+    print(df_order)
     
     df_trade, msg = tapi.query_trade(task_id=task_id)
     assert msg == '0,'
-    print df_trade
+    print(df_trade)
     
     # 批量下单1：place_batch_order
     #
@@ -118,8 +119,8 @@ def test_trade_api():
         ]
 
     task_id, msg = tapi.place_batch_order(orders, "", dict())
-    print task_id
-    print msg    
+    print(task_id)
+    print(msg)    
 
     # cancel_order
     # 撤单
@@ -134,8 +135,8 @@ def test_trade_api():
         ]
 
     task_id, msg = tapi.basket_order(orders, "", {})
-    print task_id
-    print msg
+    print(task_id)
+    print(msg)
 
     #  goal_protfolio
     #  参数：目标持仓
@@ -146,8 +147,8 @@ def test_trade_api():
     
     # 先查询当前的持仓, 
     portfolio, msg = tapi.query_portfolio()
-    print "msg", msg
-    print "portfolio", portfolio
+    print("msg", msg)
+    print("portfolio", portfolio)
     
     goal = pd.DataFrame(portfolio['current_size'])
     goal.loc[:, 'size'] = goal['current_size']
@@ -169,7 +170,7 @@ def test_trade_api():
 
     # 发送请求
     result, msg = tapi.goal_portfolio(goal)
-    print result, msg
+    print(result, msg)
     
 if __name__ == "__main__":
     test_trade_api()

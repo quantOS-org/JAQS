@@ -648,6 +648,9 @@ class RemoteDataService(DataService):
         res = res.loc[res.index >= start_date]
         res = res.loc[res.index <= end_date]
         
+        mask_col = res.sum(axis=0) > 0
+        res = res.loc[:, mask_col]
+        
         return res
 
     def _get_index_comp(self, index, start_date, end_date):
