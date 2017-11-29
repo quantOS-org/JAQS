@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import os
 import json
 from collections import OrderedDict
@@ -224,7 +225,7 @@ class BaseAnalyzer(object):
         return res
     
     def process_trades(self):
-        # self._trades = {k: self._process_trades(v) for k, v in self.trades.viewitems()}
+        # self._trades = {k: self._process_trades(v) for k, v in self.trades.items()}
         self._trades = self._process_trades(self._trades)
     
     def get_pos_change_info(self):
@@ -308,7 +309,7 @@ class BaseAnalyzer(object):
         """Add various statistics to daily DataFrame."""
         self.daily = self._get_daily(self.closes, self.trades)
         daily_dic = dict()
-        for sec, df_trade in self.trades.viewitems():
+        for sec, df_trade in self.trades.items():
             df_close = self.closes[sec].rename('close')
         
             res = self._get_daily(df_close, df_trade)
@@ -444,25 +445,25 @@ class BaseAnalyzer(object):
         if selected_sec is None:
             selected_sec = []
             
-        print "process trades..."
+        print("process trades...")
         self.process_trades()
-        print "get daily stats..."
+        print("get daily stats...")
         self.get_daily()
-        print "calc strategy return..."
+        print("calc strategy return...")
         self.get_returns(consider_commission=False)
 
         if len(selected_sec) > 0:
-            print "Plot single securities PnL"
+            print("Plot single securities PnL")
             for symbol in selected_sec:
                 df_daily = self.daily.loc[pd.IndexSlice[symbol, :], :]
                 df_daily.index = df_daily.index.droplevel(0)
                 if df_daily is not None:
                     plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
 
-        print "Plot strategy PnL..."
+        print("Plot strategy PnL...")
         self.plot_pnl(result_dir)
         
-        print "generate report..."
+        print("generate report...")
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
                         out_folder=result_dir,
                         selected=selected_sec)
@@ -525,7 +526,7 @@ class AlphaAnalyzer(BaseAnalyzer):
     '''
     def get_returns_OLD(self, compound_return=True, consider_commission=True):
         profit_col_name = 'CumProfitComm' if consider_commission else 'CumProfit'
-        vp_list = {sec: df_profit.loc[:, profit_col_name] for sec, df_profit in self.daily.viewitems()}
+        vp_list = {sec: df_profit.loc[:, profit_col_name] for sec, df_profit in self.daily.items()}
         df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
         # TODO temperary solution
         df_profit = df_profit.fillna(method='ffill').fillna(0.0)
@@ -643,7 +644,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         -------
 
         """
-        if isinstance(group, (str, unicode)):
+        if isinstance(group, str):
             group = self.dataview.get_ts(group, start_date=self.start_date, end_date=self.end_date)
         elif isinstance(group, pd.DataFrame):
             pass
@@ -668,16 +669,16 @@ class AlphaAnalyzer(BaseAnalyzer):
         if selected_sec is None:
             selected_sec = []
     
-        print "process trades..."
+        print("process trades...")
         self.process_trades()
-        print "get daily stats..."
+        print("get daily stats...")
         self.get_daily()
-        print "calc strategy return..."
+        print("calc strategy return...")
         self.get_returns(consider_commission=False)
     
         not_none_sec = []
         if len(selected_sec) > 0:
-            print "Plot single securities PnL"
+            print("Plot single securities PnL")
             for symbol in selected_sec:
                 df_daily = self.daily.loc[pd.IndexSlice[symbol, :], :]
                 df_daily.index = df_daily.index.droplevel(0)
@@ -685,7 +686,7 @@ class AlphaAnalyzer(BaseAnalyzer):
                     not_none_sec.append(symbol)
                     plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
     
-        print "Plot strategy PnL..."
+        print("Plot strategy PnL...")
         self.plot_pnl(result_dir)
         
         if brinson_group is not None:
@@ -695,7 +696,7 @@ class AlphaAnalyzer(BaseAnalyzer):
                 raise ValueError("group data is None.")
             self.brinson(group)
     
-        print "generate report..."
+        print("generate report...")
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
                         out_folder=result_dir,
                         selected=not_none_sec)

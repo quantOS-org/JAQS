@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 from jaqs.trade.event import EventEngine, Event, EVENT_TYPE
 from jaqs.data.basic import Quote
 import jaqs.util as jutil

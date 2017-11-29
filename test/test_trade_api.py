@@ -50,8 +50,8 @@ def test_trade_api():
     
     # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
     user_info, msg = tapi.login(username, password)
-    assert msg == '0,'
     print("msg: ", msg)
+    assert msg == '0,'
     print("user_info:", user_info)
     user_strats = user_info['strategies']
 

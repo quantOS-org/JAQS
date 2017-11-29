@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+from __future__ import print_function
+from __future__ import absolute_import
 import numpy as np
 import statsmodels.api as sm
 
@@ -97,29 +99,29 @@ class CalendarSpread(EventDrivenStrategy):
                 
     def on_trade(self, ind):
         if self.output:
-            print "\nStrategy on trade: "
+            print("\nStrategy on trade: ")
             print(ind)
             print(self.ctx.pm.get_trade_stat(ind.symbol))
         self.pos = self.ctx.pm.get_pos(ind.symbol)
 
     def on_order_status(self, ind):
         if self.output:
-            print "\nStrategy on order status: "
+            print("\nStrategy on order status: ")
             print(ind)
         
     def on_task_rsp(self, rsp):
         if self.output:
-            print "\nStrategy on task rsp: "
+            print("\nStrategy on task rsp: ")
             print(rsp)
 
     def on_order_rsp(self, rsp):
         if self.output:
-            print "\nStrategy on order rsp: "
+            print("\nStrategy on order rsp: ")
             print(rsp)
     
     def on_task_status(self, ind):
         if self.output:
-            print "\nStrategy on task ind: "
+            print("\nStrategy on task ind: ")
             print(ind)
 
 

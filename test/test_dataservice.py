@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from jaqs.data import RemoteDataService
 try:
     import pytest
@@ -112,10 +113,10 @@ def test_remote_data_service_industry():
     
     from jaqs.data import DataView
     dic_sec = jutil.group_df_to_dict(df, by='symbol')
-    dic_sec = {sec: df.reset_index() for sec, df in dic_sec.viewitems()}
+    dic_sec = {sec: df.reset_index() for sec, df in dic_sec.items()}
     
-    df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
-    df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
+    df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.items()], axis=1)
+    df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.items()], axis=1)
     
     dates_arr = ds.get_trade_date_range(20140101, 20170505)
     res = align(df_value, df_ann, dates_arr)
@@ -127,8 +128,8 @@ def test_remote_data_service_industry():
         df_ann = df_one_sec.loc[:, ['in_date']]
         res = align(df_value, df_ann, dates_arr)
         return res
-    # res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()]
-    res_list = [align_single_df(df) for df in dic_sec.values()[:10]]
+    # res_list = [align_single_df(df) for sec, df in dic_sec.items()]
+    res_list = [align_single_df(df) for df in list(dic_sec.values())[:10]]
     res = pd.concat(res_list, axis=1)
     
     
@@ -224,7 +225,7 @@ def my_globals(request):
     ds = RemoteDataService()
     ds.init_from_config(data_config)
     
-    request.function.func_globals.update({'ds': ds})
+    request.function.__globals__.update({'ds': ds})
 
 
 if __name__ == "__main__":
@@ -235,12 +236,13 @@ if __name__ == "__main__":
     ds.init_from_config(data_config)
     
     g = globals()
-    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
 
-    for test_name, test_func in g.viewitems():
-        print "\nTesting {:s}...".format(test_name)
+    for test_name, test_func in g.items():
+        print("\n==========\nTesting {:s}...".format(test_name))
         test_func()
-    print "Test Complete."
+        break
+    print("Test Complete.")
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

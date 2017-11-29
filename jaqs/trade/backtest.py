@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 
@@ -7,6 +8,7 @@ from jaqs.trade import common
 from jaqs.data.basic import Bar
 from jaqs.data.basic import Trade
 import jaqs.util as jutil
+from functools import reduce
 
 
 class BacktestInstance(object):
@@ -217,7 +219,7 @@ class AlphaBacktestInstance(BacktestInstance):
             ser_div = ser.div(ser.shift(1)).fillna(1.0)
             mask_diff = ser_div != 1
             ser_adj = ser_div.loc[mask_diff]
-            for date, ratio in ser_adj.iteritems():
+            for date, ratio in ser_adj.items():
                 pos_old = pm.get_position(symbol).current_size
                 # TODO pos will become float, original: int
                 pos_new = pos_old * ratio
@@ -306,7 +308,7 @@ class AlphaBacktestInstance(BacktestInstance):
         Price here must not be adjusted.
 
         """
-        prices = {k: v['close'] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['close'] for k, v in self.univ_price_dic.items()}
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
@@ -339,7 +341,7 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.trade_date = self._get_next_trade_date(self.start_date)
         self.last_date = self._get_last_trade_date(self.ctx.trade_date)
         while True:
-            print "\n=======new day {}".format(self.ctx.trade_date)
+            print("\n=======new day {}".format(self.ctx.trade_date))
 
             # match uncome orders or re-balance
             if tapi.match_finished:
@@ -377,8 +379,8 @@ class AlphaBacktestInstance(BacktestInstance):
             if backtest_finish:
                 break
         
-        print "Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
-                                                                         len(self.ctx.pm.trades))
+        print("Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
+                                                                         len(self.ctx.pm.trades)))
     
     def on_after_market_close(self):
         self.ctx.trade_api.on_after_market_close()
@@ -517,13 +519,13 @@ class AlphaBacktestInstance(BacktestInstance):
     def show_position_info(self):
         pm = self.ctx.pm
         
-        prices = {k: v['open'] for k, v in self.univ_price_dic.viewitems()}
+        prices = {k: v['open'] for k, v in self.univ_price_dic.items()}
         market_value_float, market_value_frozen = pm.market_value(prices)
         for symbol in pm.holding_securities:
             p = prices[symbol]
             size = pm.get_position(symbol).current_size
-            print "{}  {:.2e}   {:.1f}@{:.2f}".format(symbol, p*size*100, p, size)
-        print "float {:.2e}, frozen {:.2e}".format(market_value_float, market_value_frozen)
+            print("{}  {:.2e}   {:.1f}@{:.2f}".format(symbol, p*size*100, p, size))
+        print("float {:.2e}, frozen {:.2e}".format(market_value_float, market_value_frozen))
 
 
 class EventBacktestInstance(BacktestInstance):
@@ -550,7 +552,7 @@ class EventBacktestInstance(BacktestInstance):
         if hasattr(self.ctx.trade_api, 'on_new_day'):
             self.ctx.trade_api.on_new_day(self.ctx.trade_date)
         self.ctx.strategy.initialize()
-        print 'on_new_day in trade {}'.format(self.ctx.trade_date)
+        print('on_new_day in trade {}'.format(self.ctx.trade_date))
     
     def on_after_market_close(self):
         pass
@@ -563,7 +565,7 @@ class EventBacktestInstance(BacktestInstance):
         df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
                                                trade_date=date, freq=self.bar_type)
         if msg != '0,':
-            print msg
+            print(msg)
         if df_quotes is None or df_quotes.empty:
             return dict()
     
@@ -600,7 +602,7 @@ class EventBacktestInstance(BacktestInstance):
         df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date,
                                                 adjust_mode='post')
         if msg != '0,':
-            print msg
+            print(msg)
         if df_daily is None or df_daily.empty:
             return dict()
         
@@ -656,7 +658,7 @@ class EventBacktestInstance(BacktestInstance):
         else:
             raise NotImplementedError("bar_type = {}".format(self.bar_type))
         
-        print "Backtest done."
+        print("Backtest done.")
         
     def _process_quote_bar(self, quotes_dic):
         self.ctx.trade_api.match_and_callback(quotes_dic, freq=self.bar_type)

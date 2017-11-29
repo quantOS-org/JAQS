@@ -45,19 +45,19 @@ def _pack_msgpack_snappy(obj):
 
 
 def _unpack_msgpack(str):
-    return msgpack.loads(str)
+    return msgpack.loads(str, encoding='utf-8')
 
 
 def _pack_msgpack(obj):
-    return msgpack.dumps(obj)
+    return msgpack.dumps(obj, encoding='utf-8')
 
 
 def _unpack_json(str):
-    return json.loads(str)
+    return json.loads(str, encoding='utf-8')
 
 
 def _pack_json(obj):
-    return json.dumps(obj)
+    return json.dumps(obj, encoding='utf-8')
 
 
 class JRpcClient(object):

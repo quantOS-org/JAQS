@@ -1,4 +1,5 @@
 # encoding: UTF-8
+from __future__ import print_function
 from enum import Enum, unique
 
 
@@ -137,7 +138,7 @@ class CALENDAR_CONST(ReprIntEnum):
 if __name__ == "__main__":
     """What below are actually unit tests. """
     
-    print "Running test..."
+    print("Running test...")
     
     assert QUOTE_TYPE.TICK == '0'
     assert RUN_MODE.BACKTEST == 1
@@ -145,4 +146,4 @@ if __name__ == "__main__":
     assert ORDER_TYPE.MARKET == 'market'
     assert ORDER_STATUS.FILLED == 'Filled'
     
-    print "Test passed."
+    print("Test passed.")

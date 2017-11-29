@@ -17,6 +17,7 @@ suspensions and limit reachers:
 2. do not care about them when construct portfolio
 3. subtract market value and re-normalize weights (positions) after (daily) market open, before sending orders
 """
+from __future__ import print_function
 import time
 
 from jaqs.data import RemoteDataService
@@ -147,11 +148,11 @@ def test_backtest_analyze():
     
     ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
 
-    print "process trades..."
+    print("process trades...")
     ta.process_trades()
-    print "get daily stats..."
+    print("get daily stats...")
     ta.get_daily()
-    print "calc strategy return..."
+    print("calc strategy return...")
     ta.get_returns(consider_commission=True)
     # position change info is huge!
     # print "get position change..."
@@ -159,16 +160,16 @@ def test_backtest_analyze():
     
     selected_sec = list(ta.universe)[:2]
     if len(selected_sec) > 0:
-        print "Plot single securities PnL"
+        print("Plot single securities PnL")
         for symbol in selected_sec:
             df_daily = ta.daily.get(symbol, None)
             if df_daily is not None:
                 ana.plot_trades(df_daily, symbol=symbol, save_folder=backtest_result_dir_path)
     
-    print "Plot strategy PnL..."
+    print("Plot strategy PnL...")
     ta.plot_pnl(backtest_result_dir_path)
     
-    print "generate report..."
+    print("generate report...")
     static_folder = jutil.join_relative_path("trade/analyze/static")
     ta.gen_report(source_dir=static_folder, template_fn='report_template.html',
                   out_folder=backtest_result_dir_path,
@@ -184,5 +185,5 @@ if __name__ == "__main__":
     test_backtest_analyze()
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))
 

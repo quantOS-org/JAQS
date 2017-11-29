@@ -14,6 +14,7 @@
 # modified by symbol from quantOS.org
 
 from __future__ import division
+from __future__ import print_function
 
 import math
 
@@ -182,7 +183,7 @@ class Expression(object):
             item = self.tokens[i]
             if item.type_ == TVAR and \
                     not item.index_ in vars and \
-                    not self.functions.has_key(item.index_):
+                    item.index_ not in self.functions:
                 vars.append(item.index_)
         return vars
 
@@ -847,10 +848,10 @@ class Parser(object):
             if style == 'camel':
                 # TODO: not implement
                 # deli = '_'
-                # res = {deli.join(s.title() for s in k.split(deli)): v for k, v in dic.viewitems()}
+                # res = {deli.join(s.title() for s in k.split(deli)): v for k, v in dic.items()}
                 res = dic
             elif style == 'lower':
-                res = {k.lower(): v for k, v in dic.viewitems()}
+                res = {k.lower(): v for k, v in dic.items()}
             else:
                 raise NotImplementedError("style = {}".format(style))
             return res
@@ -868,7 +869,7 @@ class Parser(object):
         
         """
         if name in self.functions:
-            print "Register function failed: name [{:s}] already exist. Try another name.".format(name)
+            print("Register function failed: name [{:s}] already exist. Try another name.".format(name))
             return
         
         self.functions[name] = func

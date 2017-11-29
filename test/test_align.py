@@ -1,4 +1,5 @@
 # encoding: utf-8
+from __future__ import print_function
 import pandas as pd
 from jaqs.data import RemoteDataService
 from jaqs.data import Parser
@@ -67,4 +68,4 @@ if __name__ == "__main__":
     test_align()
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

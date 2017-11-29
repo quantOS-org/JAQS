@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from abc import abstractmethod
 import abc
 from six import with_metaclass

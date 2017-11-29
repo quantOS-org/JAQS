@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import abc
 from abc import abstractmethod
 from six import with_metaclass
@@ -404,7 +405,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.use_pc_method(name='market_value_weight', func=self.market_value_weight, options=None)
         
         self._validate_parameters()
-        print "AlphaStrategy Initialized."
+        print("AlphaStrategy Initialized.")
     
     def _validate_parameters(self):
         if self.pc_method in ['mc', 'quad_opt']:
@@ -495,15 +496,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         weights_sub_universe, msg = func(**options)
         weights_all_universe = {symbol: weights_sub_universe.get(symbol, 0.0) for symbol in self.ctx.universe}
         if msg:
-            print msg
+            print(msg)
 
         # if nan assign zero
-        weights_all_universe = {k: 0.0 if np.isnan(v) else v for k, v in weights_all_universe.viewitems()}
+        weights_all_universe = {k: 0.0 if np.isnan(v) else v for k, v in weights_all_universe.items()}
         
         # normalize
-        w_sum = np.sum(np.abs(weights_all_universe.values()))
+        w_sum = np.sum(np.abs(list(weights_all_universe.values())))
         if w_sum > 1e-8:  # else all zeros weights
-            weights_all_universe = {k: v / w_sum for k, v in weights_all_universe.viewitems()}
+            weights_all_universe = {k: v / w_sum for k, v in weights_all_universe.items()}
 
         self.weights = weights_all_universe
 
@@ -553,15 +554,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             # TODO: we should not add a const
             if not len(w):
                 return w
-            w_min = np.min(w.values())
+            w_min = np.min(list(w.values()))
             if w_min < 0:
                 delta = 2 * abs(w_min)
             # if nan assign zero; else add const
-                w = {k: v + delta for k, v in w.viewitems()}
+                w = {k: v + delta for k, v in w.items()}
             return w
         
         dic_forecasts = self.signal_model.make_forecast()
-        weights = {k: 0.0 if (np.isnan(v) or np.isinf(v)) else v for k, v in dic_forecasts.viewitems()}
+        weights = {k: 0.0 if (np.isnan(v) or np.isinf(v)) else v for k, v in dic_forecasts.items()}
         weights = long_only_weight_adjust(weights)
         return weights, ""
         
@@ -621,15 +622,15 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         if len(suspensions) == len(self.ctx.universe):
             raise ValueError("All suspended")  # TODO custom error
         
-        weights = {sec: w if sec not in suspensions else 0.0 for sec, w in self.weights.viewitems()}
-        weights_sum = np.sum(np.abs(weights.values()))
+        weights = {sec: w if sec not in suspensions else 0.0 for sec, w in self.weights.items()}
+        weights_sum = np.sum(np.abs(list(weights.values())))
         if weights_sum > 0.0:
-            weights = {sec: w / weights_sum for sec, w in weights.viewitems()}
+            weights = {sec: w / weights_sum for sec, w in weights.items()}
         
         self.weights = weights
     
     def on_after_rebalance(self, total):
-        print "Before {} re-balance: available cash all (exclude suspensions) = {:9.4e}".format(self.ctx.trade_date, total)  # DEBUG
+        print("Before {} re-balance: available cash all (exclude suspensions) = {:9.4e}".format(self.ctx.trade_date, total))  # DEBUG
         pass
     
     def send_bullets(self):
@@ -659,7 +660,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         # cash_left = 0.0
         cash_used = 0.0
         goals = []
-        for sec, w in weights_dic.viewitems():
+        for sec, w in weights_dic.items():
             goal_pos = dict()
             goal_pos['symbol'] = sec
             

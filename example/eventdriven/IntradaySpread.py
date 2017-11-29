@@ -1,6 +1,11 @@
 # encoding: utf-8
 
-from Queue import Queue
+from __future__ import print_function
+from __future__ import absolute_import
+try:
+    from queue import Queue
+except ImportError:
+    from Queue import Queue
 import numpy as np
 
 from jaqs.trade import EventDrivenStrategy
@@ -69,7 +74,7 @@ class SpreadBuffer(object):
         self._window = window
         self.prices = np.empty(self._window, dtype=float)
         
-        if isinstance(symbols, (str, unicode)):
+        if isinstance(symbols, str):
             self.s1, self.s2 = symbols.split(',')
         elif isinstance(symbols, (tuple, list)):
             self.s1, self.s2 = symbols

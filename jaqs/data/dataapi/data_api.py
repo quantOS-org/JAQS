@@ -9,6 +9,8 @@ from . import jrpc_py
 from . import utils
 import time
 
+import numpy as np
+
 
 # def set_log_dir(log_dir):
 #    if log_dir:
@@ -515,11 +517,23 @@ class DataApi(object):
         
         index_column = None
         rpc_params = {}
+        for key, value in kwargs.items():
+            key = str(key)
+            if key == "_index_column":
+                index_column = value
+            else:
+                if isinstance(value, (int, np.integer)):
+                    value = int(value)
+                rpc_params[key] = value
+        '''
         for kw in list(kwargs.items()):
             if str(kw[0]) == "_index_column":
                 index_column = kw[1]
             else:
+                if isinstance(kw[1], (int, np.integer)):
+                    kw[1] = int(kw[1])
                 rpc_params[str(kw[0])] = kw[1]
+        '''
         
         cr = self._remote.call(method, rpc_params, timeout=self._timeout)
         

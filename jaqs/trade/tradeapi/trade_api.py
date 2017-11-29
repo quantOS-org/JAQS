@@ -179,7 +179,7 @@ class TradeApi(object):
             rpc_params = {"username": self._username,
                           "password": self._password}
             
-            cr = self._remote.call("auth.login", rpc_params)
+            cr = self._remote.call("auth.login", rpc_params, timeout=3333)
             f = self._get_format(format, "")
             if f != "obj" and f != "":
                 f = ""

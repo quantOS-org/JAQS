@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 from functools import wraps
 
 import numpy as np
@@ -178,7 +179,7 @@ def plot_table(table, name=None, fmt=None):
     if fmt is not None:
         pd.set_option('display.float_format', lambda x: fmt.format(x))
     
-    print table
+    print(table)
     
     if fmt is not None:
         pd.set_option('display.float_format', prev_option)
@@ -311,7 +312,7 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
         
         ymin, ymax = (None, None)
         for (i, a), (name, fr_column) in zip(enumerate(ax),
-                                             mean_returns_spread.iteritems()):
+                                             mean_returns_spread.items()):
             stdn = None if std_err is None else std_err[name]
             stdn = mean_returns_spread.loc
             a = plot_mean_quantile_returns_spread_time_series(fr_column,
@@ -441,7 +442,7 @@ def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     
     sharpes = ["sharpe_{:d} = {:.2f}".format(col, pfm.calc_performance_metrics(ser, cum_return=True,
                                                                                compound=False)['sharpe'])
-               for col, ser in cum_ret.iteritems()]
+               for col, ser in cum_ret.items()]
     ax.text(.02, .30,
             '\n'.join(sharpes),
             fontsize=12,
