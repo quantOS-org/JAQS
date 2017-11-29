@@ -4,10 +4,13 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from builtins import *
+import time
+
+import numpy as np
+
 from . import jrpc_py
 # import jrpc
 from . import utils
-import time
 
 
 # def set_log_dir(log_dir):
@@ -515,11 +518,13 @@ class DataApi(object):
         
         index_column = None
         rpc_params = {}
-        for kw in list(kwargs.items()):
-            if str(kw[0]) == "_index_column":
-                index_column = kw[1]
+        for key, value in kwargs.items():
+            if key  == '_index_columns':
+                index_column = value
             else:
-                rpc_params[str(kw[0])] = kw[1]
+                if isinstance(value, (int, np.integer)):
+                    value = int(value)
+                rpc_params[key] = value
         
         cr = self._remote.call(method, rpc_params, timeout=self._timeout)
         

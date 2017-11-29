@@ -145,8 +145,8 @@ class JRpcClient(object):
             except zmq.error.Again as e:
                 # print "RECV timeout: ", e
                 pass
-                # except Exception as e:
-                #    print("_recv_run:", e)
+            except Exception as e:
+                print("_recv_run:", e)
     
     def _callback_run(self):
         while not self._should_close:
