@@ -1,17 +1,22 @@
+from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from builtins import *
 import pandas as pd
 from collections import namedtuple
 
 
 def _to_date(row):
     date = int(row['DATE'])
-    return pd.datetime(year=date / 10000, month=date / 100 % 100, day=date % 100)
+    return pd.datetime(year=date // 10000, month=date // 100 % 100, day=date % 100)
 
 
 def _to_datetime(row):
     date = int(row['DATE'])
-    time = int(row['TIME']) / 1000
-    return pd.datetime(year=date / 10000, month=date / 100 % 100, day=date % 100,
-                       hour=time / 10000, minute=time / 100 % 100, second=time % 100)
+    time = int(row['TIME']) // 1000
+    return pd.datetime(year=date // 10000, month=date // 100 % 100, day=date % 100,
+                       hour=time // 10000, minute=time // 100 % 100, second=time % 100)
 
 
 def _to_dataframe(cloumset, index_func=None, index_column=None):
@@ -27,7 +32,7 @@ def _to_dataframe(cloumset, index_func=None, index_column=None):
 
 def _error_to_str(error):
     if error:
-        if error.has_key('message'):
+        if 'message' in error:
             return str(error['error']) + "," + error['message']
         else:
             return str(error['error']) + ","
@@ -40,16 +45,16 @@ def to_obj(class_name, data):
         if isinstance(data, (list, tuple)):
             result = []
             for d in data:
-                result.append(namedtuple(class_name, d.keys())(*d.values()))
+                result.append(namedtuple(class_name, list(d.keys()))(*list(d.values())))
             return result
         
         elif type(data) == dict:
-            result = namedtuple(class_name, data.keys())(*data.values())
+            result = namedtuple(class_name, list(data.keys()))(*list(data.values()))
             return result
         else:
             return data
-    except Exception, e:
-        print class_name, data, e
+    except Exception as e:
+        print(class_name, data, e)
         return data
 
 
@@ -58,8 +63,8 @@ def extract_result(cr, format="", index_column=None, class_name=""):
         format supports pandas, obj.
     """
     
-    err = _error_to_str(cr['error']) if cr.has_key('error') else None
-    if cr.has_key('result'):
+    err = _error_to_str(cr['error']) if 'error' in cr else None
+    if 'result' in cr:
         if format == "pandas":
             if index_column:
                 return (_to_dataframe(cr['result'], None, index_column), err)
@@ -75,9 +80,9 @@ def extract_result(cr, format="", index_column=None, class_name=""):
             if isinstance(r, (list, tuple)):
                 result = []
                 for d in r:
-                    result.append(namedtuple(class_name, d.keys())(*d.values()))
+                    result.append(namedtuple(class_name, list(d.keys()))(*list(d.values())))
             elif isinstance(r, dict):
-                result = namedtuple(class_name, r.keys())(*r.values())
+                result = namedtuple(class_name, list(r.keys()))(*list(r.values()))
             else:
                 result = r
             

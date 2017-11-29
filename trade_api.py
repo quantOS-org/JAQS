@@ -1,10 +1,15 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import unicode_literals
+from __future__ import division
+from builtins import *
 import json
 import pandas as pd
 
-import utils
+from . import utils
 
 
-class EntrustOrder:
+class EntrustOrder(object):
     def __init__(self, security, action, price, size):
         self.security = security
         self.action = action
@@ -18,7 +23,7 @@ def set_log_dir(log_dir):
             import jrpc
             jrpc.set_log_dir(log_dir)
         except Exception as e:
-            print "Exception", e
+            print("Exception", e)
 
 
 class TradeApi(object):
@@ -39,17 +44,17 @@ class TradeApi(object):
                     import jrpc
                     self._remote = jrpc.JsonRpcClient()
                 else:
-                    import jrpc_py
+                    from . import jrpc_py
                     self._remote = jrpc_py.JRpcClient(data_format="msgpack")
             except Exception as e:
-                print "Exception", e
+                print("Exception", e)
             
             if not self._remote:
-                import jrpc_py
+                from . import jrpc_py
                 self._remote = jrpc_py.JRpcClient(data_format="msgpack")
         
         else:
-            import jrpc_py
+            from . import jrpc_py
             self._remote = jrpc_py.JRpcClient(data_format="msgpack_snappy")
         
         self._remote.on_rpc_callback = self._on_rpc_callback
@@ -104,14 +109,14 @@ class TradeApi(object):
                 self._internal_order_callback(data)
     
     def _on_disconnected(self):
-        print "TradeApi: _on_disconnected"
+        print("TradeApi: _on_disconnected")
         self._connected = False
         self._strategy_selected = False
         if self._on_connection_callback:
             self._on_connection_callback(False)
     
     def _on_connected(self):
-        print "TradeApi: _on_connected"
+        print("TradeApi: _on_connected")
         self._connected = True
         self._do_login()
         self._do_use_strategy()
@@ -510,7 +515,7 @@ class TradeApi(object):
         
         if type(positions) is pd.core.frame.DataFrame:
             tmp = []
-            for i in xrange(0, len(positions)):
+            for i in range(0, len(positions)):
                 tmp.append({'security': positions.index[i], 'ref_price': float(positions['ref_price'][i]),
                             "size": int(positions['size'][i])})
             positions = tmp
@@ -537,7 +542,7 @@ class TradeApi(object):
         
         if type(orders) is pd.core.frame.DataFrame:
             tmp = []
-            for i in xrange(0, len(orders)):
+            for i in range(0, len(orders)):
                 tmp.append({'security': orders.index[i], 'ref_price': float(orders['ref_price'][i]),
                             "inc_size": int(orders['inc_size'][i])})
             orders = tmp
@@ -581,4 +586,4 @@ class TradeApi(object):
     
     def set_heartbeat(self, interval, timeout):
         self._remote.set_hearbeat_options(interval, timeout)
-        print "heartbeat_interval =", self._remote._heartbeat_interval, ", heartbeat_timeout =", self._remote._heartbeat_timeout
+        print("heartbeat_interval =", self._remote._heartbeat_interval, ", heartbeat_timeout =", self._remote._heartbeat_timeout)

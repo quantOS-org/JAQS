@@ -1,4 +1,12 @@
-import Queue
+from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from builtins import *
+try:
+    import queue
+except ImportError:
+    import queue
 import json
 import random
 import threading
@@ -45,7 +53,7 @@ def _pack_json(obj):
     return json.dumps(obj)
 
 
-class JRpcClient:
+class JRpcClient(object):
     def __init__(self, data_format="msgpack_snappy"):
         self._waiter_lock = threading.Lock()
         self._waiter_map = {}
@@ -60,8 +68,8 @@ class JRpcClient:
         
         self.on_disconnected = None
         self.on_rpc_callback = None
-        self._callback_queue = Queue.Queue()
-        self._call_wait_queue = Queue.Queue()
+        self._callback_queue = queue.Queue()
+        self._call_wait_queue = queue.Queue()
         
         self._ctx = zmq.Context()
         self._pull_sock = self._ctx.socket(zmq.PULL)
@@ -157,10 +165,10 @@ class JRpcClient:
                         #    print time.ctime(), "RECV", data
                         self._on_data_arrived(str(data))
             
-            except zmq.error.Again, e:
+            except zmq.error.Again as e:
                 # print "RECV timeout: ", e
                 pass
-            except Exception, e:
+            except Exception as e:
                 print("_recv_run:", e)
     
     def _callback_run(self):
@@ -169,11 +177,11 @@ class JRpcClient:
                 r = self._callback_queue.get(timeout=1)
                 if r:
                     r()
-            except Queue.Empty, e:
+            except queue.Empty as e:
                 pass
             
-            except Exception, e:
-                print "_callback_run {}".format(r), type(e), e
+            except Exception as e:
+                print("_callback_run {}".format(r), type(e), e)
     
     def _async_call(self, func):
         self._callback_queue.put(func)
@@ -213,10 +221,10 @@ class JRpcClient:
             # print "RECV", msg
             
             if not msg:
-                print "wrong message format"
+                print("wrong message format")
                 return
             
-            if msg.has_key('method') and msg['method'] == '.sys.heartbeat':
+            if 'method' in msg and msg['method'] == '.sys.heartbeat':
                 self._last_heartbeat_rsp_time = time.time()
                 if not self._connected:
                     self._connected = True
@@ -224,25 +232,25 @@ class JRpcClient:
                         self._async_call(self.on_connected)
                 
                 # Let user has a chance to check message in .sys.heartbeat
-                if msg.has_key('result') and self.on_rpc_callback:
+                if 'result' in msg and self.on_rpc_callback:
                     self._async_call(lambda: self.on_rpc_callback(msg['method'], msg['result']))
             
-            elif msg.has_key('id') and msg['id']:
+            elif 'id' in msg and msg['id']:
                 
                 # Call result
                 id = int(msg['id'])
                 
                 if self._waiter_lock.acquire():
-                    if self._waiter_map.has_key(id):
+                    if id in self._waiter_map:
                         q = self._waiter_map[id]
                         if q: q.put(msg)
                     self._waiter_lock.release()
             else:
                 # Notification message
-                if msg.has_key('method') and msg.has_key('result') and self.on_rpc_callback:
+                if 'method' in msg and 'result' in msg and self.on_rpc_callback:
                     self._async_call(lambda: self.on_rpc_callback(msg['method'], msg['result']))
         
-        except Exception, e:
+        except Exception as e:
             print("_on_data_arrived:", e)
             pass
     
@@ -260,7 +268,7 @@ class JRpcClient:
             q = self._call_wait_queue
             self._call_wait_queue = None
         else:
-            q = Queue.Queue()
+            q = queue.Queue()
         self._waiter_lock.release()
         return q
     
@@ -296,7 +304,7 @@ class JRpcClient:
             try:
                 r = q.get(timeout=timeout)
                 q.task_done()
-            except Queue.Empty:
+            except queue.Empty:
                 r = None
             
             self._waiter_lock.acquire()
@@ -305,10 +313,10 @@ class JRpcClient:
             self._free_wait_queue(q)
             
             if r:
-                if r.has_key('result'):
+                if 'result' in r:
                     ret['result'] = r['result']
                 
-                if r.has_key('error'):
+                if 'error' in r:
                     ret['error'] = r['error']
             
             return ret if ret else {'error': {'error': -1, 'message': "timeout"}}
