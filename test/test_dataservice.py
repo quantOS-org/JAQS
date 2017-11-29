@@ -105,7 +105,6 @@ def test_remote_data_service_industry():
     
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
     df = ds.get_industry_raw(symbol=','.join(arr), type_='ZZ')
-    df = df.astype(dtype={'in_date': int})
     
     # df_ann = df.loc[:, ['in_date', 'symbol']]
     # df_ann = df_ann.set_index(['symbol', 'in_date'])
@@ -241,7 +240,6 @@ if __name__ == "__main__":
     for test_name, test_func in g.items():
         print("\n==========\nTesting {:s}...".format(test_name))
         test_func()
-        break
     print("Test Complete.")
     
     t3 = time.time() - t_start

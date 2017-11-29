@@ -142,8 +142,8 @@ class AlphaBacktestInstance_OLD_dataservice(BacktestInstance):
                     'symbol': str,
                     'fill_price': float,
                     'fill_size': int,
-                    'fill_date': int,
-                    'fill_time': int,
+                    'fill_date': np.integer,
+                    'fill_time': np.integer,
                     'fill_no': str}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
@@ -219,7 +219,7 @@ class AlphaBacktestInstance(BacktestInstance):
             ser_div = ser.div(ser.shift(1)).fillna(1.0)
             mask_diff = ser_div != 1
             ser_adj = ser_div.loc[mask_diff]
-            for date, ratio in ser_adj.items():
+            for date, ratio in ser_adj.iteritems():
                 pos_old = pm.get_position(symbol).current_size
                 # TODO pos will become float, original: int
                 pos_new = pos_old * ratio
@@ -494,8 +494,8 @@ class AlphaBacktestInstance(BacktestInstance):
                     'symbol': str,
                     'fill_price': float,
                     'fill_size': float,
-                    'fill_date': int,
-                    'fill_time': int,
+                    'fill_date': np.integer,
+                    'fill_time': np.integer,
                     'fill_no': str,
                     'commission': float}
         # keys = trades[0].__dict__.keys()
@@ -698,8 +698,8 @@ class EventBacktestInstance(BacktestInstance):
                     'symbol': str,
                     'fill_price': float,
                     'fill_size': float,
-                    'fill_date': int,
-                    'fill_time': int,
+                    'fill_date': np.integer,
+                    'fill_time': np.integer,
                     'fill_no': str,
                     'commission': float}
         # keys = trades[0].__dict__.keys()

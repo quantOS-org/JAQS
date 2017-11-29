@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import *
 from abc import abstractmethod
 from six import with_metaclass
 
@@ -545,7 +547,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._raise_error_if_msg(err_msg)
         
         df_io = df_io.set_index('symbol')
-        df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io = df_io.astype({'weight': float, 'trade_date': np.integer})
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         return df_io
 
@@ -576,7 +578,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         if msg != '0,':
             print(msg)
         # df_io = df_io.set_index('symbol')
-        df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io = df_io.astype({'weight': float, 'trade_date': np.integer})
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
         df_io = df_io.fillna(0.0)
@@ -832,8 +834,8 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                  filter=filter_argument, orderby="symbol")
         self._raise_error_if_msg(err_msg)
         
-        df_raw = df_raw.astype(dtype={'in_date': int,
-                                      # 'out_date': int
+        df_raw = df_raw.astype(dtype={'in_date': np.integer,
+                                      # 'out_date': np.integer
                                      })
         return df_raw.drop_duplicates()
 
@@ -916,7 +918,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._raise_error_if_msg(err_msg)
         
         df_raw = df_raw.astype(dtype={'symbol': str,
-                                    'trade_date': int,
+                                    'trade_date': np.integer,
                                     'adjust_factor': float
                                     })
         return df_raw.drop_duplicates()
@@ -932,7 +934,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                      filter=filter_argument, orderby="symbol")
         self._raise_error_if_msg(err_msg)
 
-        dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int, 'inst_type': int}
+        dtype_map = {'symbol': str, 'list_date': np.integer, 'delist_date': np.integer, 'inst_type': np.integer}
         cols = set(df_raw.columns)
         dtype_map = {k: v for k, v in dtype_map.items() if k in cols}
         
@@ -990,7 +992,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         if df_raw.empty:
             return np.array([], dtype=int)
     
-        trade_dates_arr = df_raw['trade_date'].values.astype(int)
+        trade_dates_arr = df_raw['trade_date'].values.astype(np.integer)
         return trade_dates_arr
 
     def get_last_trade_date(self, date):

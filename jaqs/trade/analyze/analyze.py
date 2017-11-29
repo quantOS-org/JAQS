@@ -118,8 +118,8 @@ class BaseAnalyzer(object):
                     'symbol': str,
                     'fill_price': float,
                     'fill_size': float,
-                    'fill_date': int,
-                    'fill_time': int,
+                    'fill_date': np.integer,
+                    'fill_time': np.integer,
                     'fill_no': str,
                     'commission': float}
         abs_path = os.path.abspath(file_folder)
