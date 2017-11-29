@@ -1,3 +1,4 @@
+from __future__ import print_function
 from . import jrpc_py
 #import jrpc
 from . import utils

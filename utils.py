@@ -1,3 +1,4 @@
+from __future__ import print_function
 from collections import namedtuple
 import datetime  as dt
 import pandas    as pd
