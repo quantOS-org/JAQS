@@ -193,7 +193,7 @@ def test_remote_data_service_index_weight():
     
     df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
     assert abs(df.at[20150120, '000001.SZ'] - 1.07e-2) < 1e-2
-    assert df.shape == (236, 342)
+    assert df.shape == (236, 321)
 
 
 '''
