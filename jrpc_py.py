@@ -1,19 +1,26 @@
 import zmq
 import time
 import random
-import Queue
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 import threading
 import msgpack
 import snappy
+import copy
+
+qEmpty = copy.copy(queue.Empty)
+
 
 def _unpack(str) :
 
-    if str[0] == 'S':
+    if str.startswith(b'S'):
         tmp = snappy.uncompress(str[1:])
         #print "SNAPPY: ", len(str), len(tmp)
-        obj = msgpack.loads(tmp)
-    elif str[0] == '\0':
-        obj = msgpack.loads(str[1:])
+        obj = msgpack.loads(tmp, encoding='utf-8')
+    elif str.startswith(b'\0'):
+        obj = msgpack.loads(str[1:], encoding='utf-8')
     else:
         return None
 
@@ -21,11 +28,11 @@ def _unpack(str) :
 
 def _pack(obj) :
     #print "pack", obj
-    tmp = msgpack.dumps(obj)    
+    tmp = msgpack.dumps(obj, encoding='utf-8')
     if len(tmp) > 1000:
-        return 'S'  + snappy.compress(tmp)
+        return b'S'  + snappy.compress(tmp)
     else:
-        return '\0' + tmp
+        return b'\0' + tmp
 
 class JRpcClient :
     
@@ -43,8 +50,8 @@ class JRpcClient :
 
         self.on_disconnected = None
         self.on_rpc_callback = None
-        self._callback_queue = Queue.Queue()
-        self._call_wait_queue = Queue.Queue()
+        self._callback_queue = queue.Queue()
+        self._call_wait_queue = queue.Queue()
 
         self._ctx = zmq.Context()
         self._pull_sock = self._ctx.socket(zmq.PULL)
@@ -60,10 +67,12 @@ class JRpcClient :
         t = threading.Thread(target=self._recv_run)
         t.setDaemon(True)
         t.start()
+        self._recv_thread = t
 
         t = threading.Thread(target=self._callback_run)
         t.setDaemon(True)
         t.start()
+        self._callback_thread = t
         
     def __del__(self):
         self.close()
@@ -103,7 +112,7 @@ class JRpcClient :
                 socks = dict(poller.poll(500))
                 if self._pull_sock in socks and socks[self._pull_sock] == zmq.POLLIN:
                     cmd = self._pull_sock.recv()
-                    if cmd == "CONNECT":
+                    if cmd == b"CONNECT":
                         # print time.ctime(), "CONNECT " + self._addr
                         if remote_sock:
                             poller.unregister(remote_sock)
@@ -115,7 +124,7 @@ class JRpcClient :
                         if remote_sock :
                             poller.register(remote_sock, zmq.POLLIN)
 
-                    elif cmd.startswith("SEND:") and remote_sock :
+                    elif cmd.startswith(b"SEND:") and remote_sock :
                         #print time.ctime(), "SEND " + cmd[5:]
                         remote_sock.send(cmd[5:])
 
@@ -124,13 +133,13 @@ class JRpcClient :
                     if data:
                         #if not data.find("heartbeat"):
                         #    print time.ctime(), "RECV", data
-                        self._on_data_arrived(str(data))
+                        self._on_data_arrived(data)
 
-            except zmq.error.Again, e:
+            except zmq.error.Again as e:
                 #print "RECV timeout: ", e
                 pass
-            except Exception, e:
-                print("_recv_run:", e)
+            #except Exception as e:
+            #    print("_recv_run:", e)
 
     def _callback_run(self):
         while not self._should_close:
@@ -138,11 +147,15 @@ class JRpcClient :
                 r = self._callback_queue.get(timeout = 1)
                 if r :
                     r()
-            except Queue.Empty, e:
+            except qEmpty as e:
                 pass
-
-            except Exception, e:
-                print "_callback_run", type(e), e
+            except TypeError as e:
+                if str(e) == "'NoneType' object is not callable":
+                    pass
+                else:
+                    print("_callback_run {}".format(r), type(e), e)
+            except Exception as e:
+                print("_callback_run {}".format(r), type(e), e)
 
     def _async_call(self, func):
         self._callback_queue.put( func )
@@ -151,14 +164,14 @@ class JRpcClient :
 
         try:
             self._send_lock.acquire()
-            self._push_sock.send("SEND:" + json)
+            self._push_sock.send(b"SEND:" + json)
 
         finally:
             self._send_lock.release()
             
     def connect(self, addr) :
         self._addr = addr
-        self._push_sock.send("CONNECT")
+        self._push_sock.send_string('CONNECT', encoding='utf-8')
 
 
     def _do_connect(self):
@@ -166,7 +179,9 @@ class JRpcClient :
         client_id = str(random.randint(1000000, 100000000))
 
         socket = self._ctx.socket(zmq.DEALER)
-        socket.identity = str(client_id) + '$' + str(random.randint(1000000, 1000000000))
+        identity = (client_id) + '$' + str(random.randint(1000000, 1000000000))
+        identity = identity.encode('utf-8')
+        socket.setsockopt(zmq.IDENTITY, identity)
         socket.setsockopt(zmq.RCVTIMEO, 500)
         socket.setsockopt(zmq.SNDTIMEO, 500)
         socket.setsockopt(zmq.LINGER, 0)
@@ -176,17 +191,19 @@ class JRpcClient :
 
     def close(self):
         self._should_close = True
-                
+        self._callback_thread.join()
+        self._recv_thread.join()
+        
     def _on_data_arrived(self, str):
         try:
             msg = _unpack(str)
             #print "RECV", msg
 
             if not msg:
-                print "wrong message format"
+                print("wrong message format")
                 return
                 
-            if msg.has_key('method') and msg['method'] == '.sys.heartbeat':
+            if 'method' in msg and msg['method'] == '.sys.heartbeat':
                 self._last_heartbeat_rsp_time = time.time()
                 if not self._connected:
                     self._connected = True
@@ -194,25 +211,25 @@ class JRpcClient :
                         self._async_call(self.on_connected)
                 
                 # Let user has a chance to check message in .sys.heartbeat
-                if msg.has_key('result') and self.on_rpc_callback :
+                if 'result' in msg and self.on_rpc_callback :
                     self._async_call( lambda: self.on_rpc_callback(msg['method'], msg['result']) )
                 
-            elif msg.has_key('id') and msg['id'] :
+            elif 'id' in msg and msg['id'] :
 
                 # Call result
                 id = int(msg['id'])
                 
                 if self._waiter_lock.acquire():
-                    if self._waiter_map.has_key(id):
+                    if id in self._waiter_map:
                         q = self._waiter_map[id]
                         if q: q.put(msg)
                     self._waiter_lock.release()
             else:
                 # Notification message
-                if msg.has_key('method') and msg.has_key('result') and self.on_rpc_callback :
+                if 'method' in msg and 'result' in msg and self.on_rpc_callback :
                     self._async_call( lambda: self.on_rpc_callback(msg['method'], msg['result']) )
                 
-        except Exception, e:
+        except Exception as e:
             print( "_on_data_arrived:", e)
             pass
     
@@ -231,7 +248,7 @@ class JRpcClient :
             q = self._call_wait_queue
             self._call_wait_queue = None
         else:
-            q = Queue.Queue()
+            q = queue.Queue()
         self._waiter_lock.release()
         return q
 
@@ -268,7 +285,7 @@ class JRpcClient :
             try:
                 r = q.get(timeout = timeout)
                 q.task_done()
-            except Queue.Empty :
+            except qEmpty :
                 r = None
 
             self._waiter_lock.acquire()
@@ -277,10 +294,10 @@ class JRpcClient :
             self._free_wait_queue(q)
 
             if r:
-                if r.has_key('result'):
+                if 'result' in r:
                     ret['result'] = r['result']
 
-                if r.has_key('error'):
+                if 'error' in r:
                     ret['error'] = r['error']
 
             return ret if ret else { 'error': {'error': -1, 'message': "timeout"}}

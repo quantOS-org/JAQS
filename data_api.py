@@ -1,6 +1,6 @@
-import jrpc_py
+from . import jrpc_py
 #import jrpc
-import utils
+from . import utils
 import time
 
 #def set_log_dir(log_dir):
@@ -89,7 +89,7 @@ class DataApi:
         password : str
             password
         """
-        for i in xrange(3):
+        for i in range(3):
             if self._connected:
                 break
             time.sleep(1)
@@ -495,11 +495,11 @@ class DataApi:
             elif method == ".sys.heartbeat":
                 if 'sub_hash' in data:
                     if self._sub_hash and self._sub_hash != data['sub_hash']:
-                        print "sub_hash is not same", self._sub_hash, data['sub_hash']
+                        print("sub_hash is not same", self._sub_hash, data['sub_hash'])
                         self._do_subscribe()
 
         except Exception as e:
-            print "Can't load jrpc", e.message
+            print("Can't load jrpc", e.message)
     
     def _call_rpc(self, method, data_format, data_class, **kwargs):
 
@@ -509,7 +509,7 @@ class DataApi:
 
         index_column = None
         rpc_params = { }
-        for kw in kwargs.viewitems():
+        for kw in kwargs.items():
             if str(kw[0]) == "_index_column" :
                 index_column = kw[1]
             else:

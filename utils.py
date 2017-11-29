@@ -42,7 +42,7 @@ def _to_dataframe(cloumset, index_func = None, index_column = None):
 
 def _error_to_str(error):
     if error:
-        if error.has_key('message'):
+        if 'message' in error:
             return str(error['error']) + "," + error['message']
         else:
             return str(error['error']) + ","
@@ -63,8 +63,8 @@ def to_obj(class_name, data):
             return result
         else:
             return data
-    except Exception, e:
-        print class_name, data, e
+    except Exception as e:
+        print(class_name, data, e)
         return data
 
 def to_date_int(date):
@@ -92,8 +92,8 @@ def extract_result(cr, data_format="", index_column=None, class_name=""):
         format supports pandas, obj.
     """
     
-    err = _error_to_str(cr['error']) if cr.has_key('error') else None
-    if cr.has_key('result'):
+    err = _error_to_str(cr['error']) if 'error' in cr else None
+    if 'result' in cr:
         if data_format == "pandas":
             if index_column :
                 return (_to_dataframe(cr['result'], None, index_column), err)
