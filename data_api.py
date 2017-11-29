@@ -1,4 +1,10 @@
 from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
 from . import jrpc_py
 #import jrpc
 from . import utils
@@ -8,7 +14,7 @@ import time
 #    if log_dir:
 #        jrpc.set_log_dir(log_dir)
 
-class DataApiCallback:
+class DataApiCallback(object):
     """DataApi Callback
 
     def on_quote(quote):
@@ -20,7 +26,7 @@ class DataApiCallback:
     def __init__(self):
         self.on_quote = None
 
-class DataApi:
+class DataApi(object):
 
     """
     Abstract base class providing both historic and live data
@@ -475,7 +481,7 @@ class DataApi:
         max_index = len(self._schema)
 
         quote = {}
-        for i in xrange(len(indicators)):
+        for i in range(len(indicators)):
             if indicators[i] < max_index: 
                 quote[self._schema_map[indicators[i]]['name']] = values[i]
             else:
@@ -510,7 +516,7 @@ class DataApi:
 
         index_column = None
         rpc_params = { }
-        for kw in kwargs.items():
+        for kw in list(kwargs.items()):
             if str(kw[0]) == "_index_column" :
                 index_column = kw[1]
             else:

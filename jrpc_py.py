@@ -1,11 +1,17 @@
 from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
+from __future__ import absolute_import
+from builtins import *
+from future import standard_library
+standard_library.install_aliases()
 import zmq
 import time
 import random
 try:
     import queue
 except ImportError:
-    import Queue as queue
+    import queue as queue
 import threading
 import msgpack
 import snappy
@@ -35,7 +41,7 @@ def _pack(obj) :
     else:
         return b'\0' + tmp
 
-class JRpcClient :
+class JRpcClient(object) :
     
     def __init__(self) :
         self._waiter_lock = threading.Lock()        

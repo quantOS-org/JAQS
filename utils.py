@@ -1,4 +1,10 @@
 from __future__ import print_function
+from __future__ import division
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from future import standard_library
+standard_library.install_aliases()
+from builtins import *
 from collections import namedtuple
 import datetime  as dt
 import pandas    as pd
@@ -20,13 +26,13 @@ def to_nan(x):
         
 def _to_date(row):
     date = int(row['DATE'])
-    return pd.datetime( year=date/10000, month = date/ 100 % 100, day = date%100)
+    return pd.datetime( year=date//10000, month = date// 100 % 100, day = date%100)
 
 def _to_datetime(row):
     date = int(row['DATE'])
-    time = int(row['TIME']) / 1000
-    return pd.datetime( year=date/10000, month=date/ 100 % 100, day = date%100,
-                        hour=time/10000, minute=time/100%100, second =time%100)
+    time = int(row['TIME']) // 1000
+    return pd.datetime( year=date // 10000, month=date/ 100 % 100, day = date%100,
+                        hour=time // 10000, minute=time // 100 % 100, second =time % 100)
 
 def _to_dataframe(cloumset, index_func = None, index_column = None):
     df = pd.DataFrame(cloumset)
@@ -56,11 +62,11 @@ def to_obj(class_name, data):
         if type(data) == list or type(data) == tuple:
             result = []
             for d in data:
-                result.append( namedtuple(class_name, d.keys())(*d.values()) )
+                result.append( namedtuple(class_name, list(d.keys()))(*list(d.values())) )
             return result
 
         elif type(data) == dict :
-            result = namedtuple(class_name, data.keys())(*data.values())
+            result = namedtuple(class_name, list(data.keys()))(*list(data.values()))
             return result
         else:
             return data
@@ -69,7 +75,7 @@ def to_obj(class_name, data):
         return data
 
 def to_date_int(date):
-    if isinstance(date, (str, unicode)):
+    if isinstance(date, str):
         t = dt.datetime.strptime(date, "%Y-%m-%d")
         date_int = t.year * 10000 + t.month * 100 + t.day
         return date_int
@@ -79,7 +85,7 @@ def to_date_int(date):
         return -1
 
 def to_time_int(time):
-    if isinstance(time, (str, unicode)):
+    if isinstance(time, str):
         t = dt.datetime.strptime(time, "%H:%M:%S")
         time_int = t.hour * 10000 + t.minute * 100 + t.second
         return time_int
@@ -110,9 +116,9 @@ def extract_result(cr, data_format="", index_column=None, class_name=""):
             if type(r) == list or type(r) == tuple:
                 result = []
                 for d in r:
-                    result.append( namedtuple(class_name, d.keys())(*d.values()) )
+                    result.append( namedtuple(class_name, list(d.keys()))(*list(d.values())) )
             elif type(r) == dict :
-                result = namedtuple(class_name, r.keys())(*r.values())
+                result = namedtuple(class_name, list(r.keys()))(*list(r.values()))
             else:
                 result = r
 
