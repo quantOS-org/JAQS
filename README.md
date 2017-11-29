@@ -5,8 +5,7 @@
 
 # 安装步骤
 
-1、安装Python环境
-------
+## 1、安装Python环境
 
 如果本地还没有安装Python环境，强烈建议安装 [Anaconda](http://www.continuum.io/downloads "Anaconda")。
 
@@ -14,37 +13,32 @@
 
 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda会自动设置PATH环境。
 
-2、安装依赖包
-----------------
+## 2、安装依赖包
 
 如果Python环境不是类似Anaconda的集成开发环境，我们需要单独安装依赖包，在已经有pandas/numpy包前提下，还需要有以下几个包：
 
-	pyzmq
-	msgpack_python
-	python-snappy
+- pyzmq
+- msgpack_python
+- python-snappy
 
-可以通过单个安装完成，例如： pip install pyzmq
+可以通过单个安装完成，例如： `pip install pyzmq`
 
-需要注意的是，python-snappy和msgpack-python这两个包在Windows上的安装需要比较多的编译依赖,建议从[这个网页](http://www.lfd.uci.edu/~gohlke/pythonlibs)下载编译好的包，然后安装:
+需要注意的是，python-snappy这个包在Windows上的安装需要比较多的编译依赖,建议从[这个网页](http://www.lfd.uci.edu/~gohlke/pythonlibs)下载编译好的包，然后安装:
 
-	pip install msgpack_python-0.4.8-cp27-cp27m-win_amd64.whl 
-	
-	pip install python_snappy-0.5.1-cp27-cp27m-win_amd64.whl
+```shell
+pip install python_snappy-0.5.1-cp27-cp27m-win_amd64.whl
+```
 
 
-
-3、使用DataApi
---------
-
-在项目目录，验证DataApi是否正常使用。
+## 3、使用DataApi
 
 ```python
-from DataApi import DataApi
+from .data_api import DataApi  # 这里假设工作目录是项目根目录
 
 api = DataApi(addr="tcp://data.tushare.org:8910")
 result, msg = api.login("username", "password") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
-print result
-print msg
+print(result)
+print(msg)
 
 ```
 
