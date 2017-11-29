@@ -1,28 +1,34 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from __future__ import division
-from __future__ import absolute_import
+
+import json
+import random
+import time
 from builtins import *
+
+import zmq
+
 try:
     import queue
 except ImportError:
-    import queue
-import json
-import random
+    import queue as queue
 import threading
-import time
-import zmq
-
 import msgpack
 import snappy
+import copy
+
+qEmpty = copy.copy(queue.Empty)
 
 
 def _unpack_msgpack_snappy(str):
-    if str[0] == 'S':
+    if str.startswith(b'S'):
         tmp = snappy.uncompress(str[1:])
-        obj = msgpack.loads(tmp)
-    elif str[0] == '\0':
-        obj = msgpack.loads(str[1:])
+        # print "SNAPPY: ", len(str), len(tmp)
+        obj = msgpack.loads(tmp, encoding='utf-8')
+    elif str.startswith(b'\0'):
+        obj = msgpack.loads(str[1:], encoding='utf-8')
     else:
         return None
     
@@ -30,11 +36,12 @@ def _unpack_msgpack_snappy(str):
 
 
 def _pack_msgpack_snappy(obj):
-    tmp = msgpack.dumps(obj)
+    # print "pack", obj
+    tmp = msgpack.dumps(obj, encoding='utf-8')
     if len(tmp) > 1000:
-        return 'S' + snappy.compress(tmp)
+        return b'S' + snappy.compress(tmp)
     else:
-        return '\0' + tmp
+        return b'\0' + tmp
 
 
 def _unpack_msgpack(str):
@@ -100,10 +107,12 @@ class JRpcClient(object):
         t = threading.Thread(target=self._recv_run)
         t.setDaemon(True)
         t.start()
+        self._recv_thread = t
         
         t = threading.Thread(target=self._callback_run)
         t.setDaemon(True)
         t.start()
+        self._callback_thread = t
     
     def __del__(self):
         self.close()
@@ -142,7 +151,7 @@ class JRpcClient(object):
                 socks = dict(poller.poll(500))
                 if self._pull_sock in socks and socks[self._pull_sock] == zmq.POLLIN:
                     cmd = self._pull_sock.recv()
-                    if cmd == "CONNECT":
+                    if cmd == b"CONNECT":
                         # print time.ctime(), "CONNECT " + self._addr
                         if remote_sock:
                             poller.unregister(remote_sock)
@@ -154,7 +163,7 @@ class JRpcClient(object):
                         if remote_sock:
                             poller.register(remote_sock, zmq.POLLIN)
                     
-                    elif cmd.startswith("SEND:") and remote_sock:
+                    elif cmd.startswith(b"SEND:") and remote_sock:
                         # print time.ctime(), "SEND " + cmd[5:]
                         remote_sock.send(cmd[5:])
                 
@@ -163,7 +172,7 @@ class JRpcClient(object):
                     if data:
                         # if not data.find("heartbeat"):
                         #    print time.ctime(), "RECV", data
-                        self._on_data_arrived(str(data))
+                        self._on_data_arrived(data)
             
             except zmq.error.Again as e:
                 # print "RECV timeout: ", e
@@ -177,9 +186,13 @@ class JRpcClient(object):
                 r = self._callback_queue.get(timeout=1)
                 if r:
                     r()
-            except queue.Empty as e:
+            except qEmpty as e:
                 pass
-            
+            except TypeError as e:
+                if str(e) == "'NoneType' object is not callable":
+                    pass
+                else:
+                    print("_callback_run {}".format(r), type(e), e)
             except Exception as e:
                 print("_callback_run {}".format(r), type(e), e)
     
@@ -190,21 +203,23 @@ class JRpcClient(object):
         
         try:
             self._send_lock.acquire()
-            self._push_sock.send("SEND:" + json)
+            self._push_sock.send(b"SEND:" + json)
         
         finally:
             self._send_lock.release()
     
     def connect(self, addr):
         self._addr = addr
-        self._push_sock.send("CONNECT")
+        self._push_sock.send_string('CONNECT', encoding='utf-8')
     
     def _do_connect(self):
         
         client_id = str(random.randint(1000000, 100000000))
         
         socket = self._ctx.socket(zmq.DEALER)
-        socket.identity = str(client_id) + '$' + str(random.randint(1000000, 1000000000))
+        identity = (client_id) + '$' + str(random.randint(1000000, 1000000000))
+        identity = identity.encode('utf-8')
+        socket.setsockopt(zmq.IDENTITY, identity)
         socket.setsockopt(zmq.RCVTIMEO, 500)
         socket.setsockopt(zmq.SNDTIMEO, 500)
         socket.setsockopt(zmq.LINGER, 0)
@@ -214,6 +229,8 @@ class JRpcClient(object):
     
     def close(self):
         self._should_close = True
+        self._callback_thread.join()
+        self._recv_thread.join()
     
     def _on_data_arrived(self, str):
         try:
@@ -304,7 +321,7 @@ class JRpcClient(object):
             try:
                 r = q.get(timeout=timeout)
                 q.task_done()
-            except queue.Empty:
+            except qEmpty:
                 r = None
             
             self._waiter_lock.acquire()

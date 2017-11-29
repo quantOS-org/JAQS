@@ -1,9 +1,11 @@
-from __future__ import print_function
 from __future__ import absolute_import
-from __future__ import unicode_literals
 from __future__ import division
-from builtins import *
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import json
+from builtins import *
+
 import pandas as pd
 
 from . import utils
@@ -586,4 +588,5 @@ class TradeApi(object):
     
     def set_heartbeat(self, interval, timeout):
         self._remote.set_hearbeat_options(interval, timeout)
-        print("heartbeat_interval =", self._remote._heartbeat_interval, ", heartbeat_timeout =", self._remote._heartbeat_timeout)
+        print("heartbeat_interval =", self._remote._heartbeat_interval, ", heartbeat_timeout =",
+              self._remote._heartbeat_timeout)
