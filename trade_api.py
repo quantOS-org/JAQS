@@ -278,7 +278,7 @@ class TradeApi(object):
         if result is None, message contains error information
         """
 
-        if not orders or not isinstance(orders, [list, tuple]):
+        if not orders or not isinstance(orders, (list, tuple)):
             return (None, "empty order")
 
         if isinstance(orders[0],  EntrustOrder):
@@ -310,7 +310,7 @@ class TradeApi(object):
         if result is None, message contains error information
         """
 
-        if not orders or not isinstance(orders, [list, tuple]):
+        if not orders or not isinstance(orders, (list, tuple)):
             return (None, "empty order")
 
         if isinstance(orders[0],  EntrustOrder):

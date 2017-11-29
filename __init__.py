@@ -1,4 +1,8 @@
-from trade_api import TradeApi,EntrustOrder,set_log_dir
+# encoding: utf-8
+"""
+Core trade api for simulated and live trading.
+"""
 
-import jzquant_trade_api
+from .trade_api import TradeApi
 
+__all__ = ['TradeApi']
