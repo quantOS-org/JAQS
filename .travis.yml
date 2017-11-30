@@ -7,6 +7,9 @@ branches:
   only:
   - master
 
+before_install:
+  - apt-get install libsnappy-dev
+
 install:
   - pip install -r requirements_test.txt
 
