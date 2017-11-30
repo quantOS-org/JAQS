@@ -1,0 +1,17 @@
+language: python
+
+python:
+    - "2.7"
+
+branches:
+  only:
+  - master
+
+install:
+  - pip install -r requirements_test.txt
+
+script:
+- py.test test/test_align.py test/test_dataservice.py test/test_data_basic.py test/test_calendar.py test/test_data_api.py --cov=jaqs
+
+after_success:
+  - coveralls
