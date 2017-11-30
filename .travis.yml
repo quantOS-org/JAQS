@@ -21,5 +21,3 @@ script:
   - cd test
   - py.test test_util.py --cov jaqs
 
-after_success:
-  - coveralls
