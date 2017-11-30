@@ -1,5 +1,5 @@
 {
   "remote.data.address": "tcp://data.tushare.org:8910",
-  "remote.data.username": "Your Username",
-  "remote.data.password": "Your Password"
+  "remote.data.username": "YourTelNumber",
+  "remote.data.password": "YourToken"
 }
