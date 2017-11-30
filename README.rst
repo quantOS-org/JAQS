@@ -61,7 +61,7 @@ Apache 2.0许可协议。版权所有(c)2017 quantOS-org.
    :target: https://opensource.org/licenses/Apache-2.0
 .. |pypi pyversion| image:: https://img.shields.io/pypi/pyversions/jaqs.svg
    :target: https://pypi.python.org/pypi/jaqs
-.. |travis ci| image:: https://travis-ci.org/quantOS-org/JAQS.svg?branch=release-0.5.0
+.. |travis ci| image:: https://travis-ci.org/quantOS-org/JAQS.svg?branch=master
    :target: https://travis-ci.org/quantOS-org/JAQS
-.. |covergae| image:: https://coveralls.io/repos/github/quantOS-org/JAQS/badge.svg?branch=release-0.5.0
-   :target: https://coveralls.io/github/quantOS-org/JAQS?branch=release-0.5.0
+.. |covergae| image:: https://coveralls.io/repos/github/quantOS-org/JAQS/badge.svg?branch=master
+   :target: https://coveralls.io/github/quantOS-org/JAQS?branch=master
