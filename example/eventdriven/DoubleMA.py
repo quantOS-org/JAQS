@@ -11,7 +11,7 @@ from jaqs.trade import EventDrivenStrategy
 from jaqs.data import RemoteDataService
 from jaqs.data.basic import Bar, Quote
 from jaqs.trade import model
-from jaqs.trade import EventRealTimeInstance
+from jaqs.trade import EventLiveTradeInstance
 from jaqs.trade import EventBacktestInstance
 from jaqs.trade import RealTimeTradeApi, BacktestTradeApi
 from jaqs.trade import PortfolioManager
@@ -150,7 +150,7 @@ def run_strategy():
         props = {'symbol': 'rb1801.SHF',
                  'strategy.no': 46}
         tapi = RealTimeTradeApi(trade_config)
-        ins = EventRealTimeInstance()
+        ins = EventLiveTradeInstance()
 
     props.update(data_config)
     props.update(trade_config)

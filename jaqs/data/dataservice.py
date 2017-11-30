@@ -374,6 +374,15 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._raise_error_if_msg(err_msg)
         return df, err_msg
     
+    def quote(self, symbol, fields=""):
+        self._raise_error_if_no_data_api()
+        
+        df, err_msg = self.data_api.quote(symbol=symbol, fields=fields)
+        
+        self._raise_error_if_msg(err_msg)
+        
+        return df, err_msg
+    
     def query(self, view, filter="", fields="", **kwargs):
         """
         Get various reference data.

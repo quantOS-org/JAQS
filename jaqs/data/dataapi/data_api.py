@@ -519,7 +519,7 @@ class DataApi(object):
         index_column = None
         rpc_params = {}
         for key, value in kwargs.items():
-            if key  == '_index_columns':
+            if key  == '_index_column':
                 index_column = value
             else:
                 if isinstance(value, (int, np.integer)):

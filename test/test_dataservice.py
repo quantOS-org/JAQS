@@ -54,8 +54,13 @@ def test_remote_data_service_bar():
     assert rb2.shape == (345, 15)
     assert stk2.shape == (240, 15)
     assert rb2.loc[:, 'volume'].values[344] == 3366
+
+
+def test_remote_data_serviece_quote():
+    res, msg = ds.quote('000001.SH')
+    assert msg == '0,'
     
-    
+
 def test_remote_data_service_lb():
     # test lb.secDailyIndicator
     fields = "pb,pe,free_share,net_assets,limit_status"

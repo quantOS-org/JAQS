@@ -600,7 +600,9 @@ class AlphaAnalyzer(BaseAnalyzer):
 
         ret = close.pct_change(1)
 
-        pf_weight = pos.div(pos.sum(axis=1), axis=0)
+        pos_sum = pos.sum(axis=1)
+        pf_weight = pos.div(pos_sum, axis=0)
+        pf_weight.loc[pos_sum == 0, :] = 0.0
         assert pf_weight.isnull().sum().sum() == 0
         pf_weight = pf_weight.reindex(index=ret.index, columns=ret.columns)
         pf_weight = pf_weight.fillna(0.0)
