@@ -376,7 +376,7 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
                               }
     
     # -------------------------------------------------------------------------------------------
-    # On TradeAPI Callback: put a corresponding event to EventRealTimeInstance
+    # On TradeAPI Callback: put a corresponding event to EventLiveTradeInstance
 
     def set_trade_api_callbacks(self, trade_api):
         trade_api.set_task_status_callback(self.on_task_status)
