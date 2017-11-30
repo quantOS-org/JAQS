@@ -2,7 +2,10 @@
 import json
 import os
 import errno
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import codecs
 
 from .. import SOURCE_ROOT_DIR

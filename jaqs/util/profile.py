@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import time
 
 
@@ -21,7 +22,7 @@ class SimpleTimer(object):
         
         self.events.append((event_name, now))
         
-        print "Total {:3.1f}    | Delta {:3.1f}    | {:s}".format(total, delta, event_name)
+        print("Total {:3.1f}    | Delta {:3.1f}    | {:s}".format(total, delta, event_name))
 
 
 if __name__ == "__main__":

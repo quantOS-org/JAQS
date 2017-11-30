@@ -62,7 +62,7 @@ class Context(object):
         
         self.storage = dict()
         
-        for member, obj in self.__dict__.viewitems():
+        for member, obj in self.__dict__.items():
             if hasattr(obj, 'ctx'):
                 if member in ['calendar', '_data_api', '_trade_api',
                               '_dataview', '_gateway', 'instance',
@@ -141,7 +141,7 @@ class Context(object):
         """
         if isinstance(univ, list):
             self.universe = univ
-        elif isinstance(univ, (str, unicode)):
+        elif isinstance(univ, str):
             l = univ.split(',')
             l = [x for x in l if x]
             self.universe = l
@@ -205,7 +205,7 @@ class FuncRegisterable(object):
 
         """
         self.active_funcs = []
-        for f_name, options in f_dict.viewitems():
+        for f_name, options in f_dict.items():
             self.func_table[f_name].options = options
             self.active_funcs.append(f_name)
     
@@ -309,7 +309,7 @@ class FactorSignalModel(BaseSignalModel):
     
     def combine_custom_weight(self, forecasts, forecast_weights):
         res = 0.0
-        for factor, f in forecasts.viewitems():
+        for factor, f in forecasts.items():
             w = forecast_weights[factor]
             res += f * w
         return res
@@ -328,7 +328,7 @@ class FactorSignalModel(BaseSignalModel):
 
         """
         total_signal = 0.0
-        for sec, w in weights.viewitems():
+        for sec, w in weights.items():
             forecasts = self.forecast_individual(sec)
             forecast = self.combine_sum(forecasts)
             
@@ -376,7 +376,7 @@ class FactorSignalModel(BaseSignalModel):
         """
         n = len(forecasts)
         forecast_corr = np.random.randn(n, n)
-        forecasts_arr = np.asarray(forecasts.values(), dtype=float).reshape(-1, 1)
+        forecasts_arr = np.asarray(list(forecasts.values()), dtype=float).reshape(-1, 1)
         return np.dot(forecast_corr, forecasts_arr).sum()
 
     def get_forecasts(self):
@@ -428,7 +428,7 @@ class FactorSignalModel(BaseSignalModel):
         """
         forecasts = self.get_forecasts()  # {str: pd.DataFrame}
         # TODO NaN
-        forecasts = {key: value.fillna(0) for key, value in forecasts.viewitems()}
+        forecasts = {key: value.fillna(0) for key, value in forecasts.items()}
         forecast = self.combine_sum(forecasts)
         return forecast
         
@@ -448,8 +448,8 @@ class FactorSignalModel(BaseSignalModel):
         total_signal = 0.0
         forecast_dic = self.make_forecast()
         
-        weighted_signal = {key: value * forecast_dic[key] for key, value in weights.viewitems()}
-        total_signal = np.sum(weighted_signal.values())
+        weighted_signal = {key: value * forecast_dic[key] for key, value in weights.items()}
+        total_signal = np.sum(list(weighted_signal.values()))
         
         return total_signal
 
@@ -469,7 +469,7 @@ class FactorSignalModel_custom(FactorSignalModel):
         td = self.ctx.trade_date
 
         res = 0.0
-        for factor_name, factor_value in forecasts.viewitems():
+        for factor_name, factor_value in forecasts.items():
             weights_dic = self.signal_weights.loc[td, :].to_dict()
 
             weight = weights_dic[factor_name]
@@ -488,7 +488,7 @@ class FactorSignalModel_custom(FactorSignalModel):
         """
         forecasts = self.get_forecasts()  # {str: pd.DataFrame}
         # TODO NaN
-        forecasts = {key: value.fillna(0) for key, value in forecasts.viewitems()}
+        forecasts = {key: value.fillna(0) for key, value in forecasts.items()}
         forecast = self.combine_custom_weight(forecasts)
         return forecast
 
@@ -532,7 +532,7 @@ class SimpleCostModel(BaseCostModel):
             rf = self.func_table[cost_name]
             cost_user_dic[cost_name] = rf.func(symbol, trading_volume * price,
                                                context=self.ctx, user_options=rf.options)
-        cost_user = sum(cost_user_dic.values())
+        cost_user = sum(list(cost_user_dic.values()))
         
         return cost_default + cost_user
     
@@ -589,7 +589,7 @@ class SimpleCostModel(BaseCostModel):
 
         """
         total_cost = 0.0
-        for sec, w_last in weights_last.viewitems():
+        for sec, w_last in weights_last.items():
             w_now = weights_now[sec]
             
             trading_turnover = abs(w_now - w_last)
@@ -633,7 +633,7 @@ class FactorRiskModel(BaseRiskModel):
         idiosyncratic_risk = self.calc_idiosyncratic_risk(weights)
         n = len(weights)
         corr_mat = np.random.randn(n, n)
-        weights_arr = np.asarray(weights.values(), dtype=float)
+        weights_arr = np.asarray(list(weights.values()), dtype=float)
         factor_risk = weights_arr.dot(corr_mat).dot(weights_arr)
         total_risk = factor_risk + idiosyncratic_risk
         return total_risk
@@ -651,7 +651,7 @@ class FactorRiskModel(BaseRiskModel):
     def calc_idiosyncratic_risk(self, weights):
         """Calculate weighted sum of idiosyncratic risks of all securities."""
         res = 0.0
-        for sec, w in weights.viewitems():
+        for sec, w in weights.items():
             res += w * self._get_idiosyncratic_risk(sec)
         return res
 
@@ -661,8 +661,8 @@ def test_models():
     weight_now = {'symbol1': 0.3, 'symbolB': 0.7}
     
     portfolio = 1e7
-    weight_last = {k: v * portfolio for k, v in weight_last.viewitems()}
-    weight_now = {k: v * portfolio for k, v in weight_now.viewitems()}
+    weight_last = {k: v * portfolio for k, v in weight_last.items()}
+    weight_now = {k: v * portfolio for k, v in weight_now.items()}
     
     signal = FactorSignalModel().forecast_signal(weight_now)
     cost = SimpleCostModel().calc_cost(weight_last, weight_now)

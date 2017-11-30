@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import datetime as dt
 
 import matplotlib.pyplot as plt
@@ -134,14 +135,14 @@ class PnlManager(object):
     def generateReport(self, output_format=""):
         daily_pnls = self.calcPnl(self.ctx.pm.trades)
         report = self.generateStatisticReport(daily_pnls)
-        print "Total PNL: %f" % (report.total_pnl)
-        print "Total trade number: %d" % (report.trade_count)
-        print "Total trade amount: %f" % (report.trade_amount)
-        print "Win rate: %f" % (report.win_rate)
-        print "Max drawdown: %f" % (report.maxdrawdown)
-        print "Tax: %f" % (report.tax)
-        print "Commission: %f" % (report.commission)
-        print "Sharp: %f" % (report.sharp)
+        print("Total PNL: %f" % (report.total_pnl))
+        print("Total trade number: %d" % (report.trade_count))
+        print("Total trade amount: %f" % (report.trade_amount))
+        print("Win rate: %f" % (report.win_rate))
+        print("Max drawdown: %f" % (report.maxdrawdown))
+        print("Tax: %f" % (report.tax))
+        print("Commission: %f" % (report.commission))
+        print("Sharp: %f" % (report.sharp))
         trade_pnl = []
         hold_pnl = []
         total_pnl = []
@@ -194,7 +195,7 @@ class PnlManager(object):
             for idx, row in df.iterrows():
                 date = row['trade_date']
                 close = row['close']
-                if not self.close_prices.has_key(date):
+                if date not in self.close_prices:
                     self.close_prices[date] = {}
                 self.close_prices[date][symbol] = close
     
@@ -248,7 +249,7 @@ class PnlManager(object):
         pre_date = self.calendar.get_last_trade_date(date)
         pre_close_prices = self.close_prices[pre_date]
         cur_close_prices = self.close_prices[date]
-        for code, hold_size in position.viewitems():
+        for code, hold_size in position.items():
             # hold pnl calc          
             
             pre_close = pre_close_prices.get(code, 0.0)
@@ -266,13 +267,13 @@ class PnlManager(object):
         for trade in all_trades:
             code = trade.symbol
             date = trade.fill_date
-            if trades.has_key(date) == False:
+            if (date in trades) == False:
                 trades[date] = {}
-            if trades[date].has_key(code) == False:
+            if (code in trades[date]) == False:
                 trades[date][code] = []
             trades[date][code].append(trade)
         
-        for key, value in trades.viewitems():
+        for key, value in trades.items():
             pnl = self.calcOneDayTradePnl(key, value)
             trade_pnls[pnl.date] = pnl
         dates = self.calendar.get_trade_date_range(self.start_date, self.end_date)
@@ -307,10 +308,10 @@ class PnlManager(object):
     # combine src position to dst_position
     def combinePosition(self, cur_position, pre_position):
         position = {}
-        for k, v in cur_position.viewitems():
+        for k, v in cur_position.items():
             position[k] = v
-        for k, v in pre_position.viewitems():
-            if position.has_key(k) == False:
+        for k, v in pre_position.items():
+            if (k in position) == False:
                 position[k] = v
             else:
                 position[k] += v
@@ -320,7 +321,7 @@ class PnlManager(object):
         pnl = DailyPnlReport()
         pnl.date = date
         close_prices = self.close_prices[date]
-        for code, trades in trade_map.viewitems():
+        for code, trades in trade_map.items():
             position = 0
             close = close_prices.get(code, 0.0)
             inst = self.instmgr.get_instrument(code)
@@ -393,4 +394,4 @@ if __name__ == '__main__':
     trades.append(t3)
     pnls = pnlmgr.calcPnl(trades)
     for pnl in pnls:
-        print pnl.date, pnl.trade_pnl, pnl.hold_pnl, pnl.positions.get('600030.SH')
+        print(pnl.date, pnl.trade_pnl, pnl.hold_pnl, pnl.positions.get('600030.SH'))

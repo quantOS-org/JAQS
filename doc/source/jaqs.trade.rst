@@ -29,6 +29,14 @@ jaqs\.trade\.common module
     :undoc-members:
     :show-inheritance:
 
+jaqs\.trade\.livetrade module
+-----------------------------
+
+.. automodule:: jaqs.trade.livetrade
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 jaqs\.trade\.model module
 -------------------------
 
@@ -41,14 +49,6 @@ jaqs\.trade\.portfoliomanager module
 ------------------------------------
 
 .. automodule:: jaqs.trade.portfoliomanager
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-jaqs\.trade\.realtime module
-----------------------------
-
-.. automodule:: jaqs.trade.realtime
     :members:
     :undoc-members:
     :show-inheritance:

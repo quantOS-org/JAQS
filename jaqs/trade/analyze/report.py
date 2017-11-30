@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import os
 import codecs
 
@@ -53,7 +54,7 @@ class Report(object):
         with codecs.open(path, 'w', encoding='utf-8') as f:
             f.write(self.html)
 
-        print "HTML report: {:s}".format(path)
+        print("HTML report: {:s}".format(path))
     
     def output_pdf(self, fn='test_out.html'):
         pass

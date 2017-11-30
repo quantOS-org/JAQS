@@ -1,7 +1,12 @@
 # encoding: UTF-8
 
 # 系统模块
-from Queue import Queue, Empty
+from __future__ import print_function
+from __future__ import absolute_import
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 from threading import Thread
 from time import sleep
 from collections import defaultdict
@@ -10,7 +15,7 @@ from collections import defaultdict
 # from qtpy.QtCore import QTimer
 
 # 自己开发的模块
-from eventtype import EVENT_TYPE
+from .eventtype import EVENT_TYPE
 
 
 ########################################################################
@@ -56,7 +61,7 @@ class EventEngine(object):
         
         """初始化事件引擎"""
         # 事件队列
-        self.__queue = Queue()
+        self.__queue = queue.Queue()
         
         # 事件引擎开关
         self.__active = False
@@ -82,7 +87,7 @@ class EventEngine(object):
             try:
                 event = self.__queue.get(block = True, timeout = 1)  # 获取事件的阻塞时间设为1秒
                 self.__process(event)
-            except Empty:
+            except queue.Empty:
                 pass
             
     #----------------------------------------------------------------------
@@ -191,7 +196,7 @@ class EventEngine2(object):
     def __init__(self):
         """初始化事件引擎"""
         # 事件队列
-        self.__queue = Queue()
+        self.__queue = queue.Queue()
         
         # 事件引擎开关
         self.__active = False
@@ -218,7 +223,7 @@ class EventEngine2(object):
             try:
                 event = self.__queue.get(block = True, timeout = 1)  # 获取事件的阻塞时间设为1秒
                 self.__process(event)
-            except Empty:
+            except queue.Empty:
                 pass
             
     #----------------------------------------------------------------------
@@ -339,7 +344,7 @@ class Event:
         self.dic = {}         # 字典用于保存具体的事件数据
         
     def __repr__(self):
-        "Event [{0:s}] with data {1:}".format(self.type_, self.dic.keys()[:10])
+        "Event [{0:s}] with data {1:}".format(self.type_, list(self.dic.keys())[:10])
 
     def __str__(self):
         return self.__repr__()
@@ -354,7 +359,7 @@ def test():
     # from PyQt4.QtCore import QCoreApplication
     
     def simpletest(event):
-        print u'处理每秒触发的计时器事件：%s' % str(datetime.now())
+        print(u'处理每秒触发的计时器事件：%s' % str(datetime.now()))
     
     # app = QCoreApplication(sys.argv)
     def my_general_handler(event):

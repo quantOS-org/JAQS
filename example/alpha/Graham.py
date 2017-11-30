@@ -14,6 +14,8 @@ init_balance = 1e8
 start_date 20140101
 end_date   20170301
 """
+from __future__ import print_function
+from __future__ import absolute_import
 import time
 
 import numpy as np
@@ -158,4 +160,4 @@ if __name__ == "__main__":
     test_backtest_analyze()
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

@@ -1,4 +1,5 @@
 # encoding: utf-8
+from __future__ import print_function
 import numpy as np
 import pandas as pd
 
@@ -32,7 +33,7 @@ def get_neareast(df_ann, df_value, date):
     res = np.empty(n, dtype=df_value.dtype)
     
     # for each column, get the last True value
-    for i in xrange(n):
+    for i in range(n):
         v = df_value[:, i]
         m = mask[:, i]
         r = v[m]
@@ -146,19 +147,19 @@ def demo_usage():
     sec = '600000.SH'
     # print "\nValue:"
     # print df_value.loc[:, sec]
-    print "\n======Expression Formula:\n{:s}".format(expr_formula)
+    print("\n======Expression Formula:\n{:s}".format(expr_formula))
     
-    print "\n======Report date, ann_date and evaluation value:"
+    print("\n======Report date, ann_date and evaluation value:")
     tmp = pd.concat([df_ann.loc[:, sec], df_evaluate.loc[:, sec]], axis=1)
     tmp.columns = ['ann_date', 'eval_value']
-    print tmp
+    print(tmp)
     
-    print "\n======Selection of result of expansion:"
-    print "20161028  {:.4f}".format(df_res.loc[20161028, sec])
-    print "20161031  {:.4f}".format(df_res.loc[20161031, sec])
-    print "20170427  {:.4f}".format(df_res.loc[20170427, sec])
+    print("\n======Selection of result of expansion:")
+    print("20161028  {:.4f}".format(df_res.loc[20161028, sec]))
+    print("20161031  {:.4f}".format(df_res.loc[20161031, sec]))
+    print("20170427  {:.4f}".format(df_res.loc[20170427, sec]))
     
-    print
+    print()
 
 if __name__ == "__main__":
     import time
@@ -167,4 +168,4 @@ if __name__ == "__main__":
     demo_usage()
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

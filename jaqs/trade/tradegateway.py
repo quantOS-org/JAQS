@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from abc import abstractmethod
 import abc
 from six import with_metaclass
@@ -375,7 +376,7 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
                               }
     
     # -------------------------------------------------------------------------------------------
-    # On TradeAPI Callback: put a corresponding event to EventRealTimeInstance
+    # On TradeAPI Callback: put a corresponding event to EventLiveTradeInstance
 
     def set_trade_api_callbacks(self, trade_api):
         trade_api.set_task_status_callback(self.on_task_status)
@@ -681,7 +682,7 @@ class RealTimeTradeApi(TradeApi):
             
         self.user_info = user_info
         
-        strategy_no = get_from_list_of_dict(dic_list, "strategy.no", 0)
+        strategy_no = get_from_list_of_dict(dic_list, "strategy_no", 0)
         self.use_strategy(strategy_no)
     
     def set_trade_api_callbacks(self):

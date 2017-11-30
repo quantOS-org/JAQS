@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from jaqs.data import DataApi
 from jaqs.trade import common
 import jaqs.util as jutil
@@ -17,7 +18,7 @@ def test_data_api():
     
     api = DataApi(address, use_jrpc=False)
     login_msg = api.login(username=username, password=password)
-    print login_msg
+    print(login_msg)
     
     daily, msg = api.daily(symbol="600030.SH,000002.SZ", start_date=20170103, end_date=20170708,
                            fields="open,high,low,close,volume,last,trade_date,settle")
@@ -30,10 +31,10 @@ def test_data_api():
     assert daily2.shape == (124, 9)
     
     df, msg = api.bar(symbol="600030.SH", trade_date=20170904, freq=common.QUOTE_TYPE.MIN, start_time=90000, end_time=150000)
-    print df.columns
+    print(df.columns)
     assert df.shape == (240, 15)
     
-    print "test passed"
+    print("test passed")
     
 
 if __name__ == "__main__":

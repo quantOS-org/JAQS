@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 import copy
 from collections import defaultdict
 
@@ -172,7 +173,7 @@ class PortfolioManager(object):
 
         """
         if task.task_id in self.tasks:
-            print 'duplicate task {}'.format(task.task_id)
+            print('duplicate task {}'.format(task.task_id))
         
         # Store Task (right after strategy constructs a task)
         # TODO: copy
@@ -661,7 +662,7 @@ class PortfolioManager_RAW(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        for key, pos in self.positions.viewitems():
+        for key, pos in self.positions.items():
             sec, td = key.split('@')
             if str(pre_date) == td:
                 new_key = self._make_position_key(sec, date)

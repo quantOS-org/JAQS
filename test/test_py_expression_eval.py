@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 import pandas as pd
 import numpy as np
 try:
@@ -53,7 +54,7 @@ def test_quantile():
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
 
-    val = pd.DataFrame(np.random.rand(2000, 100))
+    val = pd.DataFrame(np.random.rand(1000, 100))
     expr = parser.parse('Ts_Quantile(val, 500, 12)')
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
@@ -178,7 +179,7 @@ def my_globals(request):
     dfy = df_multi.loc[pd.IndexSlice[:, :], pd.IndexSlice['open']].unstack()
     
     parser = Parser()
-    request.function.func_globals.update({'parser': parser, 'dfx': dfx, 'dfy': dfy})
+    request.function.__globals__.update({'parser': parser, 'dfx': dfx, 'dfy': dfy})
 
 
 if __name__ == "__main__":
@@ -199,12 +200,12 @@ if __name__ == "__main__":
     parser = Parser()
     
     g = globals()
-    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
     
-    for test_name, test_func in g.viewitems():
-        print "\nTesting {:s}...".format(test_name)
+    for test_name, test_func in g.items():
+        print("\n==========\nTesting {:s}...".format(test_name))
         # try:
         test_func()
         # print "Successfully tested {:s}.".format(test_name)
         # except Exception, e:
-    print "Test Complete."
+    print("Test Complete.")

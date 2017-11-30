@@ -1,5 +1,6 @@
 # encoding:utf-8
 
+from __future__ import print_function
 from jaqs.trade import common
 
 
@@ -337,4 +338,4 @@ class Task(object):
 
 if __name__ == "__main__":
     o = FixedPriceTypeOrder.new_order('cu', 'buy', 1.0, 100, 20170505, 130524)
-    print o.__dict__
+    print(o.__dict__)

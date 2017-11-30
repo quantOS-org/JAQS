@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 from jaqs.data import RemoteDataService
 from jaqs.data import DataView
 import jaqs.util as jutil
@@ -7,8 +8,8 @@ import jaqs.util as jutil
 from config_path import DATA_CONFIG_PATH
 data_config = jutil.read_json(DATA_CONFIG_PATH)
 
-daily_path = '../../output/tests/test_dataview_d'
-quarterly_path = '../../output/tests/test_dataview_q'
+daily_path = '../output/tests/test_dataview_d'
+quarterly_path = '../output/tests/test_dataview_q'
 
 
 def test_write():
@@ -192,13 +193,13 @@ def test_q_add_formula():
 
 if __name__ == "__main__":
     g = globals()
-    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
 
-    # for test_name, test_func in g.viewitems():
+    # for test_name, test_func in g.items():
     for test_name in ['test_write', 'test_load', 'test_add_field', 'test_add_formula_directly',
                       'test_add_formula', 'test_dataview_universe',
                       'test_q', 'test_q_get', 'test_q_add_field', 'test_q_add_formula']:
         test_func = g[test_name]
-        print "\nTesting {:s}...".format(test_name)
+        print("\n==========\nTesting {:s}...".format(test_name))
         test_func()
-    print "Test Complete."
+    print("Test Complete.")

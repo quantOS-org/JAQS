@@ -12,14 +12,6 @@ jaqs\.data\.dataapi\.data\_api module
     :undoc-members:
     :show-inheritance:
 
-jaqs\.data\.dataapi\.jrpc module
---------------------------------
-
-.. automodule:: jaqs.data.dataapi.jrpc
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 jaqs\.data\.dataapi\.jrpc\_py module
 ------------------------------------
 
