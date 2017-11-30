@@ -3,6 +3,7 @@ Introduction
 |pypi peoject version|
 |pypi pyversion|
 |pypi license|
+|travis ci|
 |covergae|
 
 JAQS是一个开源量化策略研究平台，由交易专家和金融技术专家共同设计，实现了自动化信号研究、高效策略开发和多维度回测分析，支持Alpha、CTA、套利等策略的实现。JAQS从实战而来，经实盘检验，本地化开发部署，保障策略安全。
@@ -60,5 +61,7 @@ Apache 2.0许可协议。版权所有(c)2017 quantOS-org.
    :target: https://opensource.org/licenses/Apache-2.0
 .. |pypi pyversion| image:: https://img.shields.io/pypi/pyversions/jaqs.svg
    :target: https://pypi.python.org/pypi/jaqs
+.. |travis ci| image:: https://travis-ci.org/quantOS-org/JAQS.svg?branch=release-0.5.0
+   :target: https://travis-ci.org/quantOS-org/JAQS
 .. |covergae| image:: https://coveralls.io/repos/github/quantOS-org/JAQS/badge.svg?branch=release-0.5.0
    :target: https://coveralls.io/github/quantOS-org/JAQS?branch=release-0.5.0
