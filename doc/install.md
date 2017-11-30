@@ -11,7 +11,7 @@
 ***如何安装Anaconda***：
 1. 打开[Anaconda官网](http://www.continuum.io/downloads)，选择相应的操作系统，确定要按照的Python版本，一般建议用Python 2.7。
 ![anac](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac.png)
-2. 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda会自动设置PATH环境。
+2. 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda不会自动设置PATH环境，请选择“add Anaconda to system PATH”选项。
 3. 安装完成后，  
     windows下我们可以在系统菜单中看如下程序目录：
 ![anacm](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_m.png)
@@ -60,6 +60,9 @@ python setup.py install
 ## 5、升级JAQS
 如果有新的release，可通过如下命令升级：
 ```shell
-pip install jaqs --upgrade
+pip uninstall jaqs
+pip install jaqs
 ```
 
+## 6、策略样例
+策略参考样例，请访问[https://github.com/quantOS-org/JAQS/tree/master/example](https://github.com/quantOS-org/JAQS/tree/master/example)

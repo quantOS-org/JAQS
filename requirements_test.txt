@@ -4,6 +4,8 @@ Jinja2
 msgpack_python
 pandas >= 0.20.0
 pytest
+pytest-cov
+python-coveralls
 python-snappy
 pyzmq
 seaborn

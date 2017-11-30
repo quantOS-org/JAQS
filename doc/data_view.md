@@ -70,6 +70,9 @@ DataView用一个三维的数据结构保存的所需数据，其三维数据轴
 2. 交易日期，如 20150202, 20150203
 3. 数据字段，如 open, high, low, close
 
+如下图所示：
+![dataview](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/dataview.png)
+
 #### 根据日期获取数据:
 
 使用get_snapshot()函数来获取某日的数据快照（在时间轴切片），输入参数见下表：
