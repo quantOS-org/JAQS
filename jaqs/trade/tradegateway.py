@@ -682,7 +682,7 @@ class RealTimeTradeApi(TradeApi):
             
         self.user_info = user_info
         
-        strategy_no = get_from_list_of_dict(dic_list, "strategy.no", 0)
+        strategy_no = get_from_list_of_dict(dic_list, "strategy_no", 0)
         self.use_strategy(strategy_no)
     
     def set_trade_api_callbacks(self):
