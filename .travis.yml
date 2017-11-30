@@ -18,7 +18,8 @@ before_script:
   - python setup.py install
 
 script:
-  - py.test test/test_util.py --cov=jaqs
+  - cd test
+  - py.test test_util.py --cov jaqs
 
 after_success:
   - coveralls
