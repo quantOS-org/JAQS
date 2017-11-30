@@ -55,7 +55,7 @@ def convert_int_to_datetime(dt):
 
 def convert_datetime_to_int(dt):
     f = lambda x: x.year * 10000 + x.month * 100 + x.day
-    if isinstance(dt, datetime.datetime):
+    if isinstance(dt, (datetime.datetime, datetime.date)):
         dt = pd.Timestamp(dt)
         res = f(dt)
     elif isinstance(dt, np.datetime64):
