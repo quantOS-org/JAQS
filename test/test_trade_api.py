@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import print_function
+import time
+
 from jaqs.trade.tradeapi import TradeApi
 import pandas as pd
 import jaqs.util as jutil
@@ -66,12 +68,14 @@ def test_trade_api():
         sid, msg = tapi.use_strategy(user_strats[0])
         assert msg == '0,'
         print("sid: ", sid)
+        time.sleep(1)
 
     # 查询Portfolio
     #
     # 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 
     df, msg = tapi.query_account()
+    print(msg)
     assert msg == '0,'
     print(df)
     
@@ -99,7 +103,11 @@ def test_trade_api():
     #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
     # 返回 task_id 可以用改 task_id
     task_id, msg = tapi.place_order("000718.SZ", "Buy", 57, 100)
-    assert msg == '0,'
+    if msg.endswith('market has closed'):
+        pass
+        task_id = -1
+    else:
+        assert msg == '0,'
     print("task_id:", task_id)
     
     df_order, msg = tapi.query_order(task_id=task_id)
