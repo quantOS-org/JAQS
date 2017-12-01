@@ -106,8 +106,6 @@ def test_dtutil():
         assert datetime.datetime.strptime(str(monthly), "%Y%m%d").weekday() < 5
 
 
-
-
 def test_io():
     folder_relative = 'output/test/test_file_io'
     folder = jutil.join_relative_path(folder_relative)

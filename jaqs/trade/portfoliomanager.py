@@ -58,8 +58,8 @@ class PortfolioManager(object):
         self.original_on_order_rsp = self.ctx.strategy.on_order_rsp
         self.ctx.strategy.on_order_rsp = self._on_order_rsp
         
-        self.original_on_task_rsp = self.ctx.strategy.on_task_rsp
-        self.ctx.strategy.on_task_rsp = self._on_task_rsp
+        # self.original_on_task_rsp = self.ctx.strategy.on_task_rsp
+        # self.ctx.strategy.on_task_rsp = self._on_task_rsp
     
     @staticmethod
     def _make_position_key(symbol):
@@ -201,6 +201,7 @@ class PortfolioManager(object):
             for order in orders:
                 self._update_trade_stat_from_order(order)
     
+    '''
     def _on_task_rsp(self, rsp):
         """
         
@@ -239,6 +240,7 @@ class PortfolioManager(object):
                 goal_positions = task.data
                 self._update_trade_stat_from_goal_positions(goal_positions, roll_back=True)
     
+    '''
     def _update_trade_stat_from_order(self, order, roll_back=False):
         """
         

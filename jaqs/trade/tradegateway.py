@@ -5,18 +5,17 @@ from abc import abstractmethod
 import abc
 from six import with_metaclass
 import copy
+import time
 from collections import defaultdict
 
 import numpy as np
 
 from jaqs.data.basic import *
-from jaqs.data.basic import Position
-from jaqs.data.basic import Trade
 from jaqs.util.sequence import SequenceGenerator
 import jaqs.util as jutil
 from jaqs.trade.event import EVENT_TYPE, EventEngine, Event
 from jaqs.trade.tradeapi import TradeApi
-from jaqs.data.basic import OrderRsp, OrderStatusInd, Trade, TaskInd, Task
+from jaqs.data.basic import OrderStatusInd, Trade, TaskInd, Task
 
 
 '''
@@ -158,154 +157,8 @@ class BaseTradeApi(object):
         pass
 
 
+# DONT DELETE THIS: RealTimeTradeApi_async
 '''
-class RealTimeTradeApi_OLD(BaseTradeApi):
-    def __init__(self):
-        super(RealTimeTradeApi, self).__init__()
-        
-        self.seq_gen = SequenceGenerator()
-
-    def _get_next_num(self, key):
-        """used to generate id for orders and trades."""
-        return str(np.int64(self.ctx.trade_date) * 10000 + self.seq_gen.get_next(key))
-    
-    def _get_next_task_no(self):
-        return self._get_next_num('task_no')
-
-    def put_to_gateway(self, event):
-        self.put_to_gateway(event)
-
-    # ----------------------------------------------------------------------------------------
-    # place & cancel
-    
-    def place_order(self, symbol, action, price, size, algo="", algo_param=None, userdata=""):
-        if algo_param is None:
-            algo_param = dict()
-        
-        # this order object is not for TradeApi, but for strategy itself to remember the order
-        order = Order.new_order(symbol, action, price, size, self.ctx.trade_date, 0)
-        order.entrust_no = self._get_next_num('entrust_no')
-        
-        task = Task(self._get_next_task_no(),
-                    algo=algo, algo_param=algo_param,
-                    data=order,
-                    function_name="place_order")
-        self.ctx.pm.add_task(task)
-        # self.task_id_map[order.task_id].append(order.entrust_no)
-        
-        # self.pm.add_order(order)
-        
-        e = Event(EVENT_TYPE.PLACE_ORDER)
-        e.dic['task'] = task
-        self.put_to_gateway(e)
-    
-    def cancel_order(self, entrust_no):
-        e = Event(EVENT_TYPE.CANCEL_ORDER)
-        e.dic['entrust_no'] = entrust_no
-        self.put_to_gateway(e)
-    
-    # ----------------------------------------------------------------------------------------
-    # PMS
-    
-    def goal_portfolio(self, positions, algo="", algo_param=None, userdata=""):
-        if algo_param is None:
-            algo_param = dict()
-        
-        task = Task(self._get_next_task_no(), data=positions,
-                    algo=algo, algo_param=algo_param,
-                    function_name="goal_portfolio")
-        self.ctx.pm.add_task(task)
-        
-        e = Event(EVENT_TYPE.GOAL_PORTFOLIO)
-        e.dic['task'] = task
-        self.put_to_gateway(e)
-    
-    # ----------------------------------------------------------------------------------------
-    # query account, universe, position, portfolio
-    
-    def query_account(self, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_ACCOUNT)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    def query_universe(self, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_UNIVERSE)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    def query_position(self, mode="all", symbols="", format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_POSITION)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    def query_portfolio(self, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_PORTFOLIO)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    # ----------------------------------------------------------------------------------------
-    # query task, order, trade
-    
-    def query_task(self, task_id=-1, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_TASK)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    def query_order(self, task_id=-1, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_ORDER)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-    
-    def query_trade(self, task_id=-1, format=""):
-        args = locals()
-        e = Event(EVENT_TYPE.QUERY_TRADE)
-        e.dic['args'] = args
-        self.put_to_gateway(e)
-
-
-'''
-'''
-class BaseGateway(object):
-    """
-    Strategy communicates with Gateway using APIs defined by ourselves;
-    Gateway communicates with brokers using brokers' APIs;
-    Gateway can also communicate with simulator.
-    
-    Attributes
-    ----------
-    ctx : Context
-        Trading context, including data_api, dataview, calendar, etc.
-
-    Notes
-    -----
-    Gateway knows nothing about task_id but entrust_no, so does Simulator.
-
-    """
-    
-    def __init__(self):
-        super(BaseGateway, self).__init__()
-        
-        self.ctx = None
-    
-    @abstractmethod
-    def init_from_config(self, props):
-        pass
-    
-    def register_context(self, context=None):
-        self.ctx = context
-    
-    def on_new_day(self, trade_date):
-        pass
-    
-'''
-
-
 class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
     """
     Attributes
@@ -640,6 +493,9 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
         self.publish_event(e)
 
 
+'''
+
+
 class RealTimeTradeApi(TradeApi):
     def __init__(self, props):
         address = props['remote.trade.address']
@@ -678,12 +534,13 @@ class RealTimeTradeApi(TradeApi):
             print("    login failed: msg = '{}'\n".format(msg))
         else:
             print("    login success. user info: \n"
-                  "    {:s}\n".format(user_info))
+                  "    {:s}\n".format(str(user_info)))
             
         self.user_info = user_info
         
         strategy_no = get_from_list_of_dict(dic_list, "strategy_no", 0)
         self.use_strategy(strategy_no)
+        time.sleep(0.1)
     
     def set_trade_api_callbacks(self):
         self.set_task_callback(self.on_task_status)
