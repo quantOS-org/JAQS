@@ -121,6 +121,7 @@ def test_dataview_universe():
     props = {'start_date': 20170227, 'end_date': 20170327, 'universe': '000016.SH',
              # 'symbol': 'rb1710.SHF,rb1801.SHF',
              'fields': ('open,high,low,close,vwap,volume,turnover,'
+                        + 'sw1,zz2,'
                         + 'roe,net_assets,'
                         + 'total_oper_rev,oper_exp,tot_profit,int_income'
                         ),
@@ -128,6 +129,18 @@ def test_dataview_universe():
     
     dv.init_from_config(props, ds)
     dv.prepare_data()
+    
+    data_bench = dv.data_benchmark.copy()
+    dv.data_benchmark = data_bench
+    
+    try:
+        dv.data_benchmark = data_bench.iloc[3:]
+    except ValueError:
+        pass
+    
+    dv.remove_field('roe,net_assets')
+    dv.remove_field(['roe', 'net_assets'])
+    dv.remove_field('close')
 
 
 # quarterly
@@ -198,7 +211,8 @@ if __name__ == "__main__":
     # for test_name, test_func in g.items():
     for test_name in ['test_write', 'test_load', 'test_add_field', 'test_add_formula_directly',
                       'test_add_formula', 'test_dataview_universe',
-                      'test_q', 'test_q_get', 'test_q_add_field', 'test_q_add_formula']:
+                      'test_q', 'test_q_get', 'test_q_add_field', 'test_q_add_formula',
+                      ]:
         test_func = g[test_name]
         print("\n==========\nTesting {:s}...".format(test_name))
         test_func()
