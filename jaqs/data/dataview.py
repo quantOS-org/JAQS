@@ -1125,7 +1125,7 @@ class DataView(object):
 
         """
         if isinstance(field_names, str):
-            field_names = [field_names]
+            field_names = field_names.split(',')
         elif isinstance(field_names, (list, tuple)):
             pass
         else:
@@ -1153,9 +1153,11 @@ class DataView(object):
             # remove fields name from list
             self.fields.remove(field_name)
             if is_quarterly:
-                self.custom_quarterly_fields.remove(field_name)
+                if field_name in self.custom_quarterly_fields:
+                    self.custom_quarterly_fields.remove(field_name)
             else:
-                self.custom_daily_fields.remove(field_name)
+                if field_name in self.custom_daily_fields:
+                    self.custom_daily_fields.remove(field_name)
 
     # --------------------------------------------------------------------------------------------------------
     # Get Data API
