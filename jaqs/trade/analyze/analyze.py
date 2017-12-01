@@ -396,8 +396,8 @@ class BaseAnalyzer(object):
         ax2.plot(idx, self.returns.loc[:, 'active_cum'], label='Extra Return')
         ax2.legend(loc='upper left')
         ax2.set_xlabel("Date")
-        ax2.set_ylabel("Cumulative Return")
-        ax1.set_ylabel("Cumulative Return")
+        ax2.set_ylabel("Net Value")
+        ax1.set_ylabel("Net Value")
         ax2.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
     
         plt.tight_layout()
