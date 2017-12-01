@@ -380,10 +380,11 @@ class BaseAnalyzer(object):
         
         fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(21, 8), dpi=300, sharex=True)
         idx0 = self.returns.index
-        idx = range(len(idx0))
+        idx = np.arange(len(idx0))
         
-        ax0.plot(idx, self.df_pnl['trading_pnl'], lw=1.5, color='indianred', label='Trading PnL')
-        ax0.plot(idx, self.df_pnl['holding_pnl'], lw=1.5, color='royalblue', label='Holding PnL')
+        bar_width = 0.3
+        ax0.bar(idx-bar_width/2, self.df_pnl['trading_pnl'], width=bar_width, color='indianred', label='Trading PnL',)
+        ax0.bar(idx+bar_width/2, self.df_pnl['holding_pnl'], width=bar_width, color='royalblue', label='Holding PnL')
         ax0.axhline(0.0, color='k', lw=1, ls='--')
         # ax0.plot(idx, self.pnl['total_pnl'], lw=1.5, color='violet', label='Total PnL')
         ax0.legend(loc='upper left')
@@ -734,8 +735,6 @@ def plot_brinson(df, save_folder):
     fig.savefig(os.path.join(save_folder, 'brinson_attribution.png'))
     plt.close()
     
-
-
 
 def calc_avg_pos_price(pos_arr, price_arr):
     """
