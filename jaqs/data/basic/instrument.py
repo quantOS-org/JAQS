@@ -1,7 +1,7 @@
 # encoding: UTF-8
-
-
 from __future__ import print_function
+
+
 class Instrument(object):
     def __init__(self):
         self.symbol = ""
@@ -11,14 +11,15 @@ class Instrument(object):
         self.list_date = 0
         self.delist_date = 99999999
     
+    @property
     def is_stock(self):
         return self.inst_type == 1
     
+    @property
     def is_future(self):
-        res = (self.inst_type == 101
-               or self.inst_type == 102
-               or self.inst_type == 103)
-        return res
+        return (self.inst_type == 101
+                or self.inst_type == 102
+                or self.inst_type == 103)
 
 
 class InstManager(object):
@@ -40,7 +41,6 @@ class InstManager(object):
             inst = Instrument()
             inst.__dict__.update(v)
             self.inst_map[k] = inst
-        print()
     
     def get_instrument(self, code):
         return self.inst_map.get(code, None)
