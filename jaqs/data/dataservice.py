@@ -118,7 +118,12 @@ class DataService(object):
 
         """
         pass
-    
+
+    @abstractmethod
+    def bar_quote(self, symbol, start_time=200000, end_time=160000,
+                  trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        pass
+        
     @abstractmethod
     def daily(self, symbol, start_date, end_date, fields="", adjust_mode=None):
         """
@@ -158,7 +163,7 @@ class DataService(object):
         pass
     
     @abstractmethod
-    def bar(self, symbol, start_time=200000, end_time=160000, trade_date=None, freq='1m', fields=""):
+    def bar(self, symbol, start_time=200000, end_time=160000, trade_date=None, freq='1M', fields=""):
         """
         Query minute bars of various type, return DataFrame.
 
@@ -312,14 +317,13 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         print("\nBegin: DataApi login {}@{}".format(username, address))
         INDENT = ' ' * 4
         
-        if self.data_api is None:
+        if self.data_api_loginned:
             if (address == "") or (username == "") or (password == ""):
                 raise InitializeError("no address, username or password available!")
-        elif self.data_api._loggined:
-            if ((address == self._address) and (time_out == self._timeout)
+            elif ((address == self._address) and (time_out == self._timeout)
                 and (username == self._username) and (password == self._password)):
                 print(INDENT + "Already login as {:s}, skip init_from_config".format(username))
-                return  # do not login with the same props again
+                return '0,'  # do not login with the same props again
             else:
                 self.data_api.close()
                 self.data_api = None
@@ -338,8 +342,14 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             self.data_api = data_api
             print(INDENT + "login success \n")
         
+        return err_msg
+        
+    @property
+    def data_api_loginned(self):
+        return (self.data_api is not None) and (self.data_api._loggined)
+    
     def _raise_error_if_no_data_api(self):
-        if self.data_api is None:
+        if not self.data_api_loginned:
             raise NotLoginError("Please first login using init_from_config.")
     
     @staticmethod
@@ -381,6 +391,16 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         self._raise_error_if_msg(err_msg)
         
+        return df, err_msg
+    
+    def bar_quote(self, symbol, start_time=200000, end_time=160000,
+                  trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        self._raise_error_if_no_data_api()
+
+        df, err_msg = self.data_api.bar_quote(symbol=symbol, start_time=start_time, end_time=end_time,
+                                              trade_date=trade_date, freq=freq, fields=fields)
+
+        self._raise_error_if_msg(err_msg)
         return df, err_msg
     
     def query(self, view, filter="", fields="", **kwargs):
@@ -491,7 +511,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         # change data type
         try:
             cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
-            dic_dtype = {col: int for col in cols}
+            dic_dtype = {col: np.integer for col in cols}
             res = res.astype(dtype=dic_dtype)
         except:
             pass
@@ -593,6 +613,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io = df_io.fillna(0.0)
         return df_io
 
+    '''
     def get_index_weights_daily_OLD(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -634,6 +655,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         res = res.loc[start_date: end_date]
         return res
 
+    '''
     def get_index_weights_daily(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -709,8 +731,6 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         """
         df_io, err_msg = self._get_index_comp(index, start_date, end_date)
-        if err_msg != '0,':
-            print(err_msg)
         return list(np.unique(df_io.loc[:, 'symbol']))
     
     def get_index_comp_df(self, index, start_date, end_date):
@@ -969,7 +989,8 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         e = Event(EVENT_TYPE.MARKET_DATA)
         # print quote
         e.dic = {'quote': quote}
-        self.ctx.instance.put(e)
+        if (self.ctx is not None) and (self.ctx.instance is not None):
+            self.ctx.instance.put(e)
     
     # ---------------------------------------------------------------------
     # Calendar
