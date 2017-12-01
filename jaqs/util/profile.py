@@ -23,12 +23,3 @@ class SimpleTimer(object):
         self.events.append((event_name, now))
         
         print("Total {:3.1f}    | Delta {:3.1f}    | {:s}".format(total, delta, event_name))
-
-
-if __name__ == "__main__":
-    timer = SimpleTimer()
-    timer.tick('start')
-    time.sleep(3)
-    timer.tick('e1')
-    time.sleep(2)
-    timer.tick('e2')
