@@ -55,14 +55,15 @@ pip install python_snappy-0.5.1-cp27-cp27m-win_amd64.whl # 具体文件名可能
 sudo apt-get install libsnappy-dev
 ```
 
-*注*：`libsnappy-dev`是Ubuntu系统所用包的名字，CentOS请使用`libsnappy-devel`，其他Linux系统请自行查找。
+*注*：`libsnappy-dev`适用于Ubuntu系统，CentOS/RedHat/Fedora/SUSE等系统请使用`libsnappy-devel`，其他Linux系统请自行查找。
 
 之后即可通过`pip`安装`python-snappy`：
 
 ```shell
 pip install python-snappy
 ```
-
+#### OS-X
+参见[官方说明](https://github.com/andrix/python-snappy#frequently-asked-questions)
 
 
 装好`python-snappy`后，即可使用`pip`直接安装JAQS和其他依赖包，见下一节**安装JAQS**。
