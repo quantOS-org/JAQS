@@ -116,6 +116,9 @@ def test_io():
     
 
 def test_base64():
+    import matplotlib
+    matplotlib.use('Agg')
+    
     import matplotlib.pyplot as plt
     fig = plt.figure()
     plt.plot(range(10))
