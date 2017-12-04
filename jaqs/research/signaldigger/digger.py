@@ -417,7 +417,7 @@ class SignalDigger(object):
 
         # return
         # plot
-        gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
+        gf = plotting.GridFigure(rows=len(np.unique(idx_group)) * len(periods) + 3, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
         plotting.plot_calendar_distribution(ser_signal_raw,
