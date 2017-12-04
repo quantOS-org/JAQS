@@ -493,8 +493,7 @@ def get_year(ser):
 
 
 def get_dummy_grouper(ser):
-    res = ser.copy()
-    res.loc[:] = 'all_sample'
+    res = pd.Index(np.array(['all_sample'] * len(ser)), name=ser.name)
     return res
     
     
