@@ -45,7 +45,8 @@ class SignalDigger(object):
     def process_signal_before_analysis(self,
                                        signal, price=None, ret=None, benchmark_price=None,
                                        period=5, n_quantiles=5,
-                                       mask=None):
+                                       mask=None,
+                                       forward=False):
         """
         Prepare for signal analysis.
 
@@ -88,6 +89,7 @@ class SignalDigger(object):
         if not (n_quantiles > 0 and isinstance(n_quantiles, int)):
             raise ValueError("n_quantiles must be a positive integer. Input is: {}".format(n_quantiles))
         
+        # ensure inputs are aligned
         data = price if price is not None else ret
         assert np.all(signal.index == data.index)
         assert np.all(signal.columns == data.columns)
@@ -95,7 +97,7 @@ class SignalDigger(object):
             assert np.all(signal.index == mask.index)
             assert np.all(signal.columns == mask.columns)
             mask = jutil.fillinf(mask)
-            mask = mask.astype(int).fillna(0).astype(bool)
+            mask = mask.astype(int).fillna(0).astype(bool)  # dtype of mask could be float. So we need to convert.
         else:
             mask = pd.DataFrame(index=signal.index, columns=signal.columns, data=False)
         signal = jutil.fillinf(signal)
@@ -107,32 +109,42 @@ class SignalDigger(object):
         self.period = period
 
         # ----------------------------------------------------------------------
-        # fwd_returns are processed forward returns
-        signal = signal.shift(self.period)
-        
+        # Get dependent variables
         if price is not None:
-            df_return = pfm.price2ret(price, self.period)
+            df_ret = pfm.price2ret(price, period=self.period, axis=0)
             if benchmark_price is not None:
                 benchmark_price = benchmark_price.loc[signal.index]
                 bench_ret = pfm.price2ret(benchmark_price, self.period, axis=0)
                 self.benchmark_ret = bench_ret
-                df_return = df_return.sub(bench_ret.values.flatten(), axis=0)
+                residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
         else:
-            df_return = ret
+            residual_ret = ret
+        
+        # Get independent varibale
+        signal = signal.shift(1)  # avoid forward-looking bias
+
+        # forward or not
+        if forward:
+            # point-in-time signal and forward return
+            residual_ret = residual_ret.shift(-self.period)
+        else:
+            # past signal and point-in-time return
+            signal = signal.shift(self.period)
 
         # ----------------------------------------------------------------------
         # get masks
-        mask_prices = data.isnull()
+        # mask_prices = data.isnull()
         # Because we use FORWARD return, if one day's price is broken, the day that is <period> days ago is also broken.
-        mask_prices = np.logical_or(mask_prices, mask_prices.shift(self.period).fillna(True))
+        # mask_prices = np.logical_or(mask_prices, mask_prices.shift(self.period))
+        mask_price_return = residual_ret.isnull()
         mask_signal = signal.isnull()
 
-        mask = np.logical_or(mask, mask_prices)
-        mask = np.logical_or(mask, mask_signal)
+        mask = np.logical_or(mask_signal, mask_price_return)
+        # mask = np.logical_or(mask, mask_signal)
 
-        if price is not None:
-            mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
-            mask = np.logical_or(mask, mask_forward)
+        # if price is not None:
+        #     mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
+        #     mask = np.logical_or(mask, mask_forward)
 
         # ----------------------------------------------------------------------
         # calculate quantile
@@ -154,13 +166,13 @@ class SignalDigger(object):
         
         mask = stack_td_symbol(mask)
         df_quantile = stack_td_symbol(df_quantile)
-        df_return = stack_td_symbol(df_return)
+        residual_ret = stack_td_symbol(residual_ret)
 
         # ----------------------------------------------------------------------
         # concat signal value
         res = stack_td_symbol(signal)
         res.columns = ['signal']
-        res['return'] = df_return
+        res['return'] = residual_ret
         res['quantile'] = df_quantile
         res = res.loc[~(mask.iloc[:, 0]), :]
         
@@ -322,7 +334,8 @@ class SignalDigger(object):
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price, mask=mask,
                                                 n_quantiles=1, period=my_period,
-                                                benchmark_price=benchmark_price)
+                                                benchmark_price=benchmark_price,
+                                                forward=True)
             dic_signal_data[my_period] = self.signal_data
 
         # analyze ret: annualized
