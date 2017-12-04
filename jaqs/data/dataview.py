@@ -8,6 +8,7 @@ If you will use this data frequently, you can add define a new method of DataSer
 If you want to declare your field in props, instead of append it manually, you will have to modify prepare_data function.
 
 """
+from __future__ import print_function
 import os
 
 import numpy as np
@@ -416,7 +417,7 @@ class DataView(object):
             fields = props['fields'].split(sep)
             self.fields = [field for field in fields if self._is_predefined_field(field)]
             if len(self.fields) < len(fields):
-                print "Field name [{}] not valid, ignore.".format(set.difference(set(fields), set(self.fields)))
+                print("Field name [{}] not valid, ignore.".format(set.difference(set(fields), set(self.fields))))
     
         # append additional fields
         if self.all_price:
@@ -437,34 +438,34 @@ class DataView(object):
         else:
             self.symbol = sorted(symbol.split(sep))
     
-        print "Initialize config success."
+        print("Initialize config success.")
 
     def prepare_data(self):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
-        print "Query data..."
+        print("Query data...")
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
         self._align_and_merge_q_into_d()
     
-        print "Query instrument info..."
+        print("Query instrument info...")
         self._prepare_inst_info()
     
-        print "Query adj_factor..."
+        print("Query adj_factor...")
         self._prepare_adj_factor()
     
         if self.universe:
-            print "Query benchmark..."
+            print("Query benchmark...")
             self._data_benchmark = self._prepare_benchmark()
-            print "Query benchmar member info..."
+            print("Query benchmar member info...")
             self._prepare_comp_info()
     
         group_fields = self._get_fields('group', self.fields)
         if group_fields:
-            print "Query groups (industry)..."
+            print("Query groups (industry)...")
             self._prepare_group(group_fields)
     
-        print "Data has been successfully prepared."
+        print("Data has been successfully prepared.")
 
     @staticmethod
     def _process_index_co(df, index_name):
@@ -490,7 +491,7 @@ class DataView(object):
             return None, None
     
         # query data
-        print "Query data - query..."
+        print("Query data - query...")
         daily_list, quarterly_list = self._query_data(self.symbol, fields)
     
         def pivot_and_sort(df, index_name):
@@ -510,12 +511,12 @@ class DataView(object):
             multi_daily = self._merge_data(daily_list_pivot, self.TRADE_DATE_FIELD_NAME)
             # use self.dates as index because original data have weekends
             multi_daily = self._fill_missing_idx_col(multi_daily, index=self.dates, symbols=self.symbol)
-            print "Query data - daily fields prepared."
+            print("Query data - daily fields prepared.")
         if quarterly_list:
             quarterly_list_pivot = [pivot_and_sort(df, self.REPORT_DATE_FIELD_NAME) for df in quarterly_list]
             multi_quarterly = self._merge_data(quarterly_list_pivot, self.REPORT_DATE_FIELD_NAME)
             multi_quarterly = self._fill_missing_idx_col(multi_quarterly, index=None, symbols=self.symbol)
-            print "Query data - quarterly fields prepared."
+            print("Query data - quarterly fields prepared.")
     
         return multi_daily, multi_quarterly
 
@@ -546,12 +547,12 @@ class DataView(object):
             # TODO : use fields = {field: kwargs} to enable params
             fields_market_daily = self._get_fields('market_daily', fields, append=True)
             if fields_market_daily:
-                print "NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode)
+                print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode))
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                      adjust_mode=None, fields=sep.join(fields_market_daily))
                 if msg1 != '0,':
-                    print msg1
+                    print(msg1)
             
                 if self.all_price:
                     adj_cols = ['open', 'high', 'low', 'close', 'vwap']
@@ -559,7 +560,7 @@ class DataView(object):
                     df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                                                                  adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
                     if msg11 != '0,':
-                        print msg11
+                        print(msg11)
                 
                     df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
                                         on=['symbol', 'trade_date'], suffixes=('', '_adj'))
@@ -570,7 +571,7 @@ class DataView(object):
                 df_ref_daily, msg2 = self.data_api.query_lb_dailyindicator(symbol_str, self.extended_start_date_d, self.end_date,
                                                                            sep.join(fields_ref_daily))
                 if msg2 != '0,':
-                    print msg2
+                    print(msg2)
                 daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
         
             fields_income = self._get_fields('income', fields, append=True)
@@ -578,7 +579,7 @@ class DataView(object):
                 df_income, msg3 = self.data_api.query_lb_fin_stat('income', symbol_str, self.extended_start_date_q, self.end_date,
                                                                   sep.join(fields_income), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
-                    print msg3
+                    print(msg3)
                 quarterly_list.append(df_income.loc[:, fields_income])
         
             fields_balance = self._get_fields('balance_sheet', fields, append=True)
@@ -586,7 +587,7 @@ class DataView(object):
                 df_balance, msg3 = self.data_api.query_lb_fin_stat('balance_sheet', symbol_str, self.extended_start_date_q, self.end_date,
                                                                    sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
-                    print msg3
+                    print(msg3)
                 quarterly_list.append(df_balance.loc[:, fields_balance])
         
             fields_cf = self._get_fields('cash_flow', fields, append=True)
@@ -594,7 +595,7 @@ class DataView(object):
                 df_cf, msg3 = self.data_api.query_lb_fin_stat('cash_flow', symbol_str, self.extended_start_date_q, self.end_date,
                                                               sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg3 != '0,':
-                    print msg3
+                    print(msg3)
                 quarterly_list.append(df_cf.loc[:, fields_cf])
         
             fields_fin_ind = self._get_fields('fin_indicator', fields, append=True)
@@ -603,7 +604,7 @@ class DataView(object):
                                                                    self.extended_start_date_q, self.end_date,
                                                                    sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg4 != '0,':
-                    print msg4
+                    print(msg4)
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
     
         else:
@@ -956,17 +957,17 @@ class DataView(object):
         """
         if data_api is None:
             if self.data_api is None:
-                print "Add field failed. No data_api available. Please specify one in parameter."
+                print("Add field failed. No data_api available. Please specify one in parameter.")
                 return False
         else:
             self.data_api = data_api
             
         if field_name in self.fields:
-            print "Field name [{:s}] already exists.".format(field_name)
+            print("Field name [{:s}] already exists.".format(field_name))
             return False
 
         if not self._is_predefined_field(field_name):
-            print "Field name [{}] not valid, ignore.".format(field_name)
+            print("Field name [{}] not valid, ignore.".format(field_name))
             return False
 
         merge_d, merge_q = self._prepare_daily_quarterly([field_name])
@@ -1017,7 +1018,7 @@ class DataView(object):
             self.data_api = data_api
             
         if field_name in self.fields:
-            print "Add formula failed: name [{:s}] exist. Try another name.".format(field_name)
+            print("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
             return
         
         parser = Parser()
@@ -1036,8 +1037,8 @@ class DataView(object):
         else:
             for var in var_list:
                 if var not in self.fields:
-                    print "Variable [{:s}] is not recognized (it may be wrong)," \
-                          "try to fetch from the server...".format(var)
+                    print("Variable [{:s}] is not recognized (it may be wrong)," \
+                          "try to fetch from the server...".format(var))
                     success = self.add_field(var)
                     if not success:
                         return
@@ -1124,7 +1125,7 @@ class DataView(object):
 
         """
         if isinstance(field_names, str):
-            field_names = [field_names]
+            field_names = field_names.split(',')
         elif isinstance(field_names, (list, tuple)):
             pass
         else:
@@ -1133,7 +1134,7 @@ class DataView(object):
         for field_name in field_names:
             # parameter validation
             if field_name not in self.fields:
-                print "Field name [{:s}] does not exist.".format(field_name)
+                print("Field name [{:s}] does not exist.".format(field_name))
                 return
         
             if self._is_daily_field(field_name):
@@ -1141,7 +1142,7 @@ class DataView(object):
             elif self._is_quarter_field(field_name):
                 is_quarterly = True
             else:
-                print "Field name [{}] is a pre-defined field, ignore.".format(field_name)
+                print("Field name [{}] is a pre-defined field, ignore.".format(field_name))
                 return
         
             # remove field data
@@ -1152,9 +1153,11 @@ class DataView(object):
             # remove fields name from list
             self.fields.remove(field_name)
             if is_quarterly:
-                self.custom_quarterly_fields.remove(field_name)
+                if field_name in self.custom_quarterly_fields:
+                    self.custom_quarterly_fields.remove(field_name)
             else:
-                self.custom_daily_fields.remove(field_name)
+                if field_name in self.custom_daily_fields:
+                    self.custom_daily_fields.remove(field_name)
 
     # --------------------------------------------------------------------------------------------------------
     # Get Data API
@@ -1221,7 +1224,7 @@ class DataView(object):
         """
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
         if res is None:
-            print "No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol)
+            print("No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol))
             return
     
         res = res.stack(level='symbol', dropna=False)
@@ -1288,8 +1291,8 @@ class DataView(object):
         """
         res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field)
         if res is None:
-            print "No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
-                                                                                        end_date, field, symbol)
+            print("No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
+                                                                                        end_date, field, symbol))
             raise ValueError
             return
     
@@ -1337,7 +1340,7 @@ class DataView(object):
         self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
         
-        print "Dataview loaded successfully."
+        print("Dataview loaded successfully.")
 
     def save_dataview(self, folder_path):
         """
@@ -1356,10 +1359,10 @@ class DataView(object):
         
         data_to_store = {'data_d': self.data_d, 'data_q': self.data_q,
                          'data_benchmark': self.data_benchmark, 'data_inst': self.data_inst}
-        data_to_store = {k: v for k, v in data_to_store.viewitems() if v is not None}
+        data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
 
-        print "\nStore data..."
+        print("\nStore data...")
         jutil.save_json(meta_data_to_store, meta_path)
         self._save_h5(data_path, data_to_store)
         
@@ -1384,6 +1387,6 @@ class DataView(object):
         
         jutil.create_dir(fp)
         h5 = pd.HDFStore(fp, complevel=9, complib='blosc')
-        for key, value in dic.viewitems():
+        for key, value in dic.items():
             h5[key] = value
         h5.close()

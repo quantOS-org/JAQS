@@ -1,5 +1,6 @@
 # encoding:utf-8
 
+from __future__ import print_function
 from jaqs.trade import common
 
 
@@ -75,12 +76,6 @@ class Order(object):
         if order is not None:
             self.copy(order)
         
-    def __eq__(self, other):
-        return self.entrust_no == other.entrust_no
-    
-    def __cmp__(self, other):
-        return cmp(self.entrust_no, other.entrust_no)
-
     def __repr__(self):
         return "{0.entrust_date:8d}({0.entrust_time:8d}) " \
                "{0.entrust_action:6s} {0.symbol:10s}@{0.entrust_price:.3f}" \
@@ -259,6 +254,7 @@ class OrderStatusInd(object):
         return self.__repr__()
 
 
+'''
 class OrderRsp(object):
     def __init__(self, entrust_no="", msg="", task_id=0):
         self.msg = msg
@@ -278,6 +274,7 @@ class OrderRsp(object):
     def __str__(self):
         return self.__repr__()
 
+'''
 
 '''
 class TaskRsp(object):
@@ -333,8 +330,3 @@ class Task(object):
     @property
     def is_finished(self):
         return self.task_status == common.TASK_STATUS.DONE
-        
-
-if __name__ == "__main__":
-    o = FixedPriceTypeOrder.new_order('cu', 'buy', 1.0, 100, 20170505, 130524)
-    print o.__dict__

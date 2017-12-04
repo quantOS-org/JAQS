@@ -21,9 +21,8 @@ class Bar(object):
     def create_from_df(cls, df):
         bar_list = []
         for _, row in df.iterrows():
-            bar = cls()
             dic = row.to_dict()
-            bar.__dict__.update(dic)
+            bar = Bar.create_from_dict(dic)
             bar_list.append(bar)
         return bar_list
 

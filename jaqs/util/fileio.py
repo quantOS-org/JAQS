@@ -2,7 +2,10 @@
 import json
 import os
 import errno
-import cPickle as pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import codecs
 
 from .. import SOURCE_ROOT_DIR
@@ -125,10 +128,15 @@ def fig2base64(fig, format='png'):
     -------
 
     """
-    import cStringIO
+    try:
+        import BytesIO as io
+    except ImportError:
+        # from io import StringIO as StringIO
+        import io
     import base64
-    str_io = cStringIO.StringIO()
-    fig.savefig(str_io, format=format)
-    str_io.seek(0)
-    res = base64.b64encode(str_io.read())
+    bytes_io = io.BytesIO()
+    fig.savefig(bytes_io, format=format)
+    bytes_io.seek(0)
+    s = bytes_io.read()
+    res = base64.b64encode(s)
     return res

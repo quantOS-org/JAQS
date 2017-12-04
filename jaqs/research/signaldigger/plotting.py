@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 from functools import wraps
 
 import numpy as np
@@ -195,7 +196,7 @@ def plot_table(table, name=None, fmt=None):
     if fmt is not None:
         pd.set_option('display.float_format', lambda x: fmt.format(x))
     
-    print table
+    print(table)
     
     if fmt is not None:
         pd.set_option('display.float_format', prev_option)
@@ -328,7 +329,7 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
         
         ymin, ymax = (None, None)
         for (i, a), (name, fr_column) in zip(enumerate(ax),
-                                             mean_returns_spread.iteritems()):
+                                             mean_returns_spread.items()):
             stdn = None if std_err is None else std_err[name]
             stdn = mean_returns_spread.loc
             a = plot_mean_quantile_returns_spread_time_series(fr_column,
@@ -458,7 +459,7 @@ def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     
     sharpes = ["sharpe_{:d} = {:.2f}".format(col, pfm.calc_performance_metrics(ser, cum_return=True,
                                                                                compound=False)['sharpe'])
-               for col, ser in cum_ret.iteritems()]
+               for col, ser in cum_ret.items()]
     ax.text(.02, .30,
             '\n'.join(sharpes),
             fontsize=12,
@@ -588,6 +589,18 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
     ax : matplotlib.Axes
         The axes that were plotted on.
     """
+    MONTH_MAP = {1: 'Jan',
+                 2: 'Feb',
+                 3: 'Mar',
+                 4: 'Apr',
+                 5: 'May',
+                 6: 'Jun',
+                 7: 'Jul',
+                 8: 'Aug',
+                 9: 'Sep',
+                 10: 'Oct',
+                 11: 'Nov',
+                 12: 'Dec'}
     
     mean_monthly_ic = mean_monthly_ic.copy()
     
@@ -603,14 +616,15 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
     new_index_month = []
     for date in mean_monthly_ic.index:
         new_index_year.append(date.year)
-        new_index_month.append(date.month)
+        new_index_month.append(MONTH_MAP[date.month])
     
     mean_monthly_ic.index = pd.MultiIndex.from_arrays(
             [new_index_year, new_index_month],
             names=["year", "month"])
     
+    ic_year_month = mean_monthly_ic['ic'].unstack()
     sns.heatmap(
-            mean_monthly_ic.unstack(),
+            ic_year_month,
             annot=True,
             alpha=1.0,
             center=0.0,

@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 from jaqs.data import RemoteDataService
 try:
     import pytest
@@ -53,8 +54,13 @@ def test_remote_data_service_bar():
     assert rb2.shape == (345, 15)
     assert stk2.shape == (240, 15)
     assert rb2.loc[:, 'volume'].values[344] == 3366
+
+
+def test_remote_data_serviece_quote():
+    res, msg = ds.quote('000001.SH')
+    assert msg == '0,'
     
-    
+
 def test_remote_data_service_lb():
     # test lb.secDailyIndicator
     fields = "pb,pe,free_share,net_assets,limit_status"
@@ -79,7 +85,7 @@ def test_remote_data_service_lb():
 
 
 def test_remote_data_service_daily_ind_performance():
-    hs300 = ds.get_index_comp('000300.SH', 20140101, 20170101)
+    hs300 = ds.get_index_comp('000300.SH', 20151001, 20170101)
     hs300_str = ','.join(hs300)
     
     fields = "pb,pe,share_float_free,net_assets,limit_status"
@@ -103,8 +109,18 @@ def test_remote_data_service_industry():
     import pandas as pd
     
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
+    df = ds.get_industry_raw(symbol=','.join(arr), type_='SW')
     df = ds.get_industry_raw(symbol=','.join(arr), type_='ZZ')
-    df = df.astype(dtype={'in_date': int})
+    
+    # errors
+    try:
+        ds.get_industry_raw(symbol=','.join(arr), type_='ZZ', level=5)
+    except ValueError:
+        pass
+    try:
+        ds.get_industry_raw(symbol=','.join(arr), type_='blabla')
+    except ValueError:
+        pass
     
     # df_ann = df.loc[:, ['in_date', 'symbol']]
     # df_ann = df_ann.set_index(['symbol', 'in_date'])
@@ -112,10 +128,10 @@ def test_remote_data_service_industry():
     
     from jaqs.data import DataView
     dic_sec = jutil.group_df_to_dict(df, by='symbol')
-    dic_sec = {sec: df.reset_index() for sec, df in dic_sec.viewitems()}
+    dic_sec = {sec: df.reset_index() for sec, df in dic_sec.items()}
     
-    df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
-    df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.viewitems()], axis=1)
+    df_ann = pd.concat([df.loc[:, 'in_date'].rename(sec) for sec, df in dic_sec.items()], axis=1)
+    df_value = pd.concat([df.loc[:, 'industry1_code'].rename(sec) for sec, df in dic_sec.items()], axis=1)
     
     dates_arr = ds.get_trade_date_range(20140101, 20170505)
     res = align(df_value, df_ann, dates_arr)
@@ -127,8 +143,8 @@ def test_remote_data_service_industry():
         df_ann = df_one_sec.loc[:, ['in_date']]
         res = align(df_value, df_ann, dates_arr)
         return res
-    # res_list = [align_single_df(df) for sec, df in dic_sec.viewitems()]
-    res_list = [align_single_df(df) for df in dic_sec.values()[:10]]
+    # res_list = [align_single_df(df) for sec, df in dic_sec.items()]
+    res_list = [align_single_df(df) for df in list(dic_sec.values())[:10]]
     res = pd.concat(res_list, axis=1)
     
     
@@ -164,12 +180,14 @@ def test_remote_data_service_fin_indicator():
 
 
 def test_remote_data_service_adj_factor():
-    arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
+    arr = ds.get_index_comp(index='000300.SH', start_date=20160101, end_date=20170505)
     symbol_arr = ','.join(arr)
     
-    res = ds.get_adj_factor_daily(symbol_arr, start_date=20130101, end_date=20170101, div=False)
+    res = ds.get_adj_factor_daily(symbol_arr, start_date=20160101, end_date=20170101, div=False)
     assert abs(res.loc[20160408, '300024.SZ'] - 10.735) < 1e-3
     assert abs(res.loc[20160412, '300024.SZ'] - 23.658) < 1e-3
+    
+    res = ds.get_adj_factor_daily(symbol_arr, start_date=20160101, end_date=20170101, div=True)
 
 
 def test_remote_data_service_inst_info():
@@ -193,7 +211,73 @@ def test_remote_data_service_index_weight():
     
     df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
     assert abs(df.at[20150120, '000001.SZ'] - 1.07e-2) < 1e-2
-    assert df.shape == (236, 342)
+    assert df.shape == (236, 321)
+
+
+def test_remote_data_service_initialize():
+    import jaqs.data.dataservice as jads
+    data_config2 = {k: v for k, v in data_config.items()}
+    
+    data_config2['remote.data.password'] = ''
+    try:
+        ds.init_from_config(data_config2)
+    except jads.InitializeError:
+        pass
+    
+    data_config2['remote.data.password'] = '123'
+    msg = ds.init_from_config(data_config2)
+    assert msg.split(',')[0] == '-1000'
+    try:
+        ds.daily('000001.SH', start_date=20170101, end_date=20170109)
+    except jads.NotLoginError:
+        pass
+    
+    msg = ds.init_from_config(data_config)
+    assert msg.split(',')[0] == '0'
+    msg = ds.init_from_config(data_config)
+    assert msg.split(',')[0] == '0'
+    
+
+def test_remote_data_service_subscribe():
+    ds.subscribe('000001.SH')
+
+
+def test_remote_data_bar_quote():
+    df, msg = ds.bar_quote('000001.SZ', trade_date=20171009, freq='1M')
+    assert msg == '0,'
+    assert df['askvolume1'].all()
+    assert abs(df['bidprice1'].iat[1] - 11.52) < 1e-2
+    
+
+def test_remote_data_service_mkt_data_callback():
+    from jaqs.data.basic import Quote
+    q = Quote()
+    ds.mkt_data_callback(key='quote', quote=q)
+
+
+def test_calendar():
+    ds = RemoteDataService()
+    ds.init_from_config(data_config)
+    
+    res1 = ds.get_trade_date_range(20121224, 20130201)
+    assert len(res1) == 27
+    
+    day_zero = 20170102
+    res2 = ds.get_next_trade_date(day_zero)
+    assert res2 == 20170103
+    res2_last = ds.get_last_trade_date(res2)
+    assert res2_last == 20161230
+    
+    res3 = ds.get_next_trade_date(20170104)
+    assert res3 == 20170105
+    res4 = ds.get_last_trade_date(res3)
+    assert res4 == 20170104
+    
+    res11 = ds.get_trade_date_range(20161224, 20170201)
+    assert len(res11) == 23
+    
+    assert not ds.is_trade_date(20150101)
+    assert not ds.is_trade_date(20130501)
 
 
 '''
@@ -224,7 +308,7 @@ def my_globals(request):
     ds = RemoteDataService()
     ds.init_from_config(data_config)
     
-    request.function.func_globals.update({'ds': ds})
+    request.function.__globals__.update({'ds': ds})
 
 
 if __name__ == "__main__":
@@ -235,12 +319,12 @@ if __name__ == "__main__":
     ds.init_from_config(data_config)
     
     g = globals()
-    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
 
-    for test_name, test_func in g.viewitems():
-        print "\nTesting {:s}...".format(test_name)
+    for test_name, test_func in g.items():
+        print("\n==========\nTesting {:s}...".format(test_name))
         test_func()
-    print "Test Complete."
+    print("Test Complete.")
     
     t3 = time.time() - t_start
-    print "\n\n\nTime lapsed in total: {:.1f}".format(t3)
+    print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

@@ -22,11 +22,10 @@ from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH
 data_config = jutil.read_json(DATA_CONFIG_PATH)
 trade_config = jutil.read_json(TRADE_CONFIG_PATH)
 
-dataview_dir_path = '../../output/wine_industry_momentum/dataview'
-backtest_result_dir_path = '../../output/wine_industry_momentum'
+dataview_dir_path = '../output/wine_industry_momentum/dataview'
+backtest_result_dir_path = '../output/wine_industry_momentum'
 
 BENCHMARK = '399997.SZ'
-is_backtest = False
 
 
 def test_save_dataview():
@@ -53,41 +52,35 @@ def my_selector(context, user_options=None):
     return rank_ret >= 0.9
 
 
-def test_alpha_strategy_dataview():
+def test_backtest():
     dv = DataView()
     dv.load_dataview(folder_path=dataview_dir_path)
-
+    
     props = {
         "benchmark": BENCHMARK,
         "universe": ','.join(dv.symbol),
-
+        
         "start_date": dv.start_date,
         "end_date": dv.end_date,
-
+        
         "period": "day",
         "days_delay": 0,
-
+        
         "init_balance": 1e8,
         "position_ratio": 1.0,
         "strategy_no": 44
     }
     props.update(data_config)
     props.update(trade_config)
-
+    
     stock_selector = model.StockSelector()
     stock_selector.add_filter(name='rank_ret_top10', func=my_selector)
-
+    
     strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
     pm = PortfolioManager()
-
-    if is_backtest:
-        bt = AlphaBacktestInstance()
-        trade_api = AlphaTradeApi()
-        ds = None
-    else:
-        bt = AlphaLiveTradeInstance()
-        trade_api = RealTimeTradeApi(props)
-        ds = RemoteDataService()
+    bt = AlphaBacktestInstance()
+    trade_api = AlphaTradeApi()
+    ds = None
     
     context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm, data_api=ds)
     stock_selector.register_context(context)
@@ -95,14 +88,54 @@ def test_alpha_strategy_dataview():
     bt.init_from_config(props)
     bt.run_alpha()
     
-    if is_backtest:
-        bt.save_results(folder_path=backtest_result_dir_path)
-    else:
-        goal_positions = strategy.goal_positions
-        print(goal_positions)
-    
+    bt.save_results(folder_path=backtest_result_dir_path)
 
-def test_backtest_analyze():
+    do_analyze()
+
+
+def test_livetrade():
+    dv = DataView()
+    dv.load_dataview(folder_path=dataview_dir_path)
+    
+    props = {
+        "benchmark": BENCHMARK,
+        "universe": ','.join(dv.symbol),
+        
+        "start_date": dv.start_date,
+        "end_date": dv.end_date,
+        
+        "period": "day",
+        "days_delay": 0,
+        
+        "init_balance": 1e8,
+        "position_ratio": 1.0,
+        "strategy_no": 44
+    }
+    props.update(data_config)
+    props.update(trade_config)
+    
+    stock_selector = model.StockSelector()
+    stock_selector.add_filter(name='rank_ret_top10', func=my_selector)
+    
+    strategy = AlphaStrategy(stock_selector=stock_selector, pc_method='equal_weight')
+    pm = PortfolioManager()
+    bt = AlphaLiveTradeInstance()
+    trade_api = RealTimeTradeApi(props)
+    ds = RemoteDataService()
+    
+    context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm, data_api=ds)
+    stock_selector.register_context(context)
+    
+    bt.init_from_config(props)
+    bt.run_alpha()
+    
+    goal_positions = strategy.goal_positions
+    print(goal_positions)
+    
+    do_analyze()
+
+
+def do_analyze():
     ta = ana.AlphaAnalyzer()
     dv = DataView()
     dv.load_dataview(folder_path=dataview_dir_path)
@@ -116,9 +149,8 @@ if __name__ == "__main__":
     t_start = time.time()
 
     test_save_dataview()
-    test_alpha_strategy_dataview()
-    if is_backtest:
-        test_backtest_analyze()
+    test_backtest()
+    test_livetrade()
 
     t3 = time.time() - t_start
     print("\n\n\nTime lapsed in total: {:.1f}".format(t3))

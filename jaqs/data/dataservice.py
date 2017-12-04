@@ -1,6 +1,10 @@
 # encoding: UTF-8
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import *
 from abc import abstractmethod
+from six import with_metaclass
 
 import numpy as np
 import pandas as pd
@@ -24,6 +28,15 @@ class NotLoginError(Exception):
 class QueryDataError(Exception):
     def __init__(self, *args):
         super(QueryDataError, self).__init__(*args)
+
+
+class Singleton(type):
+    _instances = {}
+    
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
 class DataService(object):
@@ -105,7 +118,12 @@ class DataService(object):
 
         """
         pass
-    
+
+    @abstractmethod
+    def bar_quote(self, symbol, start_time=200000, end_time=160000,
+                  trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        pass
+        
     @abstractmethod
     def daily(self, symbol, start_date, end_date, fields="", adjust_mode=None):
         """
@@ -145,7 +163,7 @@ class DataService(object):
         pass
     
     @abstractmethod
-    def bar(self, symbol, start_time=200000, end_time=160000, trade_date=None, freq='1m', fields=""):
+    def bar(self, symbol, start_time=200000, end_time=160000, trade_date=None, freq='1M', fields=""):
         """
         Query minute bars of various type, return DataFrame.
 
@@ -239,25 +257,15 @@ class DataService(object):
         pass
 
 
-class Singleton(type):
-    _instances = {}
-    
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class RemoteDataService(DataService):
+class RemoteDataService(with_metaclass(Singleton, DataService)):
     """
     RemoteDataService is a concrete class using data from remote server's database.
     It wraps DataApi and simplify usage.
 
     """
-    __metaclass__ = Singleton
-    
     def __init__(self):
-        DataService.__init__(self)
+        print("Init RemoteDataService DEBUG")
+        super(RemoteDataService, self).__init__()
         
         self.data_api = None
 
@@ -268,9 +276,11 @@ class RemoteDataService(DataService):
         
         self._REPORT_DATE_FIELD_NAME = 'report_date'
         
+    '''
     def __del__(self):
         self.data_api.close()
 
+    '''
     def init_from_config(self, props):
         """
         
@@ -307,14 +317,13 @@ class RemoteDataService(DataService):
         print("\nBegin: DataApi login {}@{}".format(username, address))
         INDENT = ' ' * 4
         
-        if self.data_api is None:
+        if self.data_api_loginned:
             if (address == "") or (username == "") or (password == ""):
                 raise InitializeError("no address, username or password available!")
-        elif self.data_api._loggined:
-            if ((address == self._address) and (time_out == self._timeout)
+            elif ((address == self._address) and (time_out == self._timeout)
                 and (username == self._username) and (password == self._password)):
                 print(INDENT + "Already login as {:s}, skip init_from_config".format(username))
-                return  # do not login with the same props again
+                return '0,'  # do not login with the same props again
             else:
                 self.data_api.close()
                 self.data_api = None
@@ -333,8 +342,14 @@ class RemoteDataService(DataService):
             self.data_api = data_api
             print(INDENT + "login success \n")
         
+        return err_msg
+        
+    @property
+    def data_api_loginned(self):
+        return (self.data_api is not None) and (self.data_api._loggined)
+    
     def _raise_error_if_no_data_api(self):
-        if self.data_api is None:
+        if not self.data_api_loginned:
             raise NotLoginError("Please first login using init_from_config.")
     
     @staticmethod
@@ -366,6 +381,25 @@ class RemoteDataService(DataService):
                                         start_time=start_time, end_time=end_time, trade_date=trade_date,
                                         freq=freq, data_format="")
         
+        self._raise_error_if_msg(err_msg)
+        return df, err_msg
+    
+    def quote(self, symbol, fields=""):
+        self._raise_error_if_no_data_api()
+        
+        df, err_msg = self.data_api.quote(symbol=symbol, fields=fields)
+        
+        self._raise_error_if_msg(err_msg)
+        
+        return df, err_msg
+    
+    def bar_quote(self, symbol, start_time=200000, end_time=160000,
+                  trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        self._raise_error_if_no_data_api()
+
+        df, err_msg = self.data_api.bar_quote(symbol=symbol, start_time=start_time, end_time=end_time,
+                                              trade_date=trade_date, freq=freq, fields=fields)
+
         self._raise_error_if_msg(err_msg)
         return df, err_msg
     
@@ -422,7 +456,7 @@ class RemoteDataService(DataService):
         str
 
         """
-        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
+        l = ['='.join([key, str(value)]) for key, value in d.items()]
         return '&'.join(l)
 
     def query_lb_fin_stat(self, type_, symbol, start_date, end_date, fields="", drop_dup_cols=None):
@@ -477,7 +511,7 @@ class RemoteDataService(DataService):
         # change data type
         try:
             cols = list(set.intersection({'ann_date', 'report_date'}, set(res.columns)))
-            dic_dtype = {col: int for col in cols}
+            dic_dtype = {col: np.integer for col in cols}
             res = res.astype(dtype=dic_dtype)
         except:
             pass
@@ -542,7 +576,7 @@ class RemoteDataService(DataService):
         self._raise_error_if_msg(err_msg)
         
         df_io = df_io.set_index('symbol')
-        df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io = df_io.astype({'weight': float, 'trade_date': np.integer})
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         return df_io
 
@@ -571,14 +605,15 @@ class RemoteDataService(DataService):
         df_io, msg = self.query("lb.indexWeightRange", fields="",
                                 filter=filter_argument)
         if msg != '0,':
-            print msg
+            print(msg)
         # df_io = df_io.set_index('symbol')
-        df_io = df_io.astype({'weight': float, 'trade_date': int})
+        df_io = df_io.astype({'weight': float, 'trade_date': np.integer})
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
         df_io = df_io.fillna(0.0)
         return df_io
 
+    '''
     def get_index_weights_daily_OLD(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -620,6 +655,7 @@ class RemoteDataService(DataService):
         res = res.loc[start_date: end_date]
         return res
 
+    '''
     def get_index_weights_daily(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -647,6 +683,9 @@ class RemoteDataService(DataService):
         res = res.fillna(method='ffill')
         res = res.loc[res.index >= start_date]
         res = res.loc[res.index <= end_date]
+        
+        mask_col = res.sum(axis=0) > 0
+        res = res.loc[:, mask_col]
         
         return res
 
@@ -692,8 +731,6 @@ class RemoteDataService(DataService):
 
         """
         df_io, err_msg = self._get_index_comp(index, start_date, end_date)
-        if err_msg != '0,':
-            print err_msg
         return list(np.unique(df_io.loc[:, 'symbol']))
     
     def get_index_comp_df(self, index, start_date, end_date):
@@ -716,10 +753,10 @@ class RemoteDataService(DataService):
         """
         df_io, err_msg = self._get_index_comp(index, start_date, end_date)
         if err_msg != '0,':
-            print err_msg
+            print(err_msg)
         
         def str2int(s):
-            if isinstance(s, (str, unicode)):
+            if isinstance(s, str):
                 return int(s) if s else 99999999
             elif isinstance(s, (int, np.integer, float, np.float)):
                 return s
@@ -767,11 +804,11 @@ class RemoteDataService(DataService):
         
         dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
-                   for sec, df in dic_sec.viewitems()}
+                   for sec, df in dic_sec.items()}
 
-        df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.viewitems()}, axis=1)
+        df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.items()}, axis=1)
         df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_code'.format(level)]
-                                  for sec, df in dic_sec.viewitems()},
+                                  for sec, df in dic_sec.items()},
                                  axis=1)
         
         idx = np.unique(np.concatenate([df.index.values for df in dic_sec.values()]))
@@ -808,11 +845,11 @@ class RemoteDataService(DataService):
 
         """
         if type_ == 'SW':
-            src = u'申万研究所'.encode('utf-8')
+            src = '申万研究所'
             if level not in [1, 2, 3, 4]:
                 raise ValueError("For [SW], level must be one of {1, 2, 3, 4}")
         elif type_ == 'ZZ':
-            src = u'中证指数有限公司'.encode('utf-8')
+            src = '中证指数有限公司'
             if level not in [1, 2, 3, 4]:
                 raise ValueError("For [ZZ], level must be one of {1, 2}")
         else:
@@ -826,8 +863,8 @@ class RemoteDataService(DataService):
                                  filter=filter_argument, orderby="symbol")
         self._raise_error_if_msg(err_msg)
         
-        df_raw = df_raw.astype(dtype={'in_date': int,
-                                      # 'out_date': int
+        df_raw = df_raw.astype(dtype={'in_date': np.integer,
+                                      # 'out_date': np.integer
                                      })
         return df_raw.drop_duplicates()
 
@@ -855,7 +892,7 @@ class RemoteDataService(DataService):
     
         dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
-                   for sec, df in dic_sec.viewitems()}
+                   for sec, df in dic_sec.items()}
         
         # TODO: duplicate codes with dataview.py: line 512
         res = pd.concat(dic_sec, axis=1)  # TODO: fillna ?
@@ -910,7 +947,7 @@ class RemoteDataService(DataService):
         self._raise_error_if_msg(err_msg)
         
         df_raw = df_raw.astype(dtype={'symbol': str,
-                                    'trade_date': int,
+                                    'trade_date': np.integer,
                                     'adjust_factor': float
                                     })
         return df_raw.drop_duplicates()
@@ -926,9 +963,9 @@ class RemoteDataService(DataService):
                                      filter=filter_argument, orderby="symbol")
         self._raise_error_if_msg(err_msg)
 
-        dtype_map = {'symbol': str, 'list_date': int, 'delist_date': int, 'inst_type': int}
+        dtype_map = {'symbol': str, 'list_date': np.integer, 'delist_date': np.integer, 'inst_type': np.integer}
         cols = set(df_raw.columns)
-        dtype_map = {k: v for k, v in dtype_map.viewitems() if k in cols}
+        dtype_map = {k: v for k, v in dtype_map.items() if k in cols}
         
         df_raw = df_raw.astype(dtype=dtype_map)
         
@@ -952,7 +989,8 @@ class RemoteDataService(DataService):
         e = Event(EVENT_TYPE.MARKET_DATA)
         # print quote
         e.dic = {'quote': quote}
-        self.ctx.instance.put(e)
+        if (self.ctx is not None) and (self.ctx.instance is not None):
+            self.ctx.instance.put(e)
     
     # ---------------------------------------------------------------------
     # Calendar
@@ -984,7 +1022,7 @@ class RemoteDataService(DataService):
         if df_raw.empty:
             return np.array([], dtype=int)
     
-        trade_dates_arr = df_raw['trade_date'].values.astype(int)
+        trade_dates_arr = df_raw['trade_date'].values.astype(np.integer)
         return trade_dates_arr
 
     def get_last_trade_date(self, date):
@@ -1086,7 +1124,7 @@ class Calendar_OLD(object):
         str
 
         """
-        l = ['='.join([key, str(value)]) for key, value in d.viewitems()]
+        l = ['='.join([key, str(value)]) for key, value in d.items()]
         return '&'.join(l)
     
     def get_trade_date_range(self, start_date, end_date):

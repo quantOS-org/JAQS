@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 import pandas as pd
 import numpy as np
 try:
@@ -53,7 +54,7 @@ def test_quantile():
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
 
-    val = pd.DataFrame(np.random.rand(2000, 100))
+    val = pd.DataFrame(np.random.rand(1000, 100))
     expr = parser.parse('Ts_Quantile(val, 500, 12)')
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
@@ -68,12 +69,66 @@ def test_logical_and_or():
     res = parser.evaluate({'open': dfx})
     assert not np.all(res.values.flatten())
 
+
+def test_plus_minus_mul_div():
+    expression = parser.parse('close * open + close / open - close^3 % open')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+
+
+def test_eq_neq():
+    expression = parser.parse('(close == open) && (close != open) && (!close)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+    
+    expression = parser.parse('(close > open)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+    
+    expression = parser.parse('(close >= open)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+
+    expression = parser.parse('(close < open)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+
+    expression = parser.parse('(close <= open)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+
+
+def test_cutoff_standardize():
+    expression = parser.parse('Standardize(Cutoff(close, 2.8))')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+    
+
+def test_moving_avg():
+    expression = parser.parse('Ewma(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Ts_Mean(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Ts_Min(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Ts_Max(close, 5)')
+    res = parser.evaluate({'close': dfy})
+
+
+def test_cov_corr():
+    expression = parser.parse('Correlation(close, open, 5)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+    expression = parser.parse('Covariance(close, open, 5)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+
+
+def test_return_delay_delta():
+    expression = parser.parse('Delta(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Delay(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Return(close, 5)')
+    res = parser.evaluate({'close': dfy})
+    
     
 def test_skew():
-    # parser.set_capital('lower')
-    expression = parser.parse('Ts_Skewness(open,4)')
-    res = parser.evaluate({'close': dfy, 'open': dfx})
-    # parser.set_capital('upper')
+    expression = parser.parse('Ts_Skewness(close,4)')
+    res = parser.evaluate({'close': dfy})
+    expression = parser.parse('Ts_Kurtosis(close,4)')
+    res = parser.evaluate({'close': dfy})
 
 
 def test_variables():
@@ -90,6 +145,9 @@ def test_product():
 
 def test_rank():
     expression = parser.parse('Rank(close)')
+    res = parser.evaluate({'close': dfy, 'open': dfx})
+    
+    expression = parser.parse('Ts_Rank(close, 8)')
     res = parser.evaluate({'close': dfy, 'open': dfx})
 
 
@@ -156,10 +214,15 @@ def test_group_apply():
 
 
 '''
+
+
 def test_calc_return():
     expr = parser.parse('Return(close, 2, 0)')
     res = parser.evaluate({'close': dfx})
     assert abs(res.loc[20170808, '000001.SH'] - 0.006067) < 1e-6
+
+    expr = parser.parse('Return(close, 2, 1)')
+    res = parser.evaluate({'close': dfx})
 
 
 @pytest.fixture(autouse=True)
@@ -178,7 +241,7 @@ def my_globals(request):
     dfy = df_multi.loc[pd.IndexSlice[:, :], pd.IndexSlice['open']].unstack()
     
     parser = Parser()
-    request.function.func_globals.update({'parser': parser, 'dfx': dfx, 'dfy': dfy})
+    request.function.__globals__.update({'parser': parser, 'dfx': dfx, 'dfy': dfy})
 
 
 if __name__ == "__main__":
@@ -199,12 +262,12 @@ if __name__ == "__main__":
     parser = Parser()
     
     g = globals()
-    g = {k: v for k, v in g.viewitems() if k.startswith('test_') and callable(v)}
+    g = {k: v for k, v in g.items() if k.startswith('test_') and callable(v)}
     
-    for test_name, test_func in g.viewitems():
-        print "\nTesting {:s}...".format(test_name)
+    for test_name, test_func in g.items():
+        print("\n==========\nTesting {:s}...".format(test_name))
         # try:
         test_func()
         # print "Successfully tested {:s}.".format(test_name)
         # except Exception, e:
-    print "Test Complete."
+    print("Test Complete.")

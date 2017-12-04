@@ -22,8 +22,7 @@ from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH
 data_config = jutil.read_json(DATA_CONFIG_PATH)
 trade_config = jutil.read_json(TRADE_CONFIG_PATH)
 
-result_dir_path = '../../output/double_ma'
-is_backtest = True
+result_dir_path = '../output/double_ma'
 
 
 class DoubleMaStrategy(EventDrivenStrategy):
@@ -135,23 +134,16 @@ class DoubleMaStrategy(EventDrivenStrategy):
             print(ind)
 
 
-def run_strategy():
-    if is_backtest:
-        props = {"symbol": "rb1710.SHF",
-                 "start_date": 20170510,
-                 "end_date": 20170930,
-                 "bar_type": "1M",  # '1d'
-                 "init_balance": 2e4}
+def test_backtest():
+    props = {"symbol": "rb1710.SHF",
+             "start_date": 20170710,
+             "end_date": 20170730,
+             "bar_type": "1M",  # '1d'
+             "init_balance": 2e4}
 
-        tapi = BacktestTradeApi()
-        ins = EventBacktestInstance()
+    tapi = BacktestTradeApi()
+    ins = EventBacktestInstance()
         
-    else:
-        props = {'symbol': 'rb1801.SHF',
-                 'strategy.no': 46}
-        tapi = RealTimeTradeApi(trade_config)
-        ins = EventLiveTradeInstance()
-
     props.update(data_config)
     props.update(trade_config)
     
@@ -163,26 +155,54 @@ def run_strategy():
                             strategy=strat, pm=pm)
     
     ins.init_from_config(props)
-    if not is_backtest:
-        ds.subscribe(props['symbol'])
 
     ins.run()
-    if not is_backtest:
-        time.sleep(9999)
-    ins.save_results(folder_path=result_dir_path)
+    ins.save_results(result_dir_path)
+    do_analyze()
 
 
-def analyze():
+def test_livetrade():
+    props = {'symbol': 'rb1801.SHF',
+             'strategy_no': 46}
+    tapi = RealTimeTradeApi(trade_config)
+    ins = EventLiveTradeInstance()
+    
+    props.update(data_config)
+    props.update(trade_config)
+    
+    ds = RemoteDataService()
+    strat = DoubleMaStrategy()
+    pm = PortfolioManager()
+    
+    context = model.Context(data_api=ds, trade_api=tapi, instance=ins,
+                            strategy=strat, pm=pm)
+    
+    ins.init_from_config(props)
+    ds.subscribe(props['symbol'])
+    
+    ins.run()
+    time.sleep(3)
+    ins.stop()
+    ins.save_results(result_dir_path)
+    do_analyze()
+
+
+def do_analyze():
+    from jaqs.trade.analyze.analyze import TradeRecordEmptyError
     ta = ana.EventAnalyzer()
     
     ds = RemoteDataService()
     ds.init_from_config(data_config)
     
-    ta.initialize(data_server_=ds, file_folder=result_dir_path)
-    
-    ta.do_analyze(result_dir=result_dir_path, selected_sec=[])
+    try:
+        ta.initialize(data_server_=ds, file_folder=result_dir_path)
+        
+        ta.do_analyze(result_dir=result_dir_path, selected_sec=[])
+        
+    except TradeRecordEmptyError:
+        pass
 
 
 if __name__ == "__main__":
-    run_strategy()
-    analyze()
+    test_backtest()
+    test_livetrade()

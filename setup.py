@@ -21,14 +21,33 @@ def read_install_requires():
 
 setup(
     name='jaqs',
+    url='https://github.com/quantOS-org/JAQS',
     version=ver,
+        license='Apache 2.0',
+    # information
     description='Open source quantitative research&trading framework.',
     long_description=readme(),
-    install_requires=read_install_requires(),
-    license='Apache 2.0',
+    keywords="quantiatitive trading research finance",
     classifiers=[
-        'Programming Language :: Python :: 2.7',
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: End Users/Desktop",
+        "Intended Audience :: Financial and Insurance Industry",
+        "Intended Audience :: Information Technology",
+        "Intended Audience :: Science/Research",
+        "License :: OSI Approved :: Apache Software License",
+        "Natural Language :: Chinese (Simplified)",
+        "Natural Language :: English",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: Unix",
+        "Programming Language :: Python :: 2.7",
+        "Programming Language :: Python :: 3.6",
     ],
+    # install
+    install_requires=read_install_requires(),
     packages=find_packages(),
     package_data={'': ['*.json', '*.css', '*.html']},
+    # author
+    author='quantOS'
 )

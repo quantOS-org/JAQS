@@ -3,7 +3,7 @@
 使用**JAQS**进行回测与实盘运行的代码具有高一致性，回测满意后，只需以下几点改动，即可接入实盘/模拟撮合：
 
 1. 使用实盘交易的交易接口：将`BacktestTradeApi`替换为`RealTimeTradeApi`
-2. 使用实盘交易主程序：将`EventBacktestInstance`替换为`EventRealTimeInstance`
+2. 使用实盘交易主程序：将`EventBacktestInstance`替换为`EventLiveTradeInstance`
 3. 在数据接口`RemoteDataService`中订阅所要交易品种的行情
 4. 在主程序最后添加`time.sleep(9999999)`. 保证在事件循环运行中，主程序不会提前终止
 5. 实时行情均为逐笔或Tick数据，即使订阅多个品种，行情数据仍会逐个到达`strategy.on_tick()`函数
@@ -13,7 +13,7 @@
 ```python
 props = {'symbol': 'rb1801.SHF'}
 tapi = RealTimeTradeApi()
-ins = EventRealTimeInstance()
+ins = EventLiveTradeInstance()
 
 tapi.use_strategy(3)
 

@@ -1,5 +1,6 @@
 # encoding: UTF-8
 
+from __future__ import print_function
 import copy
 from collections import defaultdict
 
@@ -57,8 +58,8 @@ class PortfolioManager(object):
         self.original_on_order_rsp = self.ctx.strategy.on_order_rsp
         self.ctx.strategy.on_order_rsp = self._on_order_rsp
         
-        self.original_on_task_rsp = self.ctx.strategy.on_task_rsp
-        self.ctx.strategy.on_task_rsp = self._on_task_rsp
+        # self.original_on_task_rsp = self.ctx.strategy.on_task_rsp
+        # self.ctx.strategy.on_task_rsp = self._on_task_rsp
     
     @staticmethod
     def _make_position_key(symbol):
@@ -172,7 +173,7 @@ class PortfolioManager(object):
 
         """
         if task.task_id in self.tasks:
-            print 'duplicate task {}'.format(task.task_id)
+            print('duplicate task {}'.format(task.task_id))
         
         # Store Task (right after strategy constructs a task)
         # TODO: copy
@@ -200,6 +201,7 @@ class PortfolioManager(object):
             for order in orders:
                 self._update_trade_stat_from_order(order)
     
+    '''
     def _on_task_rsp(self, rsp):
         """
         
@@ -238,6 +240,7 @@ class PortfolioManager(object):
                 goal_positions = task.data
                 self._update_trade_stat_from_goal_positions(goal_positions, roll_back=True)
     
+    '''
     def _update_trade_stat_from_order(self, order, roll_back=False):
         """
         
@@ -661,7 +664,7 @@ class PortfolioManager_RAW(TradeCallback):
         return position
     
     def on_new_day(self, date, pre_date):
-        for key, pos in self.positions.viewitems():
+        for key, pos in self.positions.items():
             sec, td = key.split('@')
             if str(pre_date) == td:
                 new_key = self._make_position_key(sec, date)

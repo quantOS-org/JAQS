@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+from __future__ import print_function
+from __future__ import absolute_import
 import numpy as np
 import statsmodels.api as sm
 
@@ -125,7 +127,7 @@ class SectorRolling(EventDrivenStrategy):
                         self.buy(stock_quote, stock_quote.close, np.floor(stockvalue/stock_quote.close/self.multiplier))
 
     def on_trade(self, ind):
-        print "\nStrategy on trade: "
+        print("\nStrategy on trade: ")
         print(ind)
         self.pos = self.ctx.pm.get_pos(ind.symbol)
         print(self.ctx.pm.get_trade_stat(ind.symbol))
@@ -137,12 +139,12 @@ class SectorRolling(EventDrivenStrategy):
 
     def on_order_status(self, ind):
         if self.output:
-            print "\nStrategy on order status: "
+            print("\nStrategy on order status: ")
             print(ind)
     
     def on_task_status(self, ind):
         if self.output:
-            print "\nStrategy on task ind: "
+            print("\nStrategy on task ind: ")
             print(ind)
 
 

@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import print_function
 import os
 from collections import OrderedDict
 
@@ -163,9 +164,9 @@ class SignalDigger(object):
         res['quantile'] = df_quantile
         res = res.loc[~(mask.iloc[:, 0]), :]
         
-        print "Nan Data Count (should be zero) : {:d};  " \
+        print("Nan Data Count (should be zero) : {:d};  " \
               "Percentage of effective data: {:.0f}%".format(res.isnull().sum(axis=0).sum(),
-                                                             len(res) * 100. / signal.size)
+                                                             len(res) * 100. / signal.size))
         res = res.astype({'signal': float, 'return': float, 'quantile': int})
         self.signal_data = res
     
@@ -186,11 +187,11 @@ class SignalDigger(object):
             fp = os.path.join(self.output_folder, '.'.join([file_name, self.output_format]))
             jutil.create_dir(fp)
             fig.savefig(fp)
-            print "Figure saved: {}".format(fp)
+            print("Figure saved: {}".format(fp))
         elif self.output_format == 'base64':
             fig_b64 = jutil.fig2base64(fig, 'png')
             self.fig_data[file_name] = fig_b64
-            print "Base64 data of figure {} will be stored in dictionary.".format(file_name)
+            print("Base64 data of figure {} will be stored in dictionary.".format(file_name))
         elif self.output_format == 'plot':
             fig.show()
         else:
