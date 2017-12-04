@@ -402,7 +402,7 @@ class SignalDigger(object):
             df_res.loc[:, "kurtosis"] = scst.kurtosis(df, axis=0)
             df_res.loc[:, 'Annu. Ret.'] = annual_ret
             df_res.loc[:, 'Annu. Vol.'] = annual_vol
-            # df_res.loc[period, ['occurance']] = len(df)
+            df_res.loc[:, 'occurance'] = len(df)
             # dic_res[period] = df
             return df_res
             
