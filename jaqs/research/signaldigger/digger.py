@@ -384,9 +384,9 @@ class SignalDigger(object):
                                            't-stat', 'p-value', 'skewness', 'kurtosis', 'occurance'],
                                   data=np.nan)
             df_res.index.name = 'Period'
-            dic_res = OrderedDict()
-            # for period, df in dic_signal_data.items():
-            ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
+            
+            ser_periods = pd.Series(index=df.columns, data=df.columns.values)
+            ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / ser_periods)
             mean = df.mean(axis=0)
             std = df.std(axis=0)
             annual_ret, annual_vol = mean * ratio, std * np.sqrt(ratio)
