@@ -432,7 +432,7 @@ class SignalDigger(object):
         if group_by is not None:
             df_events.groupby(idx_group).apply(_plot_dist)
         else:
-            _plot_dist(df_events)
+            plotting.plot_event_dist(df_events, "", axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')
 
