@@ -11,7 +11,6 @@ import numpy     as np
 
 long_nan = 9223372036854775807
 
-
 def is_long_nan(v):
     if v == long_nan:
         return True
@@ -34,7 +33,7 @@ def _to_date(row):
 def _to_datetime(row):
     date = int(row['DATE'])
     time = int(row['TIME']) // 1000
-    return pd.datetime(year=date // 10000, month=date / 100 % 100, day=date % 100,
+    return pd.datetime(year=date // 10000, month=date // 100 % 100, day=date % 100,
                        hour=time // 10000, minute=time // 100 % 100, second=time % 100)
 
 
@@ -64,7 +63,7 @@ def _error_to_str(error):
 
 def to_obj(class_name, data):
     try:
-        if type(data) == list or type(data) == tuple:
+        if isinstance(data, (list, tuple)):
             result = []
             for d in data:
                 result.append(namedtuple(class_name, list(d.keys()))(*list(d.values())))
@@ -121,11 +120,11 @@ def extract_result(cr, data_format="", index_column=None, class_name=""):
         
         elif data_format == "obj" and cr['result'] and class_name:
             r = cr['result']
-            if type(r) == list or type(r) == tuple:
+            if isinstance(r, (list, tuple)):
                 result = []
                 for d in r:
                     result.append(namedtuple(class_name, list(d.keys()))(*list(d.values())))
-            elif type(r) == dict:
+            elif isinstance(r, dict):
                 result = namedtuple(class_name, list(r.keys()))(*list(r.values()))
             else:
                 result = r
