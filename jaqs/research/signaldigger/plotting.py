@@ -685,7 +685,7 @@ def plot_event_bar(df, x, y, hue, ax):
 
 def plot_event_dist(df_events, date, axs):
     i = 0
-    for period, ser in df_events.items():
+    for period, ser in df_events.iteritems():
         ax = axs[i]
         sns.distplot(ser, ax=ax)
         ax.axvline(ser.mean(), lw=1, ls='--', label='Average', color='red')
