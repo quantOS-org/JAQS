@@ -350,6 +350,7 @@ class SignalDigger(object):
         """
         import scipy.stats as scst
 
+        # Raw Data
         dic_signal_data = OrderedDict()
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price, mask=mask,
@@ -358,6 +359,7 @@ class SignalDigger(object):
                                                 forward=True)
             dic_signal_data[my_period] = self.signal_data
         
+        # Processed Data
         dic_events = OrderedDict()
         dic_all = OrderedDict()
         for period, df in dic_signal_data.items():
@@ -369,15 +371,8 @@ class SignalDigger(object):
         df_events = pd.concat(dic_events, axis=1, join=join_method_periods)
         df_all = pd.concat(dic_all, axis=1, join=join_method_periods)
 
-        # analyze ret: annualized
-        '''
-        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
-        res = pd.concat(dic_ret, axis=1, join='outer')
-
-        mask = dic_signal_data[20]['signal'].astype(bool)
-        res = res.loc[mask[mask].index, :]
-        '''
-        def _apply(df):
+        # Data Statistics
+        def _calc_statistics(df):
             df_res = pd.DataFrame(index=periods,
                                   columns=['Annu. Ret.', 'Annu. Vol.',
                                            #'Annual Return (all sample)', 'Annual Volatility (all sample)',
@@ -391,10 +386,6 @@ class SignalDigger(object):
             std = df.std(axis=0)
             annual_ret, annual_vol = mean * ratio, std * np.sqrt(ratio)
             
-            #n_all = len(ser_ret)
-            #n_events = len(events_ret)
-            #print("For period={}, Probability of event = {:.1f}%".format(period, n_events * 100. / n_all))
-            
             t_stats, p_values = scst.ttest_1samp(df.values, np.zeros(df.shape[1]), axis=0)
             df_res.loc[:, 't-stat'] = t_stats
             df_res.loc[:, 'p-value'] = np.round(p_values, 5)
@@ -405,24 +396,23 @@ class SignalDigger(object):
             df_res.loc[:, 'occurance'] = len(df)
             # dic_res[period] = df
             return df_res
-            
-            # print(events_ret.sort_values().tail())
 
         if group_by == 'year':
-            idx_year = get_year(df_events.index.get_level_values('trade_date'))
-            df_stats = df_events.groupby(idx_year).apply(_apply)
-            idx_year = get_year(df_all.index.get_level_values('trade_date'))
-            df_all_stats = df_all.groupby(idx_year).apply(_apply)
+            grouper_func = get_year
         elif group_by == 'month':
-            idx_month = get_month(df_events.index.values)
-            df_stats = df_events.groupby(idx_month).apply(_apply)
-            idx_month = get_month(df_all.index.values)
-            df_all_stats = df_all.groupby(idx_month).apply(_apply)
+            grouper_func = get_month
         else:
-            df_stats = _apply(df_events)
-            df_all_stats = _apply(df_all)
+            grouper_func = get_dummy_grouper
 
-        return df_all, df_events, df_stats
+        idx_group = grouper_func(df_events.index.get_level_values('trade_date'))
+        df_stats = df_events.groupby(idx_group).apply(_calc_statistics)
+        idx_group_all = grouper_func(df_all.index.get_level_values('trade_date'))
+        df_all_stats = df_all.groupby(idx_group_all).apply(_calc_statistics)
+        df_all_stats = df_all_stats.loc[df_stats.index, ['Annu. Ret.', 'Annu. Vol.']]
+        df_all_stats.columns = ['Annu. Ret. (all samp)', 'Annu. Vol. (all samp)']
+        df_stats = pd.concat([df_stats, df_all_stats], axis=1)
+
+        # return df_all, df_events, df_stats
         ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
 
         # return
@@ -433,9 +423,16 @@ class SignalDigger(object):
         plotting.plot_calendar_distribution(ser_signal_raw,
                                             monthly_signal=monthly_signal, yearly_signal=yearly_signal,
                                             ax1=gf.next_row(), ax2=gf.next_row())
-        plotting.plot_event_bar(mean=df_stats['Annual Return'], std=df_stats['Annual Volatility'], ax=gf.next_row())
-        plotting.plot_event_pvalue(df_stats['p-value'], ax=gf.next_subrow())
-        plotting.plot_event_dist(df_stats, axs=[gf.next_cell() for _ in periods])
+        plotting.plot_event_bar(df_stats.reset_index(), x='Period', y='Annu. Ret.', hue='trade_date', ax=gf.next_row())
+        # plotting.plot_event_pvalue(df_stats['p-value'], ax=gf.next_subrow())
+        
+        def _plot_dist(df):
+            date = grouper_func(df.index.get_level_values('trade_date'))[0]
+            plotting.plot_event_dist(df, group_by.title() + ' ' + str(date), axs=[gf.next_cell() for _ in periods])
+        if group_by is not None:
+            df_events.groupby(idx_group).apply(_plot_dist)
+        else:
+            _plot_dist(df_events)
         
         self.show_fig(gf.fig, 'event_report')
 
@@ -473,11 +470,32 @@ def calc_quantile_stats_table(signal_data):
 
 
 def get_month(ser):
-    return ser % 10000 // 100
+    # ser = pd.Series(ser)
+    res = ser % 10000 // 100
+    MONTH_MAP = {1: 'Jan',
+                 2: 'Feb',
+                 3: 'Mar',
+                 4: 'Apr',
+                 5: 'May',
+                 6: 'Jun',
+                 7: 'Jul',
+                 8: 'Aug',
+                 9: 'Sep',
+                 10: 'Oct',
+                 11: 'Nov',
+                 12: 'Dec'}
+    # res = res.replace(MONTH_MAP)
+    return res
 
 
 def get_year(ser):
     return ser // 10000
+
+
+def get_dummy_grouper(ser):
+    res = ser.copy()
+    res.loc[:] = 'all_sample'
+    return res
     
     
 def calc_calendar_distribution(df_signal):

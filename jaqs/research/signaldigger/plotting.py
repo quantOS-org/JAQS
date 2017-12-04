@@ -643,7 +643,7 @@ def plot_monthly_ic_heatmap(mean_monthly_ic, period, ax=None):
 
 # -----------------------------------------------------------------------------------
 # Functions to Plot Others
-def plot_event_bar(mean, std, ax):
+def plot_event_bar_OLD(mean, std, ax):
     idx = mean.index
     
     DECIMAL_TO_PERCENT = 100.0
@@ -657,9 +657,60 @@ def plot_event_bar(mean, std, ax):
     return ax
 
 
-def plot_event_dist(df_events, axs):
+def plot_event_bar(df, x, y, hue, ax):
+    DECIMAL_TO_PERCENT = 100.0
+    
+    n = len(np.unique(df[hue]))
+    palette_gen = (c for c in sns.color_palette("Reds_r", n))
+    
+    gp = df.groupby(hue)
+    
+    for p, dfgp in gp:
+        idx = dfgp[x]
+        mean = dfgp[y]
+        # std = dfgp['Annu. Vol.']
+        c = next(palette_gen)
+        
+        ax.errorbar(idx, mean * DECIMAL_TO_PERCENT,
+                    marker='o', color=c,
+                    # yerr=std * DECIMAL_TO_PERCENT, ecolor='lightblue', elinewidth=5,
+                    label="{}".format(p))
+    ax.axhline(0.0, color='k', ls='--', lw=1, alpha=.5)
+    ax.set(xlabel='Period Length (trade days)', ylabel='Return (%)',
+           title="Average Annual Return")
+    ax.legend(loc='upper right')
+    ax.set(xticks=idx)
+    return ax
+
+
+def plot_event_dist(df_events, date, axs):
     i = 0
     for period, ser in df_events.items():
+        ax = axs[i]
+        sns.distplot(ser, ax=ax)
+        ax.axvline(ser.mean(), lw=1, ls='--', label='Average', color='red')
+        ax.legend(loc='upper left')
+        ax.set(xlabel='Return (%)', ylabel='',
+               title="{} Distribution of return after {:d} trade dats".format(date, period))
+        # self.show_fig(fig, 'event_return_{:d}days.png'.format(my_period))
+        i += 1
+    
+    # print(mean)
+
+
+'''
+def plot_event_dist_NEW(df_events, axs, grouper=None):
+    i = 0
+    def _plot(ser):
+        ax = axs[i]
+        sns.distplot(ser, ax=ax)
+        ax.axvline(ser.mean(), lw=1, ls='--', label='Average', color='red')
+        ax.legend(loc='upper left')
+        ax.set(xlabel='Return (%)', ylabel='',
+               title="Distribution of return after {:d} trade dats".format(period))
+    if grouper is None:
+    
+    for (date, period), row in df_events.iterrows():
         ax = axs[i]
         sns.distplot(ser, ax=ax)
         ax.axvline(ser.mean(), lw=1, ls='--', label='Average', color='red')
@@ -668,10 +719,10 @@ def plot_event_dist(df_events, axs):
                title="Distribution of return after {:d} trade dats".format(period))
         # self.show_fig(fig, 'event_return_{:d}days.png'.format(my_period))
         i += 1
-    
-    # print(mean)
+        
+        # print(mean)
 
-
+'''
 def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
     idx = signal.index.values
     start = jutil.convert_int_to_datetime(idx[0]).date()
@@ -682,9 +733,9 @@ def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
 
     # fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), dpi=72)
 
-    # sns.barplot(data=monthly_signal.reset_index(), x='Month', y='Times', ax=ax1£©
+    # sns.barplot(data=monthly_signal.reset_index(), x='Month', y='Time', ax=ax1£©
     # sns.barplot(x=monthly_signal.index.values, y=monthly_signal.values, ax=ax1)
-    ax1.bar(monthly_signal.index, monthly_signal.values)
+    ax1.bar(monthly_signal.index, monthly_signal['Time'].values)
     ax1.axhline(monthly_signal.values.mean(), lw=1, ls='--', color='red', label='Average')
     ax1.legend(loc='upper right')
     months_str = ['Jan', 'Feb', 'March', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -693,7 +744,7 @@ def plot_calendar_distribution(signal, monthly_signal, yearly_signal, ax1, ax2):
             xlabel='Month', ylabel='Time')
 
     # sns.barplot(data=yearly_signal.reset_index(), x='Year', y='Times', ax=ax2, color='forestgreen')
-    ax2.bar(yearly_signal.index, yearly_signal.values)
+    ax2.bar(yearly_signal.index, yearly_signal['Time'].values)
     ax2.axhline(yearly_signal.values.mean(), lw=1, ls='--', color='red', label='Average')
     ax2.legend(loc='upper right')
     ax2.set(xticks=yearly_signal.index,
