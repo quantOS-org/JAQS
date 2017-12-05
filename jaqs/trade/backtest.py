@@ -340,6 +340,7 @@ class AlphaBacktestInstance(BacktestInstance):
         
         self.ctx.trade_date = self._get_next_trade_date(self.start_date)
         self.last_date = self._get_last_trade_date(self.ctx.trade_date)
+        self.current_rebalance_date = self.ctx.trade_date
         while True:
             print("\n=======new day {}".format(self.ctx.trade_date))
 
