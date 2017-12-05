@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
@@ -17,6 +18,25 @@ from jaqs.trade import common
 import jaqs.util as jutil
 
 STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
+TO_PCT = 100.0
+MPL_RCPARAMS = {'figure.facecolor': '#F6F6F6',
+                'axes.facecolor': '#F6F6F6',
+                'axes.edgecolor': '#D3D3D3',
+                'text.color': '#555555',
+                'grid.color': '#B1B1B1',
+                'grid.alpha': 0.3,
+                # scale
+                'axes.linewidth': 2.0,
+                'axes.titlepad': 12,
+                'grid.linewidth': 1.0,
+                'grid.linestyle': '-',
+                # font size
+                'font.size': 13,
+                'axes.titlesize': 18,
+                'axes.labelsize': 14,
+                'legend.fontsize': 'small',
+                'lines.linewidth': 2.5,
+                }
 
 
 class TradeRecordEmptyError(Exception):
@@ -375,6 +395,25 @@ class BaseAnalyzer(object):
         self.returns = df_returns
     
     def plot_pnl(self, save_folder=None):
+        old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
+        mpl.rcParams.update(MPL_RCPARAMS)
+        
+        if save_folder is None:
+            save_folder = self.file_folder
+        fig1 = plot_portfolio_bench_pnl(self.returns.loc[:, 'strat_cum'],
+                                        self.returns.loc[:, 'bench_cum'],
+                                        self.returns.loc[:, 'active_cum'])
+        fig1.savefig(os.path.join(save_folder,'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
+        
+        fig2 = plot_daily_trading_holding_pnl(self.df_pnl['trading_pnl'],
+                                              self.df_pnl['holding_pnl'],
+                                              self.df_pnl['total_pnl'],
+                                              self.df_pnl['total_pnl'].cumsum())
+        fig2.savefig(os.path.join(save_folder,'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(), dpi=fig2.get_dpi())
+        
+        mpl.rcParams.update(old_mpl_rcparams)
+
+    def plot_pnl_OLD(self, save_folder=None):
         if save_folder is None:
             save_folder = self.file_folder
         
@@ -705,6 +744,80 @@ class AlphaAnalyzer(BaseAnalyzer):
                         selected=not_none_sec)
 
 
+def plot_daily_trading_holding_pnl(trading, holding, total, total_cum):
+    """
+    Parameters
+    ----------
+    Series
+    
+    """
+    idx0 = total.index
+    n = len(idx0)
+    idx = np.arange(n)
+    
+    fig, (ax0, ax2, ax3) = plt.subplots(3, 1, figsize=(16, 13.5), sharex=True)
+    ax1 = ax0.twinx()
+    
+    bar_width = 0.4
+    profit_color, lose_color = '#D63434', '#2DB635'
+    curve_color = '#174F67'
+    y_label = 'Profit / Loss ($)'
+    color_arr_raw = np.array([profit_color] * n)
+    
+    color_arr = color_arr_raw.copy()
+    color_arr[total < 0] = lose_color
+    ax0.bar(idx, total, width=bar_width, color=color_arr)
+    ax0.set(title='Daily PnL', ylabel=y_label, xlim=[-2, n+2],)
+    ax0.xaxis.set_major_formatter(MyFormatter(idx0, '%y-%m-%d'))
+    
+    ax1.plot(idx, total_cum, lw=1.5, color=curve_color)
+    ax1.set(ylabel='Cum. ' + y_label)
+    ax1.yaxis.label.set_color(curve_color)
+
+    
+    color_arr = color_arr_raw.copy()
+    color_arr[trading < 0] = lose_color
+    ax2.bar(idx-bar_width/2, trading, width=bar_width, color=color_arr)
+    ax2.set(title='Daily Trading PnL', ylabel=y_label)
+    
+    color_arr = color_arr_raw.copy()
+    color_arr[holding < 0] = lose_color
+    ax3.bar(idx+bar_width/2, holding, width=bar_width, color=color_arr)
+    ax3.set(title='Daily Holding PnL', ylabel=y_label, xticks=idx[: : n//10])
+    return fig
+    
+    
+def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_ret):
+    """
+    Parameters
+    ----------
+    Series
+    
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
+    idx_dt = portfolio_cum_ret.index
+    idx = np.arange(len(idx_dt))
+    
+    y_label_ret = "Cumulative Return (%)"
+    
+    ax1.plot(idx, (benchmark_cum_ret-1) * TO_PCT, label='Benchmark', color='#174F67')
+    ax1.plot(idx, (portfolio_cum_ret-1) * TO_PCT, label='Strategy', color='#198DD6')
+    ax1.legend(loc='upper left')
+    ax1.set(title="Absolute Return of Portfolio and Benchmark", 
+            #xlabel="Date", 
+            ylabel=y_label_ret)
+    ax1.grid(axis='y')
+    
+    ax2.plot(idx, (excess_cum_ret-1) * TO_PCT, label='Extra Return', color='#C37051')
+    ax2.set(title="Excess Return Compared to Benchmark", ylabel=y_label_ret
+            #xlabel="Date", 
+            )
+    ax2.grid(axis='y')
+    ax2.xaxis.set_major_formatter(MyFormatter(idx_dt, '%y-%m-%d'))  # 17-09-31
+    
+    fig.tight_layout()  
+    return fig
+    
 def plot_brinson(df, save_folder):
     """
     
