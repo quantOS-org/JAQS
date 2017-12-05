@@ -264,7 +264,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
     """
     def __init__(self):
-        print("Init RemoteDataService DEBUG")
+        # print("Init RemoteDataService DEBUG")
         super(RemoteDataService, self).__init__()
         
         self.data_api = None
