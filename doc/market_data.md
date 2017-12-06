@@ -195,9 +195,9 @@ df, msg = api.daily(
 | 字段 | 类型 | 说明 | 缺省值 |
 | --- | --- | --- | --- |
 | symbol | string | 标的代码，支持多标的查询 | 不可缺省 |
-| start\_time | int或string | 开始时间 | 开盘时间 |
-| end\_time | int或string | 结束时间 | 收盘时间 |
-| trade\_date | int或string | 交易日 | 当前交易日 |
+| start\_time | int | 开始时间 | 开盘时间 |
+| end\_time | int | 结束时间 | 收盘时间 |
+| trade\_date | int | 交易日 | 当前交易日 |
 | freq | string | 分钟线类型 | &quot;1M&quot; |
 | fields | string | 需要返回字段，多字段以&#39;,&#39;隔开,为&quot;&quot;时返回所有字段 | &quot;&quot; |
 
@@ -208,8 +208,8 @@ df,msg = api.bar(
             symbol="600030.SH", 
             trade_date=20170928, 
             freq="5M",
-            start_time="00:00:00",
-            end_time="16:00:00",
+            start_time=0,
+            end_time=160000,
             fields="")
 ```
 返回字段：
