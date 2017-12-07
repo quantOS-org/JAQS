@@ -107,7 +107,7 @@ def test_dtutil():
 
 
 def test_io():
-    folder_relative = 'output/test/test_file_io'
+    folder_relative = '../output/test/test_file_io'
     folder = jutil.join_relative_path(folder_relative)
     fp = jutil.join_relative_path(folder_relative+'/file.postfix')
     
