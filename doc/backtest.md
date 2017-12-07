@@ -554,7 +554,7 @@ def init_from_config(self, props):
     self.spreadList = np.zeros(self.bufferSize)
 ```
 ##### 3. 策略实现
-策略的主体部分在on_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择每日调仓，所以会在每天调用on_bar()函数。
 首先将两个合约的quote放入self.quote1和self.quote2中，并计算当天的spread
 ```python
 q1 = quote_dic.get(self.s1)
@@ -683,7 +683,7 @@ def initialize(self):
     self.low_list[-1] = df.low
 ```
 
-策略的主体部分在on_quote()函数中实现。因为我们选择分钟级回测，所以会在每分钟调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择分钟级回测，所以会在每分钟调用on_bar()函数。
 
 首先取到当日的quote，并计算过去$N$天的HH，HC，LC和LL，并据此计算Range和上下限Upper，Lower
 ```python
@@ -821,7 +821,7 @@ def init_from_config(self, props):
         self.activeReturnArray[s] = np.zeros(self.bufferSize)
 ```
 ##### 3. 策略实现
-策略的主体部分在on_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择每日调仓，所以会在每天调用on_bar()函数。
 首先将版块内所有股票的quote放入self.quotelist中，
 ```python
 self.quotelist = []

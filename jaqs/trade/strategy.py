@@ -702,7 +702,7 @@ class EventDrivenStrategy(Strategy):
         super(EventDrivenStrategy, self).__init__()
     
     @abstractmethod
-    def on_quote(self, quote):
+    def on_bar(self, quote):
         pass
     
     def on_tick(self, quote):

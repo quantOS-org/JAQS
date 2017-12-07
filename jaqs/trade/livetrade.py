@@ -281,7 +281,7 @@ class EventLiveTradeInstance(EventEngine):
 
         """
 
-        self.register(EVENT_TYPE.MARKET_DATA, self.on_quote)
+        self.register(EVENT_TYPE.MARKET_DATA, self.on_bar)
         
         self.register(EVENT_TYPE.TASK_STATUS_IND, self.on_task_status)
         self.register(EVENT_TYPE.ORDER_RSP, self.on_order_rsp)
@@ -291,7 +291,7 @@ class EventLiveTradeInstance(EventEngine):
         
         self.start(timer=False)
     
-    def on_quote(self, event):
+    def on_bar(self, event):
         quote_dic = event.dic['quote']
         quote = Quote.create_from_dict(quote_dic)
         self.ctx.strategy.on_tick(quote)

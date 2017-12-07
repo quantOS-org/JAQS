@@ -626,8 +626,8 @@ class EventBacktestInstance(BacktestInstance):
             self.on_after_market_close()
     
     def _process_quote_daily(self, quote_yesterday, quote_today):
-        # on_quote
-        self.ctx.strategy.on_quote(quote_yesterday)
+        # on_bar
+        self.ctx.strategy.on_bar(quote_yesterday)
         
         self.ctx.trade_api.match_and_callback(quote_today, freq=self.bar_type)
         
@@ -678,8 +678,8 @@ class EventBacktestInstance(BacktestInstance):
             self.ctx.strategy.on_order_status(status_ind)
         '''
         
-        # on_quote
-        self.ctx.strategy.on_quote(quotes_dic)
+        # on_bar
+        self.ctx.strategy.on_bar(quotes_dic)
 
     '''
     def generate_report(self, output_format=""):

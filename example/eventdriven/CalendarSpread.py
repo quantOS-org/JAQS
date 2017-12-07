@@ -67,7 +67,7 @@ class CalendarSpread(EventDrivenStrategy):
         self.buy(quote2, quote2.close, 1)
         self.sell(quote1, quote1.close, 1)
     
-    def on_quote(self, quote):
+    def on_bar(self, quote):
     
         q1 = quote.get(self.s1)
         q2 = quote.get(self.s2)

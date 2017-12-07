@@ -120,12 +120,12 @@ df, msg = api.quote(
 
 使用示例：
 ```python
-def on_quote(k,v):
+def on_bar(k,v):
     print v['symbol'] // 标的代码
     print v['last'] // 最新成交价
     print v['time'] // 最新成交时间
 
-subs_list,msg = api.subscribe("000001.SH, cu1709.SHF",func=on_quote,fields="symbol,last,time,volume")
+subs_list,msg = api.subscribe("000001.SH, cu1709.SHF",func=on_bar,fields="symbol,last,time,volume")
 ```
 ## 日线查询 daily
 
