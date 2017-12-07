@@ -630,7 +630,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = weights
     
     def on_after_rebalance(self, total):
-        print("Before {} re-balance: available cash all (exclude suspensions) = {:9.4e}".format(self.ctx.trade_date, total))  # DEBUG
+        print("Before {} re-balance: available cash all = {:9.4e}".format(self.ctx.trade_date, total))  # DEBUG
         pass
     
     def send_bullets(self):
