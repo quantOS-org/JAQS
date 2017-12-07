@@ -37,12 +37,22 @@ class Report(object):
 
     def _update_env(self):
         """Define custom functions we use in HTML template."""
+        def cut_if_too_long(s, n):
+            if isinstance(s, str):
+                if len(s) > n:
+                    return s[:n]
+                else:
+                    return s
+            else:
+                return s
+        
         def round_if_float(x, n):
             if isinstance(x, float):
                 return round(x, n)
             else:
                 return x
         self.env.filters.update({'round_if_float': round_if_float})
+        self.env.filters.update({'cut_if_too_long': cut_if_too_long})
     
     def generate_html(self):
         self.html = self.template.render(self.dic)

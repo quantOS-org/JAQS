@@ -2,3 +2,41 @@ img {
     max-width: 80%;
     max-height: 80%;
 }
+body {
+    background-color: #FBFBFB !important;
+}
+table {
+    width: auto !important;
+}
+
+h2 {
+	margin: 3em 0 0.5em 0 !important;
+	padding: 5px 15px !important;
+	color: white !important;
+	background: #476EA1 !important;
+	border: 1px solid #fff !important;
+	border-radius: 0 10px 0 10px !important;
+}
+h3 {
+	margin: 1em 0 0.5em 0 !important;
+	padding: 5px 15px !important;
+}
+
+.right-bottom {
+  position: fixed;
+  right: 5em;
+  bottom: 1em;
+}
+
+#mytoc {
+  position: fixed;
+  right: 0;
+  top: 0;
+  background-color:#FFF;
+}
+
+#mytoc #full { display: none; } /* Hide the full TOC by default */
+
+#mytoc:hover #full{
+  display: block; /* Show it on hover */
+}

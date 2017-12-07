@@ -382,11 +382,12 @@ class BaseAnalyzer(object):
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
         years = (end - start).days / 365.0
     
-        self.performance_metrics['Annual Return'] = np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1
-        self.performance_metrics['Annual Volatility'] = (df_returns.loc[:, 'active'].std()
-                                                         * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
-        self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return']
-                                                    / self.performance_metrics['Annual Volatility'])
+        self.performance_metrics['Annual Return (%)'] =\
+            100 * (np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1)
+        self.performance_metrics['Annual Volatility (%)'] =\
+            100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
+        self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
+                                                    / self.performance_metrics['Annual Volatility (%)'])
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
     
@@ -464,7 +465,8 @@ class BaseAnalyzer(object):
         dic = dict()
         dic['html_title'] = "Alpha Strategy Backtest Result"
         dic['selected_securities'] = selected
-        dic['props'] = self.configs
+        # we do not want to show username / password in report
+        dic['props'] = {k: v for k, v in self.configs.items() if ('username' not in k and 'password' not in k)}
         dic['performance_metrics'] = self.performance_metrics
         dic['risk_metrics'] = self.risk_metrics
         dic['position_change'] = self.position_change
@@ -827,7 +829,7 @@ def plot_brinson(df, save_folder):
 
     """
     allo, selec, inter, total = df['allocation'], df['selection'], df['interaction'], df['total_active']
-    fig, ax1 = plt.subplots(1, 1, figsize=(21, 8), dpi=300)
+    fig, ax1 = plt.subplots(1, 1, figsize=(21, 8))
     
     idx0 = df.index
     idx = range(len(idx0))
@@ -875,43 +877,50 @@ def calc_avg_pos_price(pos_arr, price_arr):
     return avg_price
 
 
-def plot_trades(df, symbol="", save_folder='.'):
+def plot_trades(df, symbol="", save_folder='.', marker_size_adjust_ratio=0.1):
+    old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
+    mpl.rcParams.update(MPL_RCPARAMS)
+
     idx0 = df.index
     idx = range(len(idx0))
     price = df.loc[:, 'close']
     bv, sv = df.loc[:, 'BuyVolume'].values, df.loc[:, 'SellVolume'].values
     profit = df.loc[:, 'CumProfit'].values
     avgpx = df.loc[:, 'AvgPosPrice']
-    bv *= .05
-    sv *= .05
     
-    fig = plt.figure(figsize=(14, 10), dpi=300)
+    bv_m = np.max(bv)
+    sv_m = np.max(sv)
+    if bv_m > 0:
+        bv = bv / bv_m * 100
+    if sv_m > 0:
+        sv = sv / sv_m * 100
+    
+    fig = plt.figure(figsize=(14, 10))
     ax1 = plt.subplot2grid((4, 1), (0, 0), rowspan=3)
     ax3 = plt.subplot2grid((4, 1), (3, 0), rowspan=1, sharex=ax1)
     
-    # fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(16, 18), sharex=True)
-    # fig, ax1 = plt.subplots(1, 1, figsize=(16, 6))
     ax2 = ax1.twinx()
     
     ax1.plot(idx, price, label='Price', linestyle='-', lw=1, marker='', color='yellow')
-    ax1.scatter(idx, price, label='buy', marker='o', s=bv, color='red')
-    ax1.scatter(idx, price, label='sell', marker='o', s=sv, color='green')
+    ax1.scatter(idx, price, label='buy', marker='o', s=bv, color='indianred')
+    ax1.scatter(idx, price, label='sell', marker='o', s=sv, color='forestgreen')
     ax1.plot(idx, avgpx, lw=1, marker='', color='green')
     ax1.legend(loc='upper left')
+    ax1.set(title="Price, Trades and PnL for {:s}".format(symbol), ylabel="Price ($)")
+    ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m'))
     
     ax2.plot(idx, profit, label='PnL', color='k', lw=1, ls='--', alpha=.4)
     ax2.legend(loc='upper right')
+    ax2.set(ylabel="Profit / Loss ($)")
     
     # ax1.xaxis.set_major_formatter(MyFormatter(df.index))#, '%H:%M'))
     
     ax3.plot(idx, df.loc[:, 'position'], marker='D', markersize=3, lw=2)
-    ax3.axhline(0, color='k', lw=1)
+    ax3.axhline(0, color='k', lw=1, ls='--', alpha=0.8)
+    ax3.set(title="Position of {:s}".format(symbol))
     
-    ax1.set_title(symbol)
-    
-    ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m'))
-    
-    fig.savefig(save_folder + '/' + "{}.png".format(symbol))
-    plt.tight_layout()
-    return
+    fig.tight_layout()
+    fig.savefig(save_folder + '/' + "{}.png".format(symbol), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+
+    mpl.rcParams.update(old_mpl_rcparams)
 
