@@ -1,106 +1,217 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
+<html xmlns:right="http://www.w3.org/1999/xhtml">
+<head lang="en-us">
 
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<style>
-{% include 'github.css' %}
-{% include 'additional.css' %}
-</style>
 
-<title>{{ html_title }}</title>
+    <title>{{ html_title }}</title>
+
+    <!-- Bootstrap CSS -->
+    <!-- <link rel="stylesheet" href="bootstrap/css/bootstrap.min.css" integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb" crossorigin="anonymous"> -->
+    <!-- add after bootstrap.min.css: bootstrap-toc -->
+    <!-- <link rel="stylesheet" href="bootstrap-toc/bootstrap-toc.css"> -->
+
+    <!-- In-document CSS -->
+    <style>
+        {% include 'bootstrap/css/bootstrap.min.css' %}
+        {% include 'bootstrap-toc/bootstrap-toc.min.css' %}
+        {% include 'additional.css' %}
+    </style>
+
 
 </head>
 
-<body>
+<body data-spy="scroll" data-target="#toc">
 
-<h2>Backtest Configs</h2>
+<div id="top"></div>
 
-<table border="1">
-<caption></caption>
-{% for key, value in props.items() %}
-<tr>
-  <td>{{key}}</td>
-  <td>{{value}}</td>
-</tr>
-{% endfor %}
-</table>
+<!--
+<div id="mytoc">
+    Table of Contents
+    <div id="full">
+        <ul>
+            <li class=""><a href="#config">Usage</a>
+                <ul class="nav">
+                    <li class=""><a href="#via-data-attributes">Via data attributes</a></li>
+                    <li class=""><a href="#via-javascript">Via JavaScript</a></li>
+                </ul>
+            </li>
+            <li class=""><a href="#performance">Customization</a>
+                <ul class="nav">
+                    <li class=""><a href="#pmetric">Displayed text</a></li>
+                    <li class=""><a href="#rmetric">Skipping</a></li>
+                </ul>
+            </li>
+            <li class="active"><a href="#trading_holding">Layout</a></li>
+            <li><a href="#examples">Examples</a></li>
+            <li class=""><a href="#see-also">See also</a></li>
+        </ul>
+    </div>
+</div>
 
-<h2>PnL Curve & Performance Metrics</h2>
+-->
+<div class="container-fluid">
+    <div class="row">
+        <!-- Left page: main page -->
+        <div class="col-md-9" role="main">
+            <!-- Configs Table -->
+            <h2 id="config">Backtest Configs</h2>
+            <p>This is the configs your backtesting used.</p>
 
-<img src="pnl_img.png">
+            <table class="table table-striped">
+                <caption>This data stored in <code>Analyzer.configs</code></caption>
+                <thead>
+                <tr>
+                    <th scope="col">Config Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for key, value in props.items() %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | cut_if_too_long(50) }}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
 
-<h2> Strategy Performance </h2>
-<h3> Strategy Performance Metrics (In terms of active return, risk free rate equals zero)</h3>
-<table border="1">
-<caption></caption>
-{% for key, value in performance_metrics.items() %}
-<tr>
-  <td>{{key}}</td>
-  <td>{{value | round_if_float(3) }}</td>
-</tr>
-{% endfor %}
-</table>
+            <!-- Absolute and Excess Return Image -->
+            <h2 id="performance">PnL Curve & Performance Metrics</h2>
 
-<h3> Strategy Risk Metrics </h3>
-<table border="1">
-  <caption></caption>
-  {% for key, value in risk_metrics.items() %}
-  <tr>
-    <td>{{key}}</td>
-    <td>{{value | round_if_float(3) }}</td>
-  </tr>
-  {% endfor %}
-</table>
+            <img src="pnl_img.png" class="img-fluid" alt="Responsive Image">
+            <p>This data is stored in <code>Analyzer.df_returns</code></p>
 
-{% if df_brinson is defined %}
-<h2>Brinson Attribution</h2>
+            <h3 id="pmetric"> Strategy Performance Metrics </h3>
+            <p>These are calculated using ACTIVE return of your portfolio. When calculating sharpe ratio, risk-free rate is assumed to be 0.</p>
 
-<img src="brinson_attribution.png">
+            <table class="table table-striped">
+                <caption>This data is stored in <code>Analyzer.performance_metrics</code></caption>
+                <thead>
+                <tr>
+                    <th scope="col">Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                {% for key, value in performance_metrics.items() %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | round_if_float(1) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
 
-{% endif %}
+            <h3 id="rmetric"> Strategy Risk Metrics </h3>
+            <table class="table table-striped">
+                <caption>This data is stored in <code>Analyzer.risk_metrics</code></caption>
+                <thead class="thead-light">
+                <tr>
+                    <th scope="col">Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                {% for key, value in risk_metrics.items() %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | round_if_float(3) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
 
-<!-- Selected Assets Investigation -->
-{% if selected_securities|length > 0 %}
-<h2>Visualization for Selected Security </h2>
-{% for symbol in selected_securities %}
-  <img src="{{symbol}}.png">
-{% endfor %}
+            <!-- Trading & Holding PnL -->
+            <h2 id="trading_holding">Daily Trading & Holding PnL</h2>
+            <p>
+                Trading PnL = (close price - fill price) * position change
+                <br>
+                Holding PnL = (close price - pre-close price) * initial position
+            </p>
 
-<h2>Daily PnL for Selected Security</h2>
-{% for symbol in selected_securities %}
+            <img src="pnl_img_trading_holding.png" class="img-fluid" alt="Responsive Image">
+            <p>This data is stored in <code>Analyzer.df_pnl</code></p>
 
-<span> {{ symbol }} </span>
-<br>
-{{ df_daily[symbol].to_html() }}
-<br>
+            {% if df_brinson is defined %}
+            <h2 id="brinson">Brinson Attribution</h2>
 
-{% endfor %}
+            <img src="brinson_attribution.png" class="img-fluid" alt="Responsive Image">
+            <p>This data is stored in <code>Analyzer.df_brinson</code></p>
 
-{% endif %}
+            {% endif %}
 
-<!-- Daily Position -->
-{% if daily_position is not none %}
-  <h2> Table of Daily Position </h2>
-  {{ daily_position.to_html() }}
-{% endif %}
+            <!-- Selected Assets Investigation -->
+            {% if selected_securities|length > 0 %}
+            <h2 id="symbol_pnl_img">Visualization for Selected Security </h2>
+            {% for symbol in selected_securities %}
+            <img src="{{symbol}}.png" class="img-fluid" alt="Responsive Image">
+            {% endfor %}
 
-<!-- Position Changes -->
-{% if position_change is not none %}
-<h2>Table of Records of Position Changes</h2>
-{% for date, df in position_change.items() %}
+            <h2 id="symbol_pnl_table">Daily PnL for Selected Security</h2>
+            {% for symbol in selected_securities %}
 
-<span>{{ date }}</span>
-<br>
-market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k,
-cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
-<br>
-{{ df.to_html() }}
+            <span> {{ symbol }} </span>
+            <br>
+            {{ df_daily[symbol].to_html(classes="table table-striped", border=0) }}
+            <br>
 
-{% endfor %}
-{% endif %}
+            {% endfor %}
+
+            {% endif %}
+
+            <!-- Daily Position -->
+            {% if daily_position is not none %}
+            <h2 id="daily_position"> Table of Daily Position </h2>
+            {{ daily_position.to_html(classes="table table-striped", border=0) }}
+
+            <p>This data is stored in <code>Analyzer.daily_position</code></p>
+            {% endif %}
+
+            <!-- Position Changes -->
+            {% if position_change is not none %}
+            <h2 id="position_change">Table of Records of Position Changes</h2>
+            {% for date, df in position_change.items() %}
+
+            <span>{{ date }}</span>
+            <br>
+            market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k,
+            cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
+            <br>
+            {{ df.to_html(classes="table table-striped", border=0) }}
+
+            {% endfor %}
+
+            <p>This data is stored in <code>Analyzer.position_change</code></p>
+            {% endif %}
 
 
+        </div>
+        <!-- Right page: table of contents -->
+        <div class="col-md-3" role="complementary" style="margin: 3em 0 0 0">
+            <nav id="toc" data-spy="affix" data-toggle="toc" class="affix">
+                <p>Table of Contents</p>
+            </nav>
+            <div class="right-bottom">
+                <a class="btn btn-default btn-sm" href="#top" role="button">back to Top</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <!-- Placed at the end of the document so the pages load faster -->
+
+    <!-- Bootstrap JS -->
+    <!-- <script src="bootstrap/js/jquery.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script> -->
+    <!-- <script src="bootstrap/js/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script> -->
+    <!-- <script src="bootstrap/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script> -->
+    <script>
+            {% include 'bootstrap/js/jquery.slim.min.js' %}
+            {% include 'bootstrap/js/popper.min.js' %}
+            {% include 'bootstrap/js/bootstrap.min.js' %}
+            {% include 'bootstrap-toc/bootstrap-toc.min.js' %}
+        </script>
+
+    <!-- add after bootstrap.min.js: bootstrap-toc -->
+    <!-- <script src="bootstrap-toc/bootstrap-toc.min.js"></script> -->
 </body>
 </html>
