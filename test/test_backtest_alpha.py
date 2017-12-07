@@ -68,7 +68,6 @@ def test_backtest():
         
         "init_balance": 1e8,
         "position_ratio": 1.0,
-        "strategy_no": 44
     }
     props.update(data_config)
     props.update(trade_config)
