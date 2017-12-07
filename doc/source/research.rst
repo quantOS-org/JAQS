@@ -30,7 +30,7 @@
 
     my_period = 5
     obj = SignalDigger(output_folder='.', output_format='plot')
-    obj.process_factor_before_analysis(factor, price=price,
+    obj.process_signal_before_analysis(factor, price=price,
                                        mask=mask_all,
                                        n_quantiles=5, period=my_period,
                                        benchmark_price=price_bench,

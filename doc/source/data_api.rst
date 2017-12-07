@@ -20,8 +20,8 @@
 
 .. code:: python
 
-    api = DataApi()
-    api.login("demo", "666666") # 示例账户，用户需要改为自己注册的账户
+    api = DataApi(addr='tcp://data.tushare.org:8910')
+    api.login("phone", "token") 
 
 调用数据接口
 ~~~~~~~~~~~~
@@ -152,8 +152,8 @@
 
     df, msg = api.daily(
                     symbol="600832.SH, 600030.SH", 
-                    start_date="2012-10-26",
-                    end_date="2012-11-30", 
+                    start_date=20121026,
+                    end_date=20121130, 
                     fields="", 
                     adjust_mode="post")
 
@@ -184,8 +184,8 @@
                 symbol="600030.SH", 
                 trade_date=20170928, 
                 freq="5M",
-                start_time="00:00:00",
-                end_time="16:00:00",
+                start_time= 90000,
+                end_time= 160000,
                 fields="")
 
 结果示例(前5条记录)：
@@ -213,8 +213,8 @@
 
     df,msg = api.bar_quote(
                         symbol="000001.SH,cu1709.SHF",  
-                        start_time = "09:56:00", 
-                        end_time="13:56:00", 
+                        start_time = 95600, 
+                        end_time=135600, 
                         trade_date=20170823, 
                         freq= "5M",
                         fields="open,high,low,last,volume")
@@ -246,9 +246,9 @@
 .. code:: python
 
     df, msg = api.query(
-                    view="lb.instrumentInfo", 
+                    view="jz.instrumentInfo", 
                     fields="status,list_date, fullname_en, market", 
-                    filter="inst_type=&status=1&symbol=", 
+                    filter="inst_type=1&status=1&symbol=", 
                     data_format='pandas')
 
 结果示例(前5条记录)：
