@@ -37,8 +37,8 @@ class DoubleMaStrategy(EventDrivenStrategy):
         self.symbol = ''
 
         # 快线和慢线周期
-        self.fast_ma_len = 5
-        self.slow_ma_len = 15
+        self.fast_ma_len = 0
+        self.slow_ma_len = 0
         
         # 记录当前已经过的天数
         self.window_count = 0
@@ -68,6 +68,11 @@ class DoubleMaStrategy(EventDrivenStrategy):
 
         # 初始资金
         self.init_balance = props.get('init_balance')
+
+        # 快线和慢线均值
+        self.fast_ma_len = props.get('fast_ma_length')
+        self.slow_ma_len = props.get('slow_ma_length')
+
     
     def buy(self, quote, size=1):
         """
@@ -167,6 +172,8 @@ def run_strategy():
         props = {"symbol": '600519.SH',
                  "start_date": 20170101,
                  "end_date": 20171104,
+                 "fast_ma_length": 5,
+                 "slow_ma_length": 15,
                  "bar_type": "1d",  # '1d'
                  "init_balance": 50000}
 
@@ -178,6 +185,8 @@ def run_strategy():
         实盘/仿真模式
         """
         props = {'symbol': '600519.SH',
+                 "fast_ma_length": 5,
+                 "slow_ma_length": 15,
                  'strategy.no': 1062}
         tapi = RealTimeTradeApi(trade_config)
         ins = EventLiveTradeInstance()
