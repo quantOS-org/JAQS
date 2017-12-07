@@ -38,7 +38,7 @@
 在项目目录，验证TradeApi是否正常使用。
 
 ```python
-from TradeApi import TradeApi
+from TradeApi import TradeApi  # 这里假设项目目录名为TradeApi, 且存放在工作目录下
 
 api = TradeApi(addr="tcp://gw.quantos.org:8901")
 result, msg = api.login("username", "token") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
