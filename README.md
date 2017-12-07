@@ -36,7 +36,7 @@ pip install python_snappy-0.5.1-cp27-cp27m-win_amd64.whl
 from DataApi import DataApi  # 这里假设项目目录名为DataApi, 且存放在工作目录下
 
 api = DataApi(addr="tcp://data.tushare.org:8910")
-result, msg = api.login("username", "token") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
+result, msg = api.login("phone", "token") # 示例账户，用户需要改为自己在www.quantos.org上注册的账户
 print(result)
 print(msg)
 
