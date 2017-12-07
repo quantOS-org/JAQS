@@ -66,7 +66,7 @@ def save_json(serializable, file_name):
     create_dir(fn)
     
     with codecs.open(fn, 'w', encoding='utf-8') as f:
-        json.dump(serializable, f)
+        json.dump(serializable, f, separators=(',\n', ': '))
 
 
 def load_pickle(fp):
