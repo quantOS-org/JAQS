@@ -530,7 +530,13 @@ class EventAnalyzer(BaseAnalyzer):
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
                                                                    &(self.dataview.data_benchmark.index <= self.end_date)]
         else:
-            self.data_benchmark = pd.DataFrame(index=self.closes.index, columns=['bench'], data=np.ones(len(self.closes), dtype=float))
+            benchmark = self.configs.get('benchmark', "")
+            if benchmark and data_server_:
+                df, msg = data_server_.daily(benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
+                self.data_benchmark = df.set_index('trade_date').loc[:, ['close']]
+                self.data_benchmark.columns = ['bench']
+            else:
+                self.data_benchmark = pd.DataFrame(index=self.closes.index, columns=['bench'], data=np.ones(len(self.closes), dtype=float))
             
 
 class AlphaAnalyzer(BaseAnalyzer):
