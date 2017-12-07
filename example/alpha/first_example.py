@@ -10,19 +10,22 @@ from __future__ import print_function, unicode_literals, division, absolute_impo
 
 from jaqs.data import RemoteDataService, DataView
 
+import jaqs.util as jutil
+
 from jaqs.trade import model
-from jaqs.trade import AlphaStrategy, AlphaBacktestInstance, AlphaTradeApi, PortfolioManager
+from jaqs.trade import (AlphaStrategy, AlphaBacktestInstance, AlphaTradeApi,
+                        PortfolioManager, AlphaLiveTradeInstance, RealTimeTradeApi)
 import jaqs.trade.analyze as ana
 
 data_config = {
     "remote.data.address": "tcp://data.tushare.org:8910",
-    "remote.data.username": "YourTelephone",
-    "remote.data.password": "YourToken"
+    "remote.data.username": "17621969269",
+    "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTIwMjA0OTQwMzciLCJpc3MiOiJhdXRoMCIsImlkIjoiMTc2MjE5NjkyNjkifQ.WQvI9k6dvXe5zIzQwyuPI4BM0Py1OSYFENIQ3z0RG6c"
 }
 trade_config = {
     "remote.trade.address": "tcp://gw.quantos.org:8901",
-    "remote.trade.username": "YourTelephone",
-    "remote.trade.password": "YourToken"
+    "remote.trade.username": "17621969269",
+    "remote.trade.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTIwMjA0OTQwMzciLCJpc3MiOiJhdXRoMCIsImlkIjoiMTc2MjE5NjkyNjkifQ.WQvI9k6dvXe5zIzQwyuPI4BM0Py1OSYFENIQ3z0RG6c"
 }
 
 # Data files are stored in this folder:
@@ -101,6 +104,34 @@ def do_backtest():
     bt.save_results(folder_path=backtest_result_folder)
 
 
+def do_livetrade():
+    dv = DataView()
+    dv.load_dataview(folder_path=dataview_store_folder)
+    
+    props = {"period": "day",
+             "strategy_no": 1044,
+             "init_balance": 1e6}
+    props.update(data_config)
+    props.update(trade_config)
+    
+    strategy = AlphaStrategy(pc_method='market_value_weight')
+    pm = PortfolioManager()
+    
+    bt = AlphaLiveTradeInstance()
+    trade_api = RealTimeTradeApi(props)
+    ds = RemoteDataService()
+    
+    context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm, data_api=ds)
+    
+    bt.init_from_config(props)
+    bt.run_alpha()
+    
+    goal_positions = strategy.goal_positions
+    print("Length of goal positions:", len(goal_positions))
+    task_id, msg = trade_api.goal_portfolio(goal_positions)
+    print(task_id, msg)
+
+
 def analyze_backtest_results():
     # Analyzer help us calculate various trade statistics according to trade results.
     # All the calculation results will be stored as its members.
@@ -115,8 +146,12 @@ def analyze_backtest_results():
 
 
 if __name__ == "__main__":
-    save_data()
-    do_backtest()
-    analyze_backtest_results()
+    is_backtest = False
     
-
+    if is_backtest:
+        save_data()
+        do_backtest()
+        analyze_backtest_results()
+    else:
+        #save_data()
+        do_livetrade()
