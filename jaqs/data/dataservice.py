@@ -354,7 +354,8 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     
     @staticmethod
     def _raise_error_if_msg(err_msg):
-        if err_msg != '0,':
+        splited = err_msg.split(',')
+        if not (splited and (splited[0] == '0')):
             raise QueryDataError(err_msg)
     
     # -----------------------------------------------------------------------------------
