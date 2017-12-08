@@ -153,5 +153,5 @@ if __name__ == "__main__":
         do_backtest()
         analyze_backtest_results()
     else:
-        #save_data()
+        save_data()
         do_livetrade()
