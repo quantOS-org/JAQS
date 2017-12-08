@@ -347,9 +347,9 @@ def cum2ret(cum, period=1, axis=None, compound=False):
         raise ValueError("Minimum value of cumulative return is less than zero.")
     cum = cum.add(1.0)
     if compound:
-        ret = cum.pct_change(periods=period, **kwargs).fillna(0.0)
+        ret = cum.pct_change(periods=period, **kwargs)
     else:
-        ret = cum.diff(periods=period, **kwargs).fillna(0.0)
+        ret = cum.diff(periods=period, **kwargs)
     return ret
 
 

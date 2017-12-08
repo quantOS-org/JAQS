@@ -2,6 +2,8 @@
 
 from __future__ import print_function
 import os
+from collections import OrderedDict
+
 import numpy as np
 import pandas as pd
 
@@ -43,7 +45,8 @@ class SignalDigger(object):
     def process_signal_before_analysis(self,
                                        signal, price=None, ret=None, benchmark_price=None,
                                        period=5, n_quantiles=5,
-                                       mask=None):
+                                       mask=None,
+                                       forward=False):
         """
         Prepare for signal analysis.
 
@@ -86,6 +89,7 @@ class SignalDigger(object):
         if not (n_quantiles > 0 and isinstance(n_quantiles, int)):
             raise ValueError("n_quantiles must be a positive integer. Input is: {}".format(n_quantiles))
         
+        # ensure inputs are aligned
         data = price if price is not None else ret
         assert np.all(signal.index == data.index)
         assert np.all(signal.columns == data.columns)
@@ -93,7 +97,7 @@ class SignalDigger(object):
             assert np.all(signal.index == mask.index)
             assert np.all(signal.columns == mask.columns)
             mask = jutil.fillinf(mask)
-            mask = mask.astype(int).fillna(0).astype(bool)
+            mask = mask.astype(int).fillna(0).astype(bool)  # dtype of mask could be float. So we need to convert.
         else:
             mask = pd.DataFrame(index=signal.index, columns=signal.columns, data=False)
         signal = jutil.fillinf(signal)
@@ -105,32 +109,42 @@ class SignalDigger(object):
         self.period = period
 
         # ----------------------------------------------------------------------
-        # fwd_returns are processed forward returns
-        signal = signal.shift(self.period)
-        
+        # Get dependent variables
         if price is not None:
-            df_return = pfm.price2ret(price, self.period)
+            df_ret = pfm.price2ret(price, period=self.period, axis=0)
             if benchmark_price is not None:
                 benchmark_price = benchmark_price.loc[signal.index]
                 bench_ret = pfm.price2ret(benchmark_price, self.period, axis=0)
                 self.benchmark_ret = bench_ret
-                df_return = df_return.sub(bench_ret.values.flatten(), axis=0)
+                residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
         else:
-            df_return = ret
+            residual_ret = ret
+        
+        # Get independent varibale
+        signal = signal.shift(1)  # avoid forward-looking bias
+
+        # forward or not
+        if forward:
+            # point-in-time signal and forward return
+            residual_ret = residual_ret.shift(-self.period)
+        else:
+            # past signal and point-in-time return
+            signal = signal.shift(self.period)
 
         # ----------------------------------------------------------------------
         # get masks
-        mask_prices = data.isnull()
+        # mask_prices = data.isnull()
         # Because we use FORWARD return, if one day's price is broken, the day that is <period> days ago is also broken.
-        mask_prices = np.logical_or(mask_prices, mask_prices.shift(self.period).fillna(True))
+        # mask_prices = np.logical_or(mask_prices, mask_prices.shift(self.period))
+        mask_price_return = residual_ret.isnull()
         mask_signal = signal.isnull()
 
-        mask = np.logical_or(mask, mask_prices)
-        mask = np.logical_or(mask, mask_signal)
+        mask = np.logical_or(mask_signal, mask_price_return)
+        # mask = np.logical_or(mask, mask_signal)
 
-        if price is not None:
-            mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
-            mask = np.logical_or(mask, mask_forward)
+        # if price is not None:
+        #     mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
+        #     mask = np.logical_or(mask, mask_forward)
 
         # ----------------------------------------------------------------------
         # calculate quantile
@@ -152,13 +166,13 @@ class SignalDigger(object):
         
         mask = stack_td_symbol(mask)
         df_quantile = stack_td_symbol(df_quantile)
-        df_return = stack_td_symbol(df_return)
+        residual_ret = stack_td_symbol(residual_ret)
 
         # ----------------------------------------------------------------------
         # concat signal value
         res = stack_td_symbol(signal)
         res.columns = ['signal']
-        res['return'] = df_return
+        res['return'] = residual_ret
         res['quantile'] = df_quantile
         res = res.loc[~(mask.iloc[:, 0]), :]
         
@@ -313,119 +327,117 @@ class SignalDigger(object):
         self.ic_report_data = {'daily_ic': ic,
                                'monthly_ic': monthly_ic}
     
-    '''
-    def OLS_create_binary_event_report(self, before, after):
+    def create_binary_event_report(self, signal, price, mask, benchmark_price, periods,
+                                   join_method_periods='inner', group_by=None):
         """
         
         Parameters
         ----------
-        before : int
-        after : int
+        signal : pd.DataFrame
+        price : pd.DataFrame
+        mask : pd.DataFrame
+        benchmark_price : pd.DataFrame
+        periods : list of int
+        join_method_periods : {'inner', 'outer'}.
+            Whether to take intersection or union of data of different periods.
+        group_by : {'year', 'month', None}
+            Calculate various statistics within each year/month/whole sample.
 
         Returns
         -------
+        res : dict
 
         """
-        event = self.signal_data['signal']
-        ret = self.signal_data['return']
-        
-        event = event.unstack('symbol')
-        ret = ret.unstack('symbol')
-        event = event.astype(bool)
-        
-        index_len = event.shape[0]
-        l = []
-        idx = range(-before, after+1)
-        for day_zero_index in range(before, index_len - after):
-            date = event.index[day_zero_index]
-            row = event.iloc[day_zero_index, :]
-            
-            equities_slice = row.values
-            if not any(equities_slice):
-                continue
-            
-            starting_index = day_zero_index - before
-            ending_index = day_zero_index + after
-            
-            ser_events = ret.iloc[starting_index: ending_index + 1, equities_slice]
-            ser_events.index = idx
-    
-            l.append(ser_events)
-        
-        res = pd.concat(l, axis=1)
-        res = pfm.ret2cum(res, compound=False, axis=0)
-        res = res - res.loc[0, :]
-        
-        return res.mean(axis=1), res.std(axis=1)
-    
-    '''
-    
-    def create_binary_event_report(self, signal, price, mask, benchmark_price, periods):
         import scipy.stats as scst
-        
-        dic_signal_data = dict()
+
+        # Raw Data
+        dic_signal_data = OrderedDict()
         for my_period in periods:
             self.process_signal_before_analysis(signal, price=price, mask=mask,
                                                 n_quantiles=1, period=my_period,
-                                                benchmark_price=benchmark_price)
+                                                benchmark_price=benchmark_price,
+                                                forward=True)
             dic_signal_data[my_period] = self.signal_data
-
-        # analyze ret: annualized
-        '''
-        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
-        res = pd.concat(dic_ret, axis=1, join='outer')
-
-        mask = dic_signal_data[20]['signal'].astype(bool)
-        res = res.loc[mask[mask].index, :]
-        '''
-        df_res = pd.DataFrame(index=periods, columns=['Annual Return', 'Annual Volatility', 't-stat', 'p-value', 'skewness', 'kurtosis'], data=np.nan)
-        dic_res = dict()
+        
+        # Processed Data
+        dic_events = OrderedDict()
+        dic_all = OrderedDict()
         for period, df in dic_signal_data.items():
             ser_ret = df['return']
             ser_sig = df['signal'].astype(bool)
             events_ret = ser_ret.loc[ser_sig]
-            
-            ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / period)
-            annual_ret, annual_vol = events_ret.mean() * ratio, events_ret.std() * np.sqrt(ratio)
-            
-            n_all = len(ser_ret)
-            n_events = len(events_ret)
-            print("For period={}, Probability of event = {:.1f}%".format(period, n_events * 100. / n_all))
-            
-            t_stat, p_value = scst.ttest_1samp(events_ret, 0)
-            df_res.loc[period, ['t-stat']] = t_stat
-            df_res.loc[period, ['p-value']] = round(p_value, 5)
-            df_res.loc[period, "skewness"] = scst.skew(events_ret)
-            df_res.loc[period, "kurtosis"] = scst.kurtosis(events_ret)
-            df_res.loc[period, ['Annual Return']] = annual_ret
-            df_res.loc[period, ['Annual Volatility']] = annual_vol
-            dic_res[period] = events_ret
-            
-            # print(events_ret.sort_values().tail())
+            dic_events[period] = events_ret
+            dic_all[period] = ser_ret
+        df_events = pd.concat(dic_events, axis=1, join=join_method_periods)
+        df_all = pd.concat(dic_all, axis=1, join=join_method_periods)
 
-        '''
-        dic_ret = {k: v['return'] * (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / k) for k, v in dic_signal_data.items()}
-        dic_ret['signal'] = dic_signal_data[my_period]['signal'].astype(bool)
-        res = pd.concat(dic_ret, axis=1, join='inner')
-        mask = res['signal']
-        res = res.loc[mask[mask].index, :]
-        print(res.shape)
-        mean, std = res.loc[:, periods].mean(axis=0), res.loc[:, periods].std(axis=0)
-        
-        '''
-        print(df_res)
+        # Data Statistics
+        def _calc_statistics(df):
+            df_res = pd.DataFrame(index=periods,
+                                  columns=['Annu. Ret.', 'Annu. Vol.',
+                                           #'Annual Return (all sample)', 'Annual Volatility (all sample)',
+                                           't-stat', 'p-value', 'skewness', 'kurtosis', 'occurance'],
+                                  data=np.nan)
+            df_res.index.name = 'Period'
+            
+            ser_periods = pd.Series(index=df.columns, data=df.columns.values)
+            ratio = (1.0 * common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR / ser_periods)
+            mean = df.mean(axis=0)
+            std = df.std(axis=0)
+            annual_ret, annual_vol = mean * ratio, std * np.sqrt(ratio)
+            
+            t_stats, p_values = scst.ttest_1samp(df.values, np.zeros(df.shape[1]), axis=0)
+            df_res.loc[:, 't-stat'] = t_stats
+            df_res.loc[:, 'p-value'] = np.round(p_values, 5)
+            df_res.loc[:, "skewness"] = scst.skew(df, axis=0)
+            df_res.loc[:, "kurtosis"] = scst.kurtosis(df, axis=0)
+            df_res.loc[:, 'Annu. Ret.'] = annual_ret
+            df_res.loc[:, 'Annu. Vol.'] = annual_vol
+            df_res.loc[:, 'occurance'] = len(df)
+            # dic_res[period] = df
+            return df_res
+
+        if group_by == 'year':
+            grouper_func = get_year
+        elif group_by == 'month':
+            grouper_func = get_month
+        else:
+            grouper_func = get_dummy_grouper
+
+        idx_group = grouper_func(df_events.index.get_level_values('trade_date'))
+        df_stats = df_events.groupby(idx_group).apply(_calc_statistics)
+        idx_group_all = grouper_func(df_all.index.get_level_values('trade_date'))
+        df_all_stats = df_all.groupby(idx_group_all).apply(_calc_statistics)
+        df_all_stats = df_all_stats.loc[df_stats.index, ['Annu. Ret.', 'Annu. Vol.']]
+        df_all_stats.columns = ['Annu. Ret. (all samp)', 'Annu. Vol. (all samp)']
+        df_stats = pd.concat([df_stats, df_all_stats], axis=1)
+
+        # return df_all, df_events, df_stats
+        ser_signal_raw, monthly_signal, yearly_signal = calc_calendar_distribution(signal)
 
         # return
         # plot
-        gf = plotting.GridFigure(rows=len(periods) + 1, cols=2, height_ratio=1.2)
+        gf = plotting.GridFigure(rows=len(np.unique(idx_group)) * len(periods) + 3, cols=2, height_ratio=1.2)
         gf.fig.suptitle("Event Return Analysis (annualized)")
 
-        plotting.plot_event_bar(df_res['Annual Return'], ax=gf.next_row())
-        plotting.plot_event_dist(dic_res, axs=[gf.next_cell() for _ in periods])
+        plotting.plot_calendar_distribution(ser_signal_raw,
+                                            monthly_signal=monthly_signal, yearly_signal=yearly_signal,
+                                            ax1=gf.next_row(), ax2=gf.next_row())
+        plotting.plot_event_bar(df_stats.reset_index(), x='Period', y='Annu. Ret.', hue='trade_date', ax=gf.next_row())
+        # plotting.plot_event_pvalue(df_stats['p-value'], ax=gf.next_subrow())
+        
+        def _plot_dist(df):
+            date = grouper_func(df.index.get_level_values('trade_date'))[0]
+            plotting.plot_event_dist(df, group_by.title() + ' ' + str(date), axs=[gf.next_cell() for _ in periods])
+        if group_by is not None:
+            df_events.groupby(idx_group).apply(_plot_dist)
+        else:
+            plotting.plot_event_dist(df_events, "", axs=[gf.next_cell() for _ in periods])
         
         self.show_fig(gf.fig, 'event_report')
 
-        return dic_res
+        # dic_res['df_res'] = df_res
+        return df_all, df_events, df_stats
         
     @plotting.customize
     def create_full_report(self):
@@ -455,3 +467,49 @@ def calc_quantile_stats_table(signal_data):
     quantile_stats = signal_data.groupby('quantile').agg(['min', 'max', 'mean', 'std', 'count'])['signal']
     quantile_stats['count %'] = quantile_stats['count'] / quantile_stats['count'].sum() * 100.
     return quantile_stats
+
+
+def get_month(ser):
+    # ser = pd.Series(ser)
+    res = ser % 10000 // 100
+    MONTH_MAP = {1: 'Jan',
+                 2: 'Feb',
+                 3: 'Mar',
+                 4: 'Apr',
+                 5: 'May',
+                 6: 'Jun',
+                 7: 'Jul',
+                 8: 'Aug',
+                 9: 'Sep',
+                 10: 'Oct',
+                 11: 'Nov',
+                 12: 'Dec'}
+    # res = res.replace(MONTH_MAP)
+    return res
+
+
+def get_year(ser):
+    return ser // 10000
+
+
+def get_dummy_grouper(ser):
+    res = pd.Index(np.array(['all_sample'] * len(ser)), name=ser.name)
+    return res
+    
+    
+def calc_calendar_distribution(df_signal):
+    daily_signal = df_signal.sum(axis=1)
+    daily_signal = daily_signal.fillna(0).astype(int)
+    idx = daily_signal.index.values
+    month = get_month(idx)
+    year = get_year(idx)
+    
+    monthly_signal = daily_signal.groupby(by=month).sum()
+    yearly_signal = daily_signal.groupby(by=year).sum()
+    
+    monthly_signal = pd.DataFrame(monthly_signal, columns=['Time'])
+    yearly_signal = pd.DataFrame(yearly_signal, columns=['Time'])
+    monthly_signal.index.name = 'Month'
+    yearly_signal.index.name = 'Year'
+    
+    return daily_signal, monthly_signal, yearly_signal
