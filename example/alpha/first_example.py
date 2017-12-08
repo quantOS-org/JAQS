@@ -19,13 +19,13 @@ import jaqs.trade.analyze as ana
 
 data_config = {
     "remote.data.address": "tcp://data.tushare.org:8910",
-    "remote.data.username": "17621969269",
-    "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTIwMjA0OTQwMzciLCJpc3MiOiJhdXRoMCIsImlkIjoiMTc2MjE5NjkyNjkifQ.WQvI9k6dvXe5zIzQwyuPI4BM0Py1OSYFENIQ3z0RG6c"
+    "remote.data.username": "YourTelephone",
+    "remote.data.password": "YourToken"
 }
 trade_config = {
     "remote.trade.address": "tcp://gw.quantos.org:8901",
-    "remote.trade.username": "17621969269",
-    "remote.trade.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTIwMjA0OTQwMzciLCJpc3MiOiJhdXRoMCIsImlkIjoiMTc2MjE5NjkyNjkifQ.WQvI9k6dvXe5zIzQwyuPI4BM0Py1OSYFENIQ3z0RG6c"
+    "remote.trade.username": "YourTelephone",
+    "remote.trade.password": "YourToken"
 }
 
 # Data files are stored in this folder:
