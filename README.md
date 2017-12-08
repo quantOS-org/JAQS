@@ -6,13 +6,11 @@
 
 ## 1、安装Python环境
 
-如果本地还没有安装Python环境，强烈建议安装 [Anaconda](http://www.continuum.io/downloads "Anaconda")。
-
-打开上面的网址，选择相应的操作系统，确定要安装的Python版本。
+如果本地还没有安装Python环境，强烈建议安装Anaconda（Python的集成开发环境，包含众多常用包，且易于安装，避免不必要的麻烦）。打开[Anaconda官网](http://www.continuum.io/downloads)，选择相应的操作系统，确定要安装的Python版本，进行下载。
 
 下载完成以后，按照图形界面步骤完成安装。在默认情况下，Anaconda会自动设置PATH环境。
 
-更详细的Anaconda安装指南，参见[安装Python环境](https://github.com/quantOS-org/JAQS/blob/master/doc/install.md#1安装python环境)
+***注***：如果安装过程遇到问题，或需要更详细的步骤，请参见[安装Anaconda Python环境教程](https://github.com/quantOS-org/JAQS/blob/master/doc/install.md#1安装python环境)
 
 ## 2、安装依赖包
 
