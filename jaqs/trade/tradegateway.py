@@ -215,7 +215,8 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
         print("\n{}@{} login...".format(username, address))
         user_info, msg = tapi.login(username, password)
         print("    Login msg: {:s}".format(msg))
-        print("    Login user info: {:s}\n".format(user_info))
+        print("    Login user info: ", repr(user_info))
+        print("")
         self._trade_api = tapi
 
         # event types and trade_api functions are one-to-one corresponded
