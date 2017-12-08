@@ -107,7 +107,7 @@ def extract_result(cr, data_format="", index_column=None, class_name=""):
     """
     
     err = _error_to_str(cr['error']) if 'error' in cr else None
-    if 'result' in cr:
+    if 'result' in cr and cr['result'] is not None:
         if data_format == "pandas":
             if index_column:
                 return (_to_dataframe(cr['result'], None, index_column), err)
