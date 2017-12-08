@@ -955,7 +955,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     
     def query_inst_info(self, symbol, inst_type="", fields=""):
         if inst_type == "":
-            inst_type = "1,2,3,4,5,101,102,103,104"
+            inst_type = "1,2,3,4,5,100,101,102,103,104"
         
         filter_argument = self._dic2url({'symbol': symbol,
                                          'inst_type': inst_type})

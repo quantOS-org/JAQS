@@ -197,6 +197,9 @@ def test_remote_data_service_inst_info():
     assert abs(res.at[sec, 'pricetick'] - 0.01) < 1e-2
     assert res.at[sec, 'buylot'] == 100
 
+    res = ds.query_inst_info('000001.SH')
+    assert not res.empty
+
 
 def test_remote_data_service_index_weight():
     df = ds.get_index_weights(index='000300.SH', trade_date=20140101)
