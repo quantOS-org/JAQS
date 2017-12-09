@@ -19,12 +19,12 @@ import jaqs.trade.analyze as ana
 
 data_config = {
     "remote.data.address": "tcp://data.tushare.org:8910",
-    "remote.data.username": "YourTelephone",
+    "remote.data.username": "YourTelephoneNumber",
     "remote.data.password": "YourToken"
 }
 trade_config = {
     "remote.trade.address": "tcp://gw.quantos.org:8901",
-    "remote.trade.username": "YourTelephone",
+    "remote.trade.username": "YourTelephoneNumber",
     "remote.trade.password": "YourToken"
 }
 
@@ -146,7 +146,7 @@ def analyze_backtest_results():
 
 
 if __name__ == "__main__":
-    is_backtest = False
+    is_backtest = True
     
     if is_backtest:
         save_data()
