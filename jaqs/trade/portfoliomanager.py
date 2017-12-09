@@ -139,10 +139,6 @@ class PortfolioManager(object):
         return self.tasks.get(task_id, None)
 
     def init_positions(self):
-        query_account_res = self.ctx.trade_api.query_account()
-        if query_account_res is None:
-            return
-        
         df_acc, msg = self.ctx.trade_api.query_account()
         if not msg.split(',')[0] == '0':
             print(msg)
