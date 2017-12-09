@@ -163,7 +163,7 @@ def test_backtest():
 
 def test_livetrade():
     props = {'symbol': 'rb1801.SHF',
-             'strategy_no': 46}
+             'strategy_no': 1044}
     tapi = RealTimeTradeApi(trade_config)
     ins = EventLiveTradeInstance()
     

@@ -108,7 +108,7 @@ def test_livetrade():
         
         "init_balance": 1e8,
         "position_ratio": 1.0,
-        "strategy_no": 44
+        "strategy_no": 1044
     }
     props.update(data_config)
     props.update(trade_config)
