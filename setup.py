@@ -20,6 +20,10 @@ def read_install_requires():
     return res
 
 setup(
+    # Install data files specified in MANIFEST.in file.
+    include_package_data=True,
+    #package_data={'': ['*.json', '*.css', '*.html']},
+    # Package Information
     name='jaqs',
     url='https://github.com/quantOS-org/JAQS',
     version=ver,
@@ -47,7 +51,6 @@ setup(
     # install
     install_requires=read_install_requires(),
     packages=find_packages(),
-    package_data={'': ['*.json', '*.css', '*.html']},
     # author
     author='quantOS'
 )
