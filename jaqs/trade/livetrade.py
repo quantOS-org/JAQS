@@ -158,9 +158,11 @@ class AlphaLiveTradeInstance(object):
         univ = univ[['size', 'ref_price']]
         for d in goals_raw:
             symbol = d['symbol']
+            size = d['size']
             if symbol in univ.index:
-                univ.loc[symbol, 'size'] = d['size']
                 univ.loc[symbol, 'ref_price'] = self.univ_price_dic[symbol]['last']
+                if size > 0:
+                    univ.loc[symbol, 'size'] = size
         goals_valid = list(univ.reset_index().to_dict(orient='index').values())
         return goals_valid
     
