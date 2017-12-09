@@ -84,7 +84,7 @@ pip install jaqs
 
 ### 通过源代码安装
 #### 1. 下载源代码
-打开[项目的GitHub首页](https://github.com/quantOS-org/JAQS)，选择一个分支（Branch），再点击“Clone or Download”-“Download ZIP”即可下载。或者，也可以通过Git命令克隆：
+打开[项目的GitHub首页](https://github.com/quantOS-org/JAQS)，选择一个分支（稳定版为`release-x.x.x`，最新开发版为`master`），再点击“Clone or Download”-“Download ZIP”即可下载。或者，也可以通过Git命令克隆：
 ```shell
 git clone https://github.com/quantOS-org/jaqs.git
 ```
