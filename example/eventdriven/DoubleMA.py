@@ -42,14 +42,14 @@ class DoubleMaStrategy(EventDrivenStrategy):
         
         # 记录当前已经过的天数
         self.window_count = 0
-        self.window = self.slow_ma_len + 1
-
-        # 固定长度的价格序列
-        self.price_arr = np.zeros(self.window)
+        self.window = 0
 
         # 快线和慢线均值
         self.fast_ma = 0
         self.slow_ma = 0
+        
+        # 固定长度的价格序列
+        self.price_arr = None
 
         # 当前仓位
         self.pos = 0
@@ -72,8 +72,11 @@ class DoubleMaStrategy(EventDrivenStrategy):
         # 快线和慢线均值
         self.fast_ma_len = props.get('fast_ma_length')
         self.slow_ma_len = props.get('slow_ma_length')
+        self.window = self.slow_ma_len + 1
+        
+        # 固定长度的价格序列
+        self.price_arr = np.zeros(self.window)
 
-    
     def buy(self, quote, size=1):
         """
         这里传入的'quote'可以是:
