@@ -6,6 +6,7 @@ from collections import defaultdict
 
 from jaqs.data.basic import OrderStatusInd, Trade, Task, Order, Position, TradeStat
 from jaqs.trade import common
+import jaqs.trade
 
 
 class PortfolioManager(object):
@@ -46,7 +47,8 @@ class PortfolioManager(object):
     
     def init_from_config(self, props):
         self._hook_strategy()
-        self.init_positions()
+        if isinstance(self.ctx.trade_api, jaqs.trade.RealTimeTradeApi):
+            self.init_positions()
         
     def _hook_strategy(self):
         self.original_on_order_status = self.ctx.strategy.on_order_status
@@ -139,10 +141,6 @@ class PortfolioManager(object):
         return self.tasks.get(task_id, None)
 
     def init_positions(self):
-        query_account_res = self.ctx.trade_api.query_account()
-        if query_account_res is None:
-            return
-        
         df_acc, msg = self.ctx.trade_api.query_account()
         if not msg.split(',')[0] == '0':
             print(msg)
