@@ -1,5 +1,12 @@
 # encoding: utf-8
 
+from __future__ import unicode_literals
+from builtins import str
+try:
+    basestring
+except NameError:
+    basestring = str
+
 import numpy as np
 import pandas as pd
 import jaqs.util as jutil
@@ -141,7 +148,7 @@ class Context(object):
         """
         if isinstance(univ, list):
             self.universe = univ
-        elif isinstance(univ, str):
+        elif isinstance(univ, basestring):
             l = univ.split(',')
             l = [x for x in l if x]
             self.universe = l

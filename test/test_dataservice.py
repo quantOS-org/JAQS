@@ -85,7 +85,7 @@ def test_remote_data_service_lb():
 
 
 def test_remote_data_service_daily_ind_performance():
-    hs300 = ds.get_index_comp('000300.SH', 20140101, 20170101)
+    hs300 = ds.get_index_comp('000300.SH', 20151001, 20170101)
     hs300_str = ','.join(hs300)
     
     fields = "pb,pe,share_float_free,net_assets,limit_status"
@@ -109,7 +109,18 @@ def test_remote_data_service_industry():
     import pandas as pd
     
     arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
+    df = ds.get_industry_raw(symbol=','.join(arr), type_='SW')
     df = ds.get_industry_raw(symbol=','.join(arr), type_='ZZ')
+    
+    # errors
+    try:
+        ds.get_industry_raw(symbol=','.join(arr), type_='ZZ', level=5)
+    except ValueError:
+        pass
+    try:
+        ds.get_industry_raw(symbol=','.join(arr), type_='blabla')
+    except ValueError:
+        pass
     
     # df_ann = df.loc[:, ['in_date', 'symbol']]
     # df_ann = df_ann.set_index(['symbol', 'in_date'])
@@ -169,12 +180,14 @@ def test_remote_data_service_fin_indicator():
 
 
 def test_remote_data_service_adj_factor():
-    arr = ds.get_index_comp(index='000300.SH', start_date=20130101, end_date=20170505)
+    arr = ds.get_index_comp(index='000300.SH', start_date=20160101, end_date=20170505)
     symbol_arr = ','.join(arr)
     
-    res = ds.get_adj_factor_daily(symbol_arr, start_date=20130101, end_date=20170101, div=False)
+    res = ds.get_adj_factor_daily(symbol_arr, start_date=20160101, end_date=20170101, div=False)
     assert abs(res.loc[20160408, '300024.SZ'] - 10.735) < 1e-3
     assert abs(res.loc[20160412, '300024.SZ'] - 23.658) < 1e-3
+    
+    res = ds.get_adj_factor_daily(symbol_arr, start_date=20160101, end_date=20170101, div=True)
 
 
 def test_remote_data_service_inst_info():
@@ -183,6 +196,9 @@ def test_remote_data_service_inst_info():
     assert res.at[sec, 'multiplier'] == 1
     assert abs(res.at[sec, 'pricetick'] - 0.01) < 1e-2
     assert res.at[sec, 'buylot'] == 100
+
+    res = ds.query_inst_info('000001.SH')
+    assert not res.empty
 
 
 def test_remote_data_service_index_weight():
@@ -199,6 +215,72 @@ def test_remote_data_service_index_weight():
     df = ds.get_index_weights_daily(index='000300.SH', start_date=20150101, end_date=20151221)
     assert abs(df.at[20150120, '000001.SZ'] - 1.07e-2) < 1e-2
     assert df.shape == (236, 321)
+
+
+def test_remote_data_service_initialize():
+    import jaqs.data.dataservice as jads
+    data_config2 = {k: v for k, v in data_config.items()}
+    
+    data_config2['remote.data.password'] = ''
+    try:
+        ds.init_from_config(data_config2)
+    except jads.InitializeError:
+        pass
+    
+    data_config2['remote.data.password'] = '123'
+    msg = ds.init_from_config(data_config2)
+    assert msg.split(',')[0] == '-1000'
+    try:
+        ds.daily('000001.SH', start_date=20170101, end_date=20170109)
+    except jads.NotLoginError:
+        pass
+    
+    msg = ds.init_from_config(data_config)
+    assert msg.split(',')[0] == '0'
+    msg = ds.init_from_config(data_config)
+    assert msg.split(',')[0] == '0'
+    
+
+def test_remote_data_service_subscribe():
+    ds.subscribe('000001.SH')
+
+
+def test_remote_data_bar_quote():
+    df, msg = ds.bar_quote('000001.SZ', trade_date=20171009, freq='1M')
+    assert msg == '0,'
+    assert df['askvolume1'].all()
+    assert abs(df['bidprice1'].iat[1] - 11.52) < 1e-2
+    
+
+def test_remote_data_service_mkt_data_callback():
+    from jaqs.data.basic import Quote
+    q = Quote()
+    ds.mkt_data_callback(key='quote', quote=q)
+
+
+def test_calendar():
+    ds = RemoteDataService()
+    ds.init_from_config(data_config)
+    
+    res1 = ds.get_trade_date_range(20121224, 20130201)
+    assert len(res1) == 27
+    
+    day_zero = 20170102
+    res2 = ds.get_next_trade_date(day_zero)
+    assert res2 == 20170103
+    res2_last = ds.get_last_trade_date(res2)
+    assert res2_last == 20161230
+    
+    res3 = ds.get_next_trade_date(20170104)
+    assert res3 == 20170105
+    res4 = ds.get_last_trade_date(res3)
+    assert res4 == 20170104
+    
+    res11 = ds.get_trade_date_range(20161224, 20170201)
+    assert len(res11) == 23
+    
+    assert not ds.is_trade_date(20150101)
+    assert not ds.is_trade_date(20130501)
 
 
 '''

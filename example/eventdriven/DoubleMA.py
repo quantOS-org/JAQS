@@ -1,26 +1,28 @@
 # encoding: utf-8
 
-from __future__ import print_function
-from __future__ import absolute_import
+from __future__ import print_function, division, unicode_literals, absolute_import
+
 import time
 
 import numpy as np
 
-from jaqs.trade import common
-from jaqs.trade import EventDrivenStrategy
 from jaqs.data import RemoteDataService
 from jaqs.data.basic import Bar, Quote
-from jaqs.trade import model
-from jaqs.trade import EventLiveTradeInstance
-from jaqs.trade import EventBacktestInstance
-from jaqs.trade import RealTimeTradeApi, BacktestTradeApi
-from jaqs.trade import PortfolioManager
+from jaqs.trade import (model, EventLiveTradeInstance, EventBacktestInstance, RealTimeTradeApi,
+                        EventDrivenStrategy, BacktestTradeApi, PortfolioManager, common)
 import jaqs.trade.analyze as ana
 import jaqs.util as jutil
 
-from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH
-data_config = jutil.read_json(DATA_CONFIG_PATH)
-trade_config = jutil.read_json(TRADE_CONFIG_PATH)
+data_config = {
+  "remote.data.address": "tcp://data.tushare.org:8910",
+  "remote.data.username": "YourTelephone",
+  "remote.data.password": "YourToken"
+}
+trade_config = {
+  "remote.trade.address": "tcp://gw.quantos.org:8901",
+  "remote.trade.username": "YourTelephone",
+  "remote.trade.password": "YourToken"
+}
 
 result_dir_path = '../../output/double_ma'
 is_backtest = True
@@ -30,34 +32,67 @@ class DoubleMaStrategy(EventDrivenStrategy):
     """"""
     def __init__(self):
         super(DoubleMaStrategy, self).__init__()
+
+        # 标的
         self.symbol = ''
+
+        # 快线和慢线周期
+        self.fast_ma_len = 0
+        self.slow_ma_len = 0
         
-        self.fast_ma_len = 13
-        self.slow_ma_len = 23
-        
+        # 记录当前已经过的天数
         self.window_count = 0
-        self.window = self.slow_ma_len + 1
-        
-        self.price_arr = np.zeros(self.window)
+        self.window = 0
+
+        # 快线和慢线均值
         self.fast_ma = 0
         self.slow_ma = 0
-        self.pos = 0
         
+        # 固定长度的价格序列
+        self.price_arr = None
+
+        # 当前仓位
+        self.pos = 0
+
+        # 下单量乘数
         self.buy_size_unit = 1
         self.output = True
     
     def init_from_config(self, props):
+        """
+        将props中的用户设置读入
+        """
         super(DoubleMaStrategy, self).init_from_config(props)
+        # 标的
         self.symbol = props.get('symbol')
+
+        # 初始资金
         self.init_balance = props.get('init_balance')
-    
+
+        # 快线和慢线均值
+        self.fast_ma_len = props.get('fast_ma_length')
+        self.slow_ma_len = props.get('slow_ma_length')
+        self.window = self.slow_ma_len + 1
+        
+        # 固定长度的价格序列
+        self.price_arr = np.zeros(self.window)
+
     def buy(self, quote, size=1):
+        """
+        这里传入的'quote'可以是:
+            - Quote类型 (在实盘/仿真交易和tick级回测中，为tick数据)
+            - Bar类型 (在bar回测中，为分钟或日数据)
+        我们通过isinsance()函数判断quote是Quote类型还是Bar类型
+        """
         if isinstance(quote, Quote):
+            # 如果是Quote类型，ref_price为bidprice和askprice的均值
             ref_price = (quote.bidprice1 + quote.askprice1) / 2.0
         else:
+            # 否则为bar类型，ref_price为bar的收盘价
             ref_price = quote.close
             
-        task_id, msg = self.ctx.trade_api.place_order(quote.symbol, common.ORDER_ACTION.BUY, ref_price + 3, self.buy_size_unit * size)
+        task_id, msg = self.ctx.trade_api.place_order(quote.symbol, common.ORDER_ACTION.BUY, ref_price, self.buy_size_unit * size)
+
         if (task_id is None) or (task_id == 0):
             print("place_order FAILED! msg = {}".format(msg))
     
@@ -67,88 +102,95 @@ class DoubleMaStrategy(EventDrivenStrategy):
         else:
             ref_price = quote.close
     
-        task_id, msg = self.ctx.trade_api.place_order(quote.symbol, common.ORDER_ACTION.SHORT, ref_price - 3, self.buy_size_unit * size)
+        task_id, msg = self.ctx.trade_api.place_order(quote.symbol, common.ORDER_ACTION.SHORT, ref_price, self.buy_size_unit * size)
+
         if (task_id is None) or (task_id == 0):
             print("place_order FAILED! msg = {}".format(msg))
     
     """
-    `on_tick` accepts single Quote, while `on_quote` accepts
-    'on_tick' is used for real-time trading, while 'on_quote' is used for backtest
+    'on_tick' 接收单个quote变量，而'on_bar'接收多个quote组成的dictionary
+    'on_tick' 是在tick级回测和实盘/仿真交易中使用，而'on_bar'是在bar回测中使用
     """
     def on_tick(self, quote):
-        # 'quote' can be:
-        #     - Quote (at real-time trading, data comes as ticks)
-        #     - Bar (backtest on minutely or daily frequency)
-        # we use 'isinstance' to check whether 'quote' is Quote or Bar
+        pass
+
+    def on_bar(self, quote_dic):
+        """
+        这里传入的'quote'可以是:
+            - Quote类型 (在实盘/仿真交易和tick级回测中，为tick数据)
+            - Bar类型 (在bar回测中，为分钟或日数据)
+        我们通过isinsance()函数判断quote是Quote类型还是Bar类型
+        """
+        quote = quote_dic.get(self.symbol)
         if isinstance(quote, Quote):
+            # 如果是Quote类型，mid为bidprice和askprice的均值
             bid, ask = quote.bidprice1, quote.askprice1
             if bid > 0 and ask > 0:
                 mid = (quote.bidprice1 + quote.askprice1) / 2.0
             else:
-                # price reached high_limit or low_limit, we do not trade
+                # 如果当前价格达到涨停板或跌停板，系统不交易
                 return
         else:
+            # 如果是Bar类型，mid为Bar的close
             mid = quote.close
-        
+
+        # 将price_arr序列中的第一个值删除，并将当前mid放入序列末尾
         self.price_arr[0: self.window - 1] = self.price_arr[1: self.window]
         self.price_arr[-1] = mid
         self.window_count += 1
-    
+
         if self.window_count <= self.window:
             return
-    
+
+        # 计算当前的快线/慢线均值
         self.fast_ma = np.mean(self.price_arr[-self.fast_ma_len - 1:])
         self.slow_ma = np.mean(self.price_arr[-self.slow_ma_len - 1:])
-    
+
         print(quote)
         print("Fast MA = {:.2f}     Slow MA = {:.2f}".format(self.fast_ma, self.slow_ma))
+
+        # 交易逻辑：当快线向上穿越慢线且当前没有持仓，则买入100股；当快线向下穿越慢线且当前有持仓，则平仓
         if self.fast_ma > self.slow_ma:
             if self.pos == 0:
-                self.buy(quote, 1)
-        
-            elif self.pos < 0:
-                self.buy(quote, 2)
-    
-        elif self.fast_ma < self.slow_ma:
-            if self.pos == 0:
-                self.sell(quote, 1)
-            elif self.pos > 0:
-                self.sell(quote, 2)
+                self.buy(quote, 100)
 
-    def on_quote(self, quote_dic):
-        quote = quote_dic.get(self.symbol)
-        self.on_tick(quote)
+        elif self.fast_ma < self.slow_ma:
+            if self.pos > 0:
+                self.sell(quote, self.pos)
 
     def on_trade(self, ind):
+        """
+        交易完成后通过self.ctx.pm.get_pos得到最新仓位并更新self.pos
+        """
         print("\nStrategy on trade: ")
         print(ind)
         self.pos = self.ctx.pm.get_pos(self.symbol)
 
-    def on_order_status(self, ind):
-        if self.output:
-            print("\nStrategy on order status: ")
-            print(ind)
-
-    def on_task_status(self, ind):
-        if self.output:
-            print("\nStrategy on task ind: ")
-            print(ind)
-
 
 def run_strategy():
     if is_backtest:
-        props = {"symbol": "rb1710.SHF",
-                 "start_date": 20170510,
-                 "end_date": 20170930,
-                 "bar_type": "1M",  # '1d'
-                 "init_balance": 2e4}
+        """
+        回测模式
+        """
+        props = {"symbol": '600519.SH',
+                 "start_date": 20170101,
+                 "end_date": 20171104,
+                 "fast_ma_length": 5,
+                 "slow_ma_length": 15,
+                 "bar_type": "1d",  # '1d'
+                 "init_balance": 50000}
 
         tapi = BacktestTradeApi()
         ins = EventBacktestInstance()
         
     else:
-        props = {'symbol': 'rb1801.SHF',
-                 'strategy.no': 46}
+        """
+        实盘/仿真模式
+        """
+        props = {'symbol': '600519.SH',
+                 "fast_ma_length": 5,
+                 "slow_ma_length": 15,
+                 'strategy.no': 1062}
         tapi = RealTimeTradeApi(trade_config)
         ins = EventLiveTradeInstance()
 

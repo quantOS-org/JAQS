@@ -9,6 +9,7 @@ import pandas as pd
 from jaqs.trade.event import EventEngine, Event, EVENT_TYPE
 from jaqs.data.basic import Quote
 import jaqs.util as jutil
+from functools import reduce
 
 
 class AlphaLiveTradeInstance(object):
@@ -42,13 +43,7 @@ class AlphaLiveTradeInstance(object):
         props : dict
 
         """
-        for name in ['start_date', 'end_date']:
-            if name not in props:
-                raise ValueError("{} must be provided in props.".format(name))
-    
         self.props = props
-        self.start_date = props.get("start_date")
-        self.end_date = props.get("end_date")
     
         if 'symbol' in props:
             self.ctx.init_universe(props['symbol'])
@@ -148,11 +143,29 @@ class AlphaLiveTradeInstance(object):
         goals, cash_remain = self.ctx.strategy.generate_weights_order(self.ctx.strategy.weights,
                                                                       cash_to_use, prices_dic,
                                                                       suspensions=all_list)
-        self.ctx.strategy.goal_positions = goals
+        
+        self.ctx.strategy.goal_positions = self._to_valide_goals(goals)
         self.ctx.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()
         
         self.ctx.strategy.on_after_rebalance(cash_available + market_value_frozen)
+    
+    def _to_valide_goals(self, goals_raw):
+        univ, msg = self.ctx.trade_api.query_universe()
+        univ.loc[:, 'size'] = 0.0
+        univ.loc[:, 'ref_price'] = 0.0
+        univ = univ.set_index('security').sort_index(axis=0)
+        univ = univ[['size', 'ref_price']]
+        for d in goals_raw:
+            symbol = d['symbol']
+            size = d['size']
+            # TODO: better method needed
+            if symbol in univ.index and symbol in self.univ_price_dic:
+                univ.loc[symbol, 'ref_price'] = self.univ_price_dic[symbol]['last']
+                if size > 0:
+                    univ.loc[symbol, 'size'] = size
+        goals_valid = list(univ.reset_index().to_dict(orient='index').values())
+        return goals_valid
     
     @staticmethod
     def _get_current_date():
@@ -280,7 +293,7 @@ class EventLiveTradeInstance(EventEngine):
 
         """
 
-        self.register(EVENT_TYPE.MARKET_DATA, self.on_quote)
+        self.register(EVENT_TYPE.MARKET_DATA, self.on_bar)
         
         self.register(EVENT_TYPE.TASK_STATUS_IND, self.on_task_status)
         self.register(EVENT_TYPE.ORDER_RSP, self.on_order_rsp)
@@ -290,7 +303,7 @@ class EventLiveTradeInstance(EventEngine):
         
         self.start(timer=False)
     
-    def on_quote(self, event):
+    def on_bar(self, event):
         quote_dic = event.dic['quote']
         quote = Quote.create_from_dict(quote_dic)
         self.ctx.strategy.on_tick(quote)

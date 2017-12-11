@@ -13,7 +13,7 @@ def md2rst():
     for dir_path, dir_names, file_names in os.walk(input_dir):
         for fn in file_names:
             if fn.endswith('.md'):
-                print "Converting {:s}...".format(fn)
+                print("Converting {:s}...".format(fn))
                 
                 fn_pure = fn[:-2]
                 fn_md = join(input_dir, fn)

@@ -12,6 +12,7 @@ from time import sleep
 from collections import defaultdict
 
 # 第三方模块
+# TODO: add timer
 # from qtpy.QtCore import QTimer
 
 # 自己开发的模块
@@ -138,7 +139,8 @@ class EventEngine(object):
         self.__active = False
         
         # 停止计时器
-        self.__timer.stop()
+        if self.__timer:
+            self.__timer.stop()
         
         # 等待事件处理线程退出
         self.__thread.join()

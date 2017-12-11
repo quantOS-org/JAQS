@@ -1,6 +1,8 @@
 # encoding: UTF-8
 
 from __future__ import print_function
+import time
+
 from jaqs.trade.tradeapi import TradeApi
 import pandas as pd
 import jaqs.util as jutil
@@ -51,7 +53,7 @@ def test_trade_api():
     # 使用用户名、密码登陆， 如果成功，返回用户可用的策略帐号列表
     user_info, msg = tapi.login(username, password)
     print("msg: ", msg)
-    assert msg == '0,'
+    assert check_err_msg(msg)
     print("user_info:", user_info)
     user_strats = user_info['strategies']
 
@@ -64,15 +66,17 @@ def test_trade_api():
     # 否则返回 (0, err_msg)
     if user_strats:
         sid, msg = tapi.use_strategy(user_strats[0])
-        assert msg == '0,'
+        assert check_err_msg(msg)
         print("sid: ", sid)
+        time.sleep(1)
 
     # 查询Portfolio
     #
     # 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 
     df, msg = tapi.query_account()
-    assert msg == '0,'
+    print(msg)
+    assert check_err_msg(msg)
     print(df)
     
     # 查询当前策略帐号的所有持仓
@@ -80,7 +84,7 @@ def test_trade_api():
     # 和 query_portfolio接口不一样。如果莫个期货合约 Long, Short两个方向都有持仓，这里是返回两条记录
     # 返回的 size 不带方向，全部为 正
     df, msg = tapi.query_position()
-    assert msg == '0,'
+    assert check_err_msg(msg)
     print(df)
     
     # Query Universe
@@ -91,7 +95,7 @@ def test_trade_api():
     # 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 
     df_portfolio, msg = tapi.query_portfolio()
-    assert msg == '0,'
+    assert check_err_msg(msg)
     assert len(df_univ) == len(df_portfolio)
 
     # 下单接口
@@ -99,15 +103,19 @@ def test_trade_api():
     #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
     # 返回 task_id 可以用改 task_id
     task_id, msg = tapi.place_order("000718.SZ", "Buy", 57, 100)
-    assert msg == '0,'
+    if msg.endswith('market has closed'):
+        pass
+        task_id = -1
+    else:
+        assert check_err_msg(msg)
     print("task_id:", task_id)
     
     df_order, msg = tapi.query_order(task_id=task_id)
-    assert msg == '0,'
+    assert check_err_msg(msg)
     print(df_order)
     
     df_trade, msg = tapi.query_trade(task_id=task_id)
-    assert msg == '0,'
+    assert check_err_msg(msg)
     print(df_trade)
     
     # 批量下单1：place_batch_order
@@ -171,6 +179,11 @@ def test_trade_api():
     # 发送请求
     result, msg = tapi.goal_portfolio(goal)
     print(result, msg)
+
+
+def check_err_msg(err_msg):
+    l = err_msg.split(',')
+    return l and (l[0] == '0')
     
 if __name__ == "__main__":
     test_trade_api()

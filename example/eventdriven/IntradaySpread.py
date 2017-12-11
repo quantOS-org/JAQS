@@ -180,7 +180,7 @@ class SpreadStrategy(EventDrivenStrategy):
             elif diff < 0:
                 self.short_spread(-diff, n)
             
-    def on_quote(self, quote_dic):
+    def on_bar(self, quote_dic):
         self.spread_buffer.put(quote_dic)
         
         if self.ctx.time > 145500 and self.ctx.time < 200000:

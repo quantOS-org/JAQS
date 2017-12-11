@@ -9,8 +9,7 @@ class ReprEnum(Enum):
                                     self._name_)
     
     def __str__(self):
-        return "{0:s}_{1:s}".format(self.__class__.__name__,
-                                    self._name_)
+        return self.__repr__()
     
     @property
     def full_name(self):
@@ -133,17 +132,3 @@ class ORDER_TIME_IN_FORCE(ReprStrEnum):
 @unique
 class CALENDAR_CONST(ReprIntEnum):
     TRADE_DAYS_PER_YEAR = 242
-
-
-if __name__ == "__main__":
-    """What below are actually unit tests. """
-    
-    print("Running test...")
-    
-    assert QUOTE_TYPE.TICK == '0'
-    assert RUN_MODE.BACKTEST == 1
-    assert ORDER_ACTION.BUY == 'Buy'
-    assert ORDER_TYPE.MARKET == 'market'
-    assert ORDER_STATUS.FILLED == 'Filled'
-    
-    print("Test passed.")

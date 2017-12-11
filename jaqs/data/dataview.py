@@ -46,6 +46,7 @@ class DataView(object):
         
         self.universe = ""
         self.symbol = []
+        self.benchmark = ""
         self.start_date = 0
         self.extended_start_date_d = 0
         self.extended_start_date_q = 0
@@ -56,7 +57,7 @@ class DataView(object):
 
         self.meta_data_list = ['start_date', 'end_date',
                                'extended_start_date_d', 'extended_start_date_q',
-                               'freq', 'fields', 'symbol', 'universe',
+                               'freq', 'fields', 'symbol', 'universe', 'benchmark',
                                'custom_daily_fields', 'custom_quarterly_fields']
         self.adjust_mode = 'post'
         
@@ -428,6 +429,7 @@ class DataView(object):
         # initialize universe/symbol
         universe = props.get('universe', "")
         symbol = props.get('symbol', "")
+        benchmark = props.get('benchmark', '')
         if symbol and universe:
             raise ValueError("Please use either [symbol] or [universe].")
         if not (symbol or universe):
@@ -437,6 +439,10 @@ class DataView(object):
             self.symbol = sorted(data_api.get_index_comp(self.universe, self.extended_start_date_d, self.end_date))
         else:
             self.symbol = sorted(symbol.split(sep))
+        if benchmark:
+            self.benchmark = benchmark
+        else:
+            self.benchmark = self.universe
     
         print("Initialize config success.")
 
@@ -454,9 +460,10 @@ class DataView(object):
         print("Query adj_factor...")
         self._prepare_adj_factor()
     
-        if self.universe:
+        if self.benchmark:
             print("Query benchmark...")
             self._data_benchmark = self._prepare_benchmark()
+        if self.universe:
             print("Query benchmar member info...")
             self._prepare_comp_info()
     
@@ -917,12 +924,10 @@ class DataView(object):
             self.append_df(df, field, is_quarterly=False)
 
     def _prepare_benchmark(self):
-        df_bench, msg = self.data_api.daily(self.universe,
+        df_bench, msg = self.data_api.daily(self.benchmark,
                                             start_date=self.extended_start_date_d, end_date=self.end_date,
-                                            adjust_mode=self.adjust_mode, fields='trade_date,symbol,close,vwap,volume,turnover')
-        if msg != '0,':
-            raise ValueError("msg = '{:s}'".format(msg))
-        
+                                            adjust_mode=self.adjust_mode,
+                                            fields='trade_date,symbol,close,vwap,volume,turnover')
         # TODO: we want more than just close price of benchmark
         df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
         return df_bench
@@ -1125,7 +1130,7 @@ class DataView(object):
 
         """
         if isinstance(field_names, str):
-            field_names = [field_names]
+            field_names = field_names.split(',')
         elif isinstance(field_names, (list, tuple)):
             pass
         else:
@@ -1153,9 +1158,11 @@ class DataView(object):
             # remove fields name from list
             self.fields.remove(field_name)
             if is_quarterly:
-                self.custom_quarterly_fields.remove(field_name)
+                if field_name in self.custom_quarterly_fields:
+                    self.custom_quarterly_fields.remove(field_name)
             else:
-                self.custom_daily_fields.remove(field_name)
+                if field_name in self.custom_daily_fields:
+                    self.custom_daily_fields.remove(field_name)
 
     # --------------------------------------------------------------------------------------------------------
     # Get Data API

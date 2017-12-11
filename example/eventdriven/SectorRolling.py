@@ -69,7 +69,7 @@ class SectorRolling(EventDrivenStrategy):
     def sell(self, quote, price, size):
         self.ctx.trade_api.place_order(quote.symbol, 'Sell', price, size)
 
-    def on_quote(self, quote):
+    def on_bar(self, quote):
         # 1 is for stock, 2 is for convertible bond
         self.bufferCount += 1
         self.quotelist = []

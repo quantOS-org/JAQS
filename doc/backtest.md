@@ -1,106 +1,11 @@
 
 ## 回测
 
-这里回测指**基于权重调仓**的Alpha策略回测，支持自定义**选股**和自定义**信号**。
+JAQS支持**Alpha选股策略**和**事件驱动择时策略**，两种策略使用不同方法回测。
 
-### 回测&结果分析示例代码
+对于入门用户，推荐首先查看[快速入门](https://github.com/quantOS-org/quantOSUserGuide)，关于JAQS策略系统的介绍，见[这里](https://github.com/quantOS-org/quantOSUserGuide/blob/master/jaqs.md)。本文在以上教程的基础上，举出更多策略样例。
 
-处理：
-- 分红除息再投资
-- 退市清仓
-- 指数成分
-
-理念：
-不在`on_bar`中进行发单，而是给出选股条件(boolean series)和信号（float series）权重
-
-
-```python
-dv.add_formula('my_signal', 'Quantile(price_volume_divert, 5)', is_quarterly=False)
-```
-
-
-```python
-def my_singal(context, user_options=None):
-    res = -context.snapshot_sub.loc[:, 'price_volume_divert']
-    return res
-
-
-def test_alpha_strategy_dataview():
-##     dv = DataView()
-
-##     fullpath = '/home/bliu/pytrade_dir/ipynb/prepared/compare'
-##     dv.load_dataview(folder=fullpath)
-    
-    props = {
-        "benchmark": "000300.SH",
-        "universe": ','.join(dv.symbol),
-
-        "start_date": dv.start_date,
-        "end_date": dv.end_date,
-    
-        "period": "week",
-        "days_delay": 0,
-    
-        "init_balance": 1e8,
-        "position_ratio": 0.7,
-        'commission_rate': 0.0
-        }
-
-    trade_api = AlphaTradeApi()
-    bt = AlphaBacktestInstance()
-    
-    signal_model = model.FactorSignalModel()
-    stock_selector = model.StockSelector()
-    
-    signal_model.add_signal(name='my_factor', func=my_singal)
-    stock_selector.add_filter(name='total_profit_growth', func=my_selector)
-    stock_selector.add_filter(name='no_new_stocks', func=my_selector_no_new_stocks)
-    
-    strategy = AlphaStrategy(signal_model=signal_model, stock_selector=stock_selector,
-                             pc_method='factor_value_weight')
-    pm = PortfolioManager()
-
-    context = model.AlphaContext(dataview=dv, trade_api=trade_api,
-                                 instance=bt, strategy=strategy, pm=pm)
-    for mdl in [risk_model, signal_model, cost_model, stock_selector]:
-        mdl.register_context(context)
-
-    bt.init_from_config(props)
-
-    bt.run_alpha()
-    
-    bt.save_results(folder_path=backtest_result_dir_path)
-
-
-test_alpha_strategy_dataview()
-```
-
-```python
-
-def test_backtest_analyze():
-    ta = ana.AlphaAnalyzer()
-    dv = DataView()
-    dv.load_dataview(folder_path=dataview_dir_path)
-    
-    ta.initialize(dataview=dv, file_folder=backtest_result_dir_path)
-
-    ta.do_analyze(result_dir=backtest_result_dir_path, selected_sec=list(ta.universe)[:3])
-
-
-test_backtest_analyze()
-```
-
-    process trades...
-    get daily stats...
-    calc strategy return...
-    Plot strategy PnL...
-    generate report...
-    HTML report: /home/bliu/pytrade_dir/ipynb/output/jli/report.html
-
-
-
-![analyze](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/analyze.png)
-
+***注***：本文所用例子的完整代码见[这里](https://github.com/quantOS-org/JAQS/tree/master/example)，安装JAQS后即可直接运行。**请勿直接复制下方代码运行**。
 
 ### 格雷厄姆选股策略
 
@@ -554,7 +459,7 @@ def init_from_config(self, props):
     self.spreadList = np.zeros(self.bufferSize)
 ```
 ##### 3. 策略实现
-策略的主体部分在on_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择每日调仓，所以会在每天调用on_bar()函数。
 首先将两个合约的quote放入self.quote1和self.quote2中，并计算当天的spread
 ```python
 q1 = quote_dic.get(self.s1)
@@ -683,7 +588,7 @@ def initialize(self):
     self.low_list[-1] = df.low
 ```
 
-策略的主体部分在on_quote()函数中实现。因为我们选择分钟级回测，所以会在每分钟调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择分钟级回测，所以会在每分钟调用on_bar()函数。
 
 首先取到当日的quote，并计算过去$N$天的HH，HC，LC和LL，并据此计算Range和上下限Upper，Lower
 ```python
@@ -821,7 +726,7 @@ def init_from_config(self, props):
         self.activeReturnArray[s] = np.zeros(self.bufferSize)
 ```
 ##### 3. 策略实现
-策略的主体部分在on_quote()函数中实现。因为我们选择每日调仓，所以会在每天调用on_quote()函数。
+策略的主体部分在on_bar()函数中实现。因为我们选择每日调仓，所以会在每天调用on_bar()函数。
 首先将版块内所有股票的quote放入self.quotelist中，
 ```python
 self.quotelist = []

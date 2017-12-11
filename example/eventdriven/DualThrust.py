@@ -90,7 +90,7 @@ class DualThrust(EventDrivenStrategy):
     def sell(self, quote, price, size):
         self.ctx.trade_api.place_order(quote.symbol, 'Sell', price, size)
 
-    def on_quote(self, quote):
+    def on_bar(self, quote):
         if self.bufferCount <= self.bufferSize:
             return
         self.quote = quote.get(self.symbol)

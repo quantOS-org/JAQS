@@ -101,7 +101,7 @@ class RealStrategy(EventDrivenStrategy):
             price = ref_price - n * self.tick_size1
         self.ctx.trade_api.place_order(quote.symbol, action, price, abs(self.pos))
     
-    def on_quote(self, quote):
+    def on_bar(self, quote):
         quote = quote[self.s1]
         if quote.time > 145600 and quote.time < 200000:
             self.liquidate(quote, 5)

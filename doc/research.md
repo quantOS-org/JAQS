@@ -12,6 +12,7 @@
 - 计算与绘图分离
 - 绘图输出格式可选、可关闭，数据计算结果可返回
 
+完整代码及样例见[这里](https://github.com/quantOS-org/JAQS/blob/release-0.6.0/example/research/signal_return_ic_analysis.py)，安装JAQS后即可直接运行。**请勿直接复制下方代码运行**。
 
 ### 测试量价背离因子
 
@@ -25,7 +26,7 @@ price_bench = dv.data_benchmark
 
 my_period = 5
 obj = SignalDigger(output_folder='.', output_format='plot')
-obj.process_factor_before_analysis(factor, price=price,
+obj.process_signal_before_analysis(factor, price=price,
                                    mask=mask_all,
                                    n_quantiles=5, period=my_period,
                                    benchmark_price=price_bench,

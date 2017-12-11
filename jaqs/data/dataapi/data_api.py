@@ -20,14 +20,14 @@ from . import utils
 class DataApiCallback(object):
     """DataApi Callback
 
-    def on_quote(quote):
+    def on_bar(quote):
         pass
         
     def on_connection()
     """
     
     def __init__(self):
-        self.on_quote = None
+        self.on_bar = None
 
 
 class DataApi(object):

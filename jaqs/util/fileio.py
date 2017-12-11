@@ -66,7 +66,7 @@ def save_json(serializable, file_name):
     create_dir(fn)
     
     with codecs.open(fn, 'w', encoding='utf-8') as f:
-        json.dump(serializable, f)
+        json.dump(serializable, f, separators=(',\n', ': '))
 
 
 def load_pickle(fp):
@@ -128,10 +128,15 @@ def fig2base64(fig, format='png'):
     -------
 
     """
-    import cStringIO
+    try:
+        import BytesIO as io
+    except ImportError:
+        # from io import StringIO as StringIO
+        import io
     import base64
-    str_io = cStringIO.StringIO()
-    fig.savefig(str_io, format=format)
-    str_io.seek(0)
-    res = base64.b64encode(str_io.read())
+    bytes_io = io.BytesIO()
+    fig.savefig(bytes_io, format=format)
+    bytes_io.seek(0)
+    s = bytes_io.read()
+    res = base64.b64encode(s)
     return res
