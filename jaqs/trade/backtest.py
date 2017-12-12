@@ -1,6 +1,6 @@
 # encoding: utf-8
 
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 import numpy as np
 import pandas as pd
 
@@ -464,7 +464,7 @@ class AlphaBacktestInstance(BacktestInstance):
         trade_status = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='trade_status')
         trade_status = trade_status.loc[:, 'trade_status']
         # trade_status: {'N', 'XD', 'XR', 'DR', 'JiaoYi', 'TingPai', NUll (before 2003)}
-        mask_sus = trade_status == u'停牌'.encode('utf-8')
+        mask_sus = trade_status == '停牌'
         return list(trade_status.loc[mask_sus].index.values)
 
     def get_limit_reaches(self):

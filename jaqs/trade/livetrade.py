@@ -95,7 +95,7 @@ class AlphaLiveTradeInstance(object):
         # trade_status = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='trade_status')
         # trade_status = trade_status.loc[:, 'trade_status']
         # trade_status: {'N', 'XD', 'XR', 'DR', 'JiaoYi', 'TingPai', NUll (before 2003)}
-        # mask_sus = trade_status == u'停牌'.encode('utf-8')
+        # mask_sus = trade_status == u'停牌'
         res = [k for k, v in self.univ_price_dic.items() if v['volume'] == 0]
         return res
 

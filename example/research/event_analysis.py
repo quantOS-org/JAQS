@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import unicode_literals
 import numpy as np
 import pandas as pd
 
@@ -33,7 +34,7 @@ def save_dataview():
     dv.add_formula('mask_index_member', '!(index_member > 0)', is_quarterly=False)
     
     trade_status = dv.get_ts('trade_status')
-    mask_sus = trade_status == u'停牌'.encode('utf-8')
+    mask_sus = trade_status == u'停牌'
     dv.append_df(mask_sus, 'mask_sus', is_quarterly=False)
     
     # dv.add_formula('size', '', is_quarterly=False)
