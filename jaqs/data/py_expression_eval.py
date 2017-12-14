@@ -277,6 +277,7 @@ class Parser(object):
             'Min': np.minimum,
             'Max': np.maximum,
             'Rank': self.rank,
+            #'Percentile': self.percentile,
             'Quantile': self.to_quantile,
             'Ts_Quantile': self.ts_quantile,
             'GroupQuantile': self.group_quantile,
@@ -615,9 +616,10 @@ class Parser(object):
     # -----------------------------------------------------
     # Cross Section functions
     def cond_rank(self, x, group):
-        x = self._align_univariate(x)
+        x, group = self._align_bivariate(x, group)
+        group = group.fillna(0.0).astype(bool)
         g_rank = x[group]
-        return g_rank.rank(axis=1)
+        return g_rank.rank(axis=1).div((group.shape[1] - group.isnull().sum(axis=1)), axis=0)
 
     # -----------------------------------------------------
     # cross section functions
