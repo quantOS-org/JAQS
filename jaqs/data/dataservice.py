@@ -772,7 +772,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         dic = dict()
         gp = df_io.groupby(by='symbol')
         for sec, df in gp:
-            mask = np.zeros_like(dates, dtype=int)
+            mask = np.zeros_like(dates, dtype=np.integer)
             for idx, row in df.iterrows():
                 bool_index = np.logical_and(dates > row['in_date'], dates < row['out_date'])
                 mask[bool_index] = 1
