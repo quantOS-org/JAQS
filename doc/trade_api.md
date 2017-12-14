@@ -145,7 +145,7 @@ orders = [
     {"security":"600519.SH", "action" : "Buy", "price": 320, "size":1000},
     ]
 
-task_id, msg = tapi.place_batch_order(orders, "", "{}")
+task_id, msg = tapi.place_batch_order(orders)
 print task_id
 print msg    
 ```
@@ -161,7 +161,7 @@ orders = [
     {"security":"601997.SH",  "ref_price": 14.540, "inc_size":20000},
     ]
 
-task_id, msg = tapi.basket_order(orders, "", "{}")
+task_id, msg = tapi.basket_order(orders)
 print task_id
 print msg
 ```
