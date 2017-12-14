@@ -17,6 +17,7 @@ import jaqs.util as jutil
 
 
 DECIMAL_TO_BPS = 10000
+DECIMAL_TO_PCT = 100
 
 
 # -----------------------------------------------------------------------------------
@@ -280,12 +281,14 @@ def plot_quantile_returns_ts(mean_ret_by_q, ax=None):
     
     ret_wide = pd.concat({k: v['mean'] for k, v in mean_ret_by_q.items()}, axis=1)
     ret_wide.index = pd.to_datetime(ret_wide.index, format="%Y%m%d")
+    ret_wide = ret_wide.mul(DECIMAL_TO_PCT)
     # ret_wide = ret_wide.rolling(window=22).mean()
     
     ret_wide.plot(lw=1.2, ax=ax, cmap=cm.get_cmap('RdBu'))
+    df = pd.DataFrame()
     ax.legend(loc='upper left')
     ymin, ymax = ret_wide.min().min(), ret_wide.max().max()
-    ax.set(ylabel='Return',
+    ax.set(ylabel='Return (%)',
            title="Daily Quantile Return (equal weight within quantile)",
            xlabel='Date',
            # yscale='symlog',
@@ -353,9 +356,9 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
         f, ax = plt.subplots(figsize=(18, 6))
     
     mean_returns_spread.index = pd.to_datetime(mean_returns_spread.index, format="%Y%m%d")
-    mean_returns_spread_bps = mean_returns_spread['mean_diff'] * DECIMAL_TO_BPS
+    mean_returns_spread_bps = mean_returns_spread['mean_diff'] * DECIMAL_TO_PCT
 
-    std_err_bps = mean_returns_spread['std'] * DECIMAL_TO_BPS
+    std_err_bps = mean_returns_spread['std'] * DECIMAL_TO_PCT
     upper = mean_returns_spread_bps.values + (std_err_bps * bandwidth)
     lower = mean_returns_spread_bps.values - (std_err_bps * bandwidth)
     
@@ -369,7 +372,7 @@ def plot_mean_quantile_returns_spread_time_series(mean_returns_spread, period,
 
     ax.legend(['mean returns spread', '1 month moving avg'], loc='upper right')
     ylim = np.nanpercentile(abs(mean_returns_spread_bps.values), 95)
-    ax.set(ylabel='Difference In Quantile Mean Return (bps)',
+    ax.set(ylabel='Difference In Quantile Mean Return (%)',
            xlabel='',
            title=title,
            ylim=(-ylim, ylim))
@@ -401,6 +404,7 @@ def plot_cumulative_return(ret, ax=None, title=None):
     
     cum = ret  # pfm.daily_ret_to_cum(ret)
     cum.index = pd.to_datetime(cum.index, format="%Y%m%d")
+    cum = cum.mul(DECIMAL_TO_PCT)
     
     cum.plot(ax=ax, lw=3, color='indianred', alpha=1.0)
     ax.axhline(0.0, linestyle='-', color='black', lw=1)
@@ -416,7 +420,7 @@ def plot_cumulative_return(ret, ax=None, title=None):
             verticalalignment='top')
     if title is None:
         title = "Cumulative Return"
-    ax.set(ylabel='Cumulative Return',
+    ax.set(ylabel='Cumulative Return (%)',
            title=title,
            xlabel='Date')
     
@@ -444,13 +448,14 @@ def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     
     cum_ret = quantile_ret
     cum_ret.index = pd.to_datetime(cum_ret.index, format="%Y%m%d")
+    cum_ret = cum_ret.mul(DECIMAL_TO_PCT)
     
     cum_ret.plot(lw=2, ax=ax, cmap=cm.get_cmap('RdBu'))
     ax.axhline(0.0, linestyle='-', color='black', lw=1)
     
     ax.legend(loc='upper left')
     ymin, ymax = cum_ret.min().min(), cum_ret.max().max()
-    ax.set(ylabel='Cumulative Returns',
+    ax.set(ylabel='Cumulative Returns (%)',
            title='Cumulative Return of Each Quantile (equal weight within quantile)',
            xlabel='Date',
            # yscale='symlog',
