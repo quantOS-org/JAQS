@@ -58,7 +58,7 @@ class SignalDigger(object):
             Index is date, columns are stocks.
         ret : pd.DataFrame
             Index is date, columns are stocks.
-        benchmark_price : pd.DataFrame or pd.Series
+        benchmark_price : pd.DataFrame or pd.Series or None
             Price of benchmark.
         mask : pd.DataFrame
             Data cells that should NOT be used.
@@ -117,6 +117,8 @@ class SignalDigger(object):
                 bench_ret = pfm.price2ret(benchmark_price, self.period, axis=0)
                 self.benchmark_ret = bench_ret
                 residual_ret = df_ret.sub(bench_ret.values.flatten(), axis=0)
+            else:
+                residual_ret = df_ret
         else:
             residual_ret = ret
         
