@@ -559,7 +559,14 @@ class AlphaAnalyzer(BaseAnalyzer):
         if self.dataview is not None and self.dataview.data_benchmark is not None:
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
                                                                    &(self.dataview.data_benchmark.index <= self.end_date)]
-    
+        else:
+            benchmark = self.configs.get('benchmark', "")
+            if benchmark and data_api:
+                df, msg = data_api.daily(benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
+                self.data_benchmark = df.set_index('trade_date').loc[:, ['close']]
+                self.data_benchmark.columns = ['bench']
+            else:
+                self.data_benchmark = pd.DataFrame(index=self.closes.index, columns=['bench'], data=np.ones(len(self.closes), dtype=float))
     @staticmethod
     def _to_pct_return(arr, cumulative=False):
         """Convert portfolio value to portfolio (linear) return."""
