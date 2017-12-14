@@ -459,7 +459,7 @@ def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     
     sharpes = ["sharpe_{:d} = {:.2f}".format(col, pfm.calc_performance_metrics(ser, cum_return=True,
                                                                                compound=False)['sharpe'])
-               for col, ser in cum_ret.items()]
+               for col, ser in cum_ret.iteritems()]
     ax.text(.02, .30,
             '\n'.join(sharpes),
             fontsize=12,
