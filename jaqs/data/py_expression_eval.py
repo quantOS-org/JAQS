@@ -470,9 +470,9 @@ class Parser(object):
         return -a
     
     def logicalNot(self, a):
-        arr  = self._to_array(a)
-        mask = np.isnan(a)        
-        res = np.logical_not(a)
+        arr = self._to_array(a)
+        mask = np.isnan(arr)
+        res = np.logical_not(arr)
         res = res.astype(float)
         res[mask] = np.nan
         return pd.DataFrame(index=a.index, columns=a.columns, data=res)
