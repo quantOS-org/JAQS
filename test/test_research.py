@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+from __future__ import unicode_literals
 import numpy as np
 import pandas as pd
 
@@ -38,7 +39,7 @@ def test_analyze_signal():
     # --------------------------------------------------------------------------------
     # Step.2 calculate mask (to mask those ill data points)
     trade_status = dv.get_ts('trade_status')
-    mask_sus = trade_status == u'停牌'.encode('utf-8')
+    mask_sus = trade_status == u'停牌'
 
     df_index_member = dv.get_ts('index_member')
     mask_index_member = ~(df_index_member > 0)

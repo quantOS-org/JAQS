@@ -1167,7 +1167,7 @@ df, msg = api.query(
 
 ```python
 df, msg = api.query(
-                view="lb.indexCons", 
+                view="lb.indexInfo",
                 fields="", 
                 filter="index_code=000001.SH&start_date=20170113&end_date=20171010", # this api must add start and end date both
                 data_format='pandas')

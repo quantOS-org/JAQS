@@ -143,8 +143,8 @@ class DoubleMaStrategy(EventDrivenStrategy):
             return
 
         # 计算当前的快线/慢线均值
-        self.fast_ma = np.mean(self.price_arr[-self.fast_ma_len - 1:])
-        self.slow_ma = np.mean(self.price_arr[-self.slow_ma_len - 1:])
+        self.fast_ma = np.mean(self.price_arr[-self.fast_ma_len:])
+        self.slow_ma = np.mean(self.price_arr[-self.slow_ma_len:])
 
         print(quote)
         print("Fast MA = {:.2f}     Slow MA = {:.2f}".format(self.fast_ma, self.slow_ma))

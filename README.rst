@@ -43,7 +43,10 @@ Contribute
 Questions
 ==========
 
-如果您发现任何问题，请到\ `这里 <https://github.com/quantOS-org/JAQS/issues/new>`__\提交。
+- 如果您发现BUG，请到\ `这里 <https://github.com/quantOS-org/JAQS/issues/new>`__\提交。
+- 如果有问题、建议，也可以到 \ `社区 <https://www.quantos.org/community>`__\ 参与讨论。
+
+提问前，请查看 \ `如何正确提问 <https://github.com/quantOS-org/JAQS/blob/master/doc/how_to_ask_questions.md>`__\ 。
 
 
 License
