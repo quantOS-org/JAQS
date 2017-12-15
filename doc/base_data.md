@@ -6,6 +6,15 @@
 - 输入参数指的是filter参数里面的内容，通过'&'符号拼接，如：`filter="inst_type=&status=1&symbol="` 
 - 输出参数指的是fields里面的内容，通过','隔开
 
+样例代码：获取上市股票列表
+```python
+df, msg = api.query(
+                view="jz.instrumentInfo", 
+                fields="status,list_date, fullname_en, market", 
+                filter="inst_type1=&status=1&symbol=", 
+                data_format='pandas')
+```
+
 ## 目前支持的接口及其含义
 
 | 接口               | view                  | 分类       |
