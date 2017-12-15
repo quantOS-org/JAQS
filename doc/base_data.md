@@ -11,7 +11,7 @@
 df, msg = api.query(
                 view="jz.instrumentInfo", 
                 fields="status,list_date, fullname_en, market", 
-                filter="inst_type1=&status=1&symbol=", 
+                filter="inst_type=1&status=1&symbol=", 
                 data_format='pandas')
 ```
 
