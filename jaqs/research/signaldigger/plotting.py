@@ -411,8 +411,8 @@ def plot_cumulative_return(ret, ax=None, title=None):
     
     metrics = pfm.calc_performance_metrics(cum, cum_return=True, compound=False)
     ax.text(.85, .30,
-            "Ann.Ret. = {:.1f}%\nAnn.Vol. = {:.1f}%\nSharpe = {:.2f}".format(metrics['ann_ret']*100,
-                                                                           metrics['ann_vol']*100,
+            "Ann.Ret. = {:.1f}%\nAnn.Vol. = {:.1f}%\nSharpe = {:.2f}".format(metrics['ann_ret'],
+                                                                           metrics['ann_vol'],
                                                                            metrics['sharpe']),
             fontsize=12,
             bbox={'facecolor': 'white', 'alpha': 1, 'pad': 5},
