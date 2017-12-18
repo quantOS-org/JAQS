@@ -28,7 +28,7 @@ def set_log_dir(log_dir):
 
 
 class TradeApi(object):
-    def __init__(self, addr, use_jrpc=True, prod_type="jzts"):
+    def __init__(self, addr, use_jrpc=False, prod_type="jzts"):
         """
             use_jrpc:
                 True     -- Use jrcp_client of C version, for jzts only
