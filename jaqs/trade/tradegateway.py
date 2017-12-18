@@ -1,22 +1,16 @@
 # encoding: UTF-8
 
-from __future__ import print_function
-from abc import abstractmethod
-import abc
-from six import with_metaclass
+from __future__ import print_function, unicode_literals
+
 import copy
 import time
-from collections import defaultdict
 
 import numpy as np
 
 from jaqs.data.basic import *
-from jaqs.util.sequence import SequenceGenerator
-import jaqs.util as jutil
-from jaqs.trade.event import EVENT_TYPE, EventEngine, Event
-from jaqs.trade.tradeapi import TradeApi
 from jaqs.data.basic import OrderStatusInd, Trade, TaskInd, Task
-
+from jaqs.trade.tradeapi import TradeApi
+from jaqs.util.sequence import SequenceGenerator
 
 '''
 class TradeCallback(with_metaclass(abc.ABCMeta)):
@@ -534,8 +528,7 @@ class RealTimeTradeApi(TradeApi):
         if not (msg == '0,'):
             print("    login failed: msg = '{}'\n".format(msg))
         else:
-            print("    login success. user info: \n"
-                  "    {:s}\n".format(str(user_info)))
+            print("    login success. user info: \n", repr(user_info), "\n")
             
         self.user_info = user_info
         
