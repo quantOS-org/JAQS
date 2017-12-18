@@ -836,7 +836,6 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     
     ax1.plot(idx, (benchmark_cum_ret-1) * TO_PCT, label='Benchmark', color='#174F67')
     ax1.plot(idx, (portfolio_cum_ret-1) * TO_PCT, label='Strategy', color='#198DD6')
-    ax1.axvspan(idx_dt.get_loc(max_dd_start), idx_dt.get_loc(max_dd_end), color='lightgreen', alpha=0.5, label='Maximum Drawdown')
     ax1.legend(loc='upper left')
     ax1.set(title="Absolute Return of Portfolio and Benchmark", 
             #xlabel="Date", 
@@ -844,6 +843,8 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     ax1.grid(axis='y')
     
     ax2.plot(idx, (excess_cum_ret-1) * TO_PCT, label='Extra Return', color='#C37051')
+    ax2.axvspan(idx_dt.get_loc(max_dd_start), idx_dt.get_loc(max_dd_end), color='lightgreen', alpha=0.5, label='Maximum Drawdown')
+    ax2.legend(loc='upper left')
     ax2.set(title="Excess Return Compared to Benchmark", ylabel=y_label_ret
             #xlabel="Date", 
             )
