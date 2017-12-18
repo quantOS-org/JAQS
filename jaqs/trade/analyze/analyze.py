@@ -4,6 +4,10 @@ from __future__ import print_function
 import os
 import json
 from collections import OrderedDict
+try:
+    basestring
+except NameError:
+    basestring = str
 
 import numpy as np
 import pandas as pd
@@ -715,7 +719,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         -------
 
         """
-        if isinstance(group, str):
+        if isinstance(group, basestring):
             group = self.dataview.get_ts(group, start_date=self.start_date, end_date=self.end_date)
         elif isinstance(group, pd.DataFrame):
             pass

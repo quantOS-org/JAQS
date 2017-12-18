@@ -10,6 +10,10 @@ If you want to declare your field in props, instead of append it manually, you w
 """
 from __future__ import print_function
 import os
+try:
+    basestring
+except NameError:
+    basestring = str
 
 import numpy as np
 import pandas as pd
@@ -1129,7 +1133,7 @@ class DataView(object):
             whether add successfully.
 
         """
-        if isinstance(field_names, str):
+        if isinstance(field_names, basestring):
             field_names = field_names.split(',')
         elif isinstance(field_names, (list, tuple)):
             pass

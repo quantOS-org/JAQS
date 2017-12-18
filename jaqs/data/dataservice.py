@@ -2,9 +2,13 @@
 
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import *
+from builtins import str
 from abc import abstractmethod
 from six import with_metaclass
+try:
+    basestring
+except NameError:
+    basestring = str
 
 import numpy as np
 import pandas as pd
@@ -757,7 +761,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             print(err_msg)
         
         def str2int(s):
-            if isinstance(s, str):
+            if isinstance(s, basestring):
                 return int(s) if s else 99999999
             elif isinstance(s, (int, np.integer, float, np.float)):
                 return s

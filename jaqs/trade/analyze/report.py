@@ -1,6 +1,10 @@
 # encoding: utf-8
 
 from __future__ import print_function
+try:
+    basestring
+except NameError:
+    basestring = str
 import os
 import codecs
 
@@ -38,7 +42,7 @@ class Report(object):
     def _update_env(self):
         """Define custom functions we use in HTML template."""
         def cut_if_too_long(s, n):
-            if isinstance(s, str):
+            if isinstance(s, basestring):
                 if len(s) > n:
                     return s[:n]
                 else:
