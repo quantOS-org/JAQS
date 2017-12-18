@@ -82,6 +82,10 @@ class BaseAnalyzer(object):
         self._closes = None
         self._closes_adj = None
         self.daily_position = None
+        self.returns = None
+        self.position_change = None
+        self.account = None
+        self.daily = None
         
         self.adjust_mode = None
         
@@ -381,6 +385,11 @@ class BaseAnalyzer(object):
         start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
         end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
         years = (end - start).days / 365.0
+        
+        active_cum = df_returns['active_cum'].values
+        max_dd_start = np.argmax(np.maximum.accumulate(active_cum) - active_cum)  # end of the period
+        max_dd_end = np.argmax(active_cum[:max_dd_start])  # start of period
+        max_dd = (active_cum[max_dd_end] - active_cum[max_dd_start]) / active_cum[max_dd_start]
     
         self.performance_metrics['Annual Return (%)'] =\
             100 * (np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1)
@@ -390,6 +399,9 @@ class BaseAnalyzer(object):
                                                     / self.performance_metrics['Annual Volatility (%)'])
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
+        self.risk_metrics['Maximum Drawdown (%)'] = max_dd * TO_PCT
+        self.risk_metrics['Maximum Drawdown start'] = df_returns.index[max_dd_start]
+        self.risk_metrics['Maximum Drawdown end'] = df_returns.index[max_dd_end]
     
         # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
         # df_returns = df_returns.join(bt_strat_mv, how='right')
@@ -403,7 +415,9 @@ class BaseAnalyzer(object):
             save_folder = self.file_folder
         fig1 = plot_portfolio_bench_pnl(self.returns.loc[:, 'strat_cum'],
                                         self.returns.loc[:, 'bench_cum'],
-                                        self.returns.loc[:, 'active_cum'])
+                                        self.returns.loc[:, 'active_cum'],
+                                        self.risk_metrics['Maximum Drawdown start'],
+                                        self.risk_metrics['Maximum Drawdown end'])
         fig1.savefig(os.path.join(save_folder,'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
         
         fig2 = plot_daily_trading_holding_pnl(self.df_pnl['trading_pnl'],
@@ -802,7 +816,8 @@ def plot_daily_trading_holding_pnl(trading, holding, total, total_cum):
     return fig
     
     
-def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_ret):
+def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_ret,
+                             max_dd_start, max_dd_end):
     """
     Parameters
     ----------
@@ -817,6 +832,7 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     
     ax1.plot(idx, (benchmark_cum_ret-1) * TO_PCT, label='Benchmark', color='#174F67')
     ax1.plot(idx, (portfolio_cum_ret-1) * TO_PCT, label='Strategy', color='#198DD6')
+    ax1.axvspan(idx_dt.get_loc(max_dd_start), idx_dt.get_loc(max_dd_end), color='lightgreen', alpha=0.5, label='Maximum Drawdown')
     ax1.legend(loc='upper left')
     ax1.set(title="Absolute Return of Portfolio and Benchmark", 
             #xlabel="Date", 
