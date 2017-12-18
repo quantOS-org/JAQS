@@ -1,3 +1,6 @@
+# Private files
+example/private/
+
 # cProfile results
 *.prof
 
