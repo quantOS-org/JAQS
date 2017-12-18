@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
-from builtins import *
 import pandas as pd
 from . import utils
 
@@ -16,6 +15,7 @@ class EntrustOrder(object):
         self.price     = price
         self.size      = size
 
+
 def set_log_dir(log_dir):
     try:
         import jrpc
@@ -25,6 +25,7 @@ def set_log_dir(log_dir):
             jrpc.set_log_dir("")
     except Exception as e:
         print("Exception", e)
+
 
 class TradeApi(object):
     def __init__(self, addr, use_jrpc=True, prod_type="jzts"):

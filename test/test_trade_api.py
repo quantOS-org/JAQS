@@ -102,7 +102,7 @@ def test_trade_api():
     #  (task_id, msg) = place_order(code, action, price, size )
     #   action:  Buy, Short, Cover, Sell, CoverToday, CoverYesterday, SellToday, SellYesterday
     # 返回 task_id 可以用改 task_id
-    task_id, msg = tapi.place_order("000718.SZ", "Buy", 57, 100)
+    task_id, msg = tapi.place_order("000718.SZ", "Buy", 4.59, 100)
     if msg.endswith('market has closed'):
         pass
         task_id = -1
