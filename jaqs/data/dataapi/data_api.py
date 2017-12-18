@@ -16,6 +16,18 @@ from . import utils
 #    if log_dir:
 #        jrpc.set_log_dir(log_dir)
 
+
+def _str2bytes(s):
+    if hasattr(s, 'encode'):
+        return s.encode('utf-8')
+    else:
+        return s
+
+
+def _to_int(x):
+    return int(x)
+
+
 class DataApiCallback(object):
     """DataApi Callback
 
@@ -165,13 +177,13 @@ class DataApi(object):
                                 self._get_format(data_format, "pandas"),
                                 "Quote",
                                 _index_column="symbol",
-                                symbol=str(symbol),
+                                symbol=_str2bytes(symbol),
                                 fields=fields,
                                 **kwargs)
         return (r, msg)
     
     def bar(self, symbol, start_time=200000, end_time=160000,
-            trade_date=0, freq="1m", fields="", data_format="", **kwargs):
+            trade_date=0, freq="1M", fields="", data_format="", **kwargs):
         
         """
         Query minute bars of various type, return DataFrame.
@@ -219,16 +231,16 @@ class DataApi(object):
         return self._call_rpc("jsi.query",
                               self._get_format(data_format, "pandas"),
                               "Bar",
-                              symbol=str(symbol),
+                              symbol=_str2bytes(symbol),
                               fields=fields,
                               freq=freq,
-                              trade_date=trade_date,
-                              begin_time=begin_time,
-                              end_time=end_time,
+                              trade_date=_to_int(trade_date),
+                              begin_time=_to_int(begin_time),
+                              end_time=_to_int(end_time),
                               **kwargs)
     
     def bar_quote(self, symbol, start_time=200000, end_time=160000,
-                  trade_date=0, freq="1m", fields="", data_format="", **kwargs):
+                  trade_date=0, freq="1M", fields="", data_format="", **kwargs):
         """
         Query minute bars of various type, return DataFrame. 
         It will also return ask/bid informations of the last quote in this bar  
@@ -281,12 +293,12 @@ class DataApi(object):
         return self._call_rpc("jsi.bar_view",
                               self._get_format(data_format, "pandas"),
                               "BarQuote",
-                              symbol=str(symbol),
+                              symbol=_str2bytes(symbol),
                               fields=fields,
                               freq=freq,
-                              trade_date=trade_date,
-                              begin_time=begin_time,
-                              end_time=end_time,
+                              trade_date=_to_int(trade_date),
+                              begin_time=_to_int(begin_time),
+                              end_time=_to_int(end_time),
                               **kwargs)
     
     def daily(self, symbol, start_date, end_date,
@@ -341,10 +353,10 @@ class DataApi(object):
         return self._call_rpc("jsd.query",
                               self._get_format(data_format, "pandas"),
                               "Daily",
-                              symbol=str(symbol),
+                              symbol=_str2bytes(symbol),
                               fields=fields,
-                              begin_date=begin_date,
-                              end_date=end_date,
+                              begin_date=_to_int(begin_date),
+                              end_date=_to_int(end_date),
                               adjust_mode=adjust_mode,
                               freq=freq,
                               **kwargs)
@@ -518,7 +530,7 @@ class DataApi(object):
         index_column = None
         rpc_params = {}
         for key, value in kwargs.items():
-            if key  == '_index_column':
+            if key == '_index_column':
                 index_column = value
             else:
                 if isinstance(value, (int, np.integer)):
