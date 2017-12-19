@@ -12,6 +12,7 @@ except NameError:
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
@@ -494,8 +495,6 @@ class BaseAnalyzer(object):
         
         self.report_dic.update(dic)
         
-        self.returns.to_csv(os.path.join(out_folder, 'returns.csv'))
-    
         r = Report(self.report_dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
         
         r.generate_html()
@@ -771,6 +770,9 @@ class AlphaAnalyzer(BaseAnalyzer):
                 raise ValueError("group data is None.")
             self.brinson(group)
     
+        self.daily_position.to_csv(os.path.join(result_dir, 'daily_position.csv'))
+        self.returns.to_csv(os.path.join(result_dir, 'returns.csv'))
+
         print("generate report...")
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
                         out_folder=result_dir,
