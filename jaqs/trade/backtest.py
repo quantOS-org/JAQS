@@ -266,7 +266,8 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
             trade_ind.set_fill_info(price=last_close_price, size=pos,
                                     date=last_trade_date, time=150000, no=self.DELIST_ADJUST_NO)
-    
+
+            self.ctx.strategy.cash += trade_ind.fill_price * trade_ind.fill_size
             self.ctx.strategy.on_trade(trade_ind)
 
     def re_balance_plan_before_open(self):
