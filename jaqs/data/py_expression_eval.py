@@ -393,10 +393,12 @@ class Parser(object):
             return x
         elif isinstance(x, (int, float, bool, np.integer, np.float, np.bool)):
             return np.asarray(x)
+        else:
+            print(x)
+            raise ValueError("Cannot convert type {} to numpy array".format(repr(type(x))))
     
     def equal(self, a, b):
         (a, b) = self._align_bivariate(a, b)
-        # arr, brr = a.values, b.values
         arr, brr = self._to_array(a), self._to_array(b)
         mask = np.logical_or(np.isnan(arr), np.isnan(brr))
         res = arr == brr
@@ -619,7 +621,7 @@ class Parser(object):
         x, group = self._align_bivariate(x, group)
         group = group.fillna(0.0).astype(bool)
         g_rank = x[group]
-        return g_rank.rank(axis=1).div((group.shape[1] - group.isnull().sum(axis=1)), axis=0)
+        return g_rank.rank(axis=1).div(group.sum(axis=1), axis=0)
 
     # -----------------------------------------------------
     # cross section functions
