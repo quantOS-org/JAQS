@@ -492,10 +492,10 @@ class RealTimeTradeApi_async(BaseTradeApi, EventEngine):
 
 
 class RealTimeTradeApi(TradeApi):
-    def __init__(self, props):
+    def __init__(self, props, **trade_api_kwargs):
         address = props['remote.trade.address']
         
-        super(RealTimeTradeApi, self).__init__(address)
+        super(RealTimeTradeApi, self).__init__(address, **trade_api_kwargs)
         
         self.ctx = None
         self.user_info = dict()
