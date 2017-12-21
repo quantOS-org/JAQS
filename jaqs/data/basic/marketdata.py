@@ -1,7 +1,39 @@
 # encoding: utf-8
+"""
+Classes defined in marketdata module represent different market data, including:
+- Bar
+- Quote
+
+"""
 
 
 class Bar(object):
+    """
+    A Bar is a summary of information of price and volume
+    during a certain length of time span.
+    
+    Attributes
+    ----------
+    open : float
+        The first price in the time span.
+    high : float
+        The highest price in the time span.
+    low  : float
+        The lowest price in the time span.
+    close : float
+        The last price in the time span.
+    vwap : float
+        The volume-weighted average price of the time span.
+    volume : int
+        Trading volume within or at then end of the time span.
+    oi : int
+        Open interest at the end of the time span.
+    trade_date : int
+        %YY%mm%dd
+    time : int
+        %HH%mm%ss
+    
+    """
     def __init__(self):
         self.open = 0.
         self.close = 0.
@@ -19,6 +51,19 @@ class Bar(object):
     
     @classmethod
     def create_from_df(cls, df):
+        """
+        Create a list of Bars from a DataFrame.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Index does not matter. Each row contains information of a Bar.
+
+        Returns
+        -------
+        bar_list : list of Bar
+
+        """
         bar_list = []
         for _, row in df.iterrows():
             dic = row.to_dict()
@@ -28,6 +73,19 @@ class Bar(object):
 
     @classmethod
     def create_from_dict(cls, dic):
+        """
+        Create a list of Bars from a dic.
+        
+        Parameters
+        ----------
+        dic : dict
+            Keys are attribute names of Bar, values are corresponding values.
+
+        Returns
+        -------
+        bar : Bar
+
+        """
         bar = cls()
         bar.__dict__.update(dic)
         return bar
@@ -42,6 +100,43 @@ class Bar(object):
 
 
 class Quote(object):
+    """
+    Quote represents a snapshot of price and volume information.
+    
+    Attributes
+    ----------
+    open : float
+        The daily open price.
+    high : float
+        The daily highest price.
+    low  : float
+        The daily lowest price.
+    close : float
+    volume : int
+        Trading volume till now.
+    turnover : int
+        Trading turnover till now.
+    oi : int
+        Open interest till now.
+    trade_date : int
+        %YY%mm%dd
+    date : int
+        %YY%mm%dd, natural date.
+    time : int
+        %HH%mm%ss
+    last : float
+        Latest trading price.
+    askprice1 : float
+        Best ask price.
+    bidprice1 : float
+        Best bid price.
+    askvolume1 : float
+        Sum of tradable volume of all orders at the best ask price.
+    bidvolume1 : float
+        Sum of tradable volume of all orders at the best bid price.
+    
+    
+    """
     def __init__(self):
         self.trade_date = 0
         self.date = 0

@@ -3,6 +3,25 @@ from __future__ import print_function
 
 
 class Instrument(object):
+    """
+    An Instrument represents a specific financial contract.
+    
+    Attributes
+    ----------
+    symbol : str
+        Symbol (ticker) of the instrument.
+    multiplier : float
+        Contract multiplier (size).
+    inst_type : int
+        Integer used to represent category of the instrument.
+    market : str
+        The market (exchange) where the instrument is traded.
+    list_date : int
+        Date when the instrument is listed.
+    delist_date : int
+        Date when the instrument is de-listed.
+        
+    """
     def __init__(self):
         self.symbol = ""
         self.multiplier = 0.0
@@ -23,11 +42,30 @@ class Instrument(object):
 
 
 class InstManager(object):
+    """
+    InstManager query information of instruments from data server and store them.
+    
+    Attributes
+    ----------
+    data_api : RemoteDataService
+        Used to query data.
+    _inst_map : dict
+        Used to store information of instruments.
+    
+    Methods
+    -------
+    load_instruments
+    
+    """
     def __init__(self, data_api, inst_type="", symbol=""):
         self.data_api = data_api
         
-        self.inst_map = {}
+        self._inst_map = {}
         self.load_instruments(inst_type=inst_type, symbol=symbol)
+    
+    @property
+    def inst_map(self):
+        return self._inst_map
     
     def load_instruments(self, inst_type="", symbol=""):
         fields = ['symbol', 'inst_type', 'market', 'status', 'multiplier', 'list_date', 'delist_date']
@@ -40,7 +78,7 @@ class InstManager(object):
         for k, v in res.items():
             inst = Instrument()
             inst.__dict__.update(v)
-            self.inst_map[k] = inst
+            self._inst_map[k] = inst
     
     def get_instrument(self, code):
-        return self.inst_map.get(code, None)
+        return self._inst_map.get(code, None)

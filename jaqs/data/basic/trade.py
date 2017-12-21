@@ -1,16 +1,23 @@
 # encoding:utf-8
+"""
+Classes defined in trade module are relevant to trades, including:
+- Trade
+- TradeInd
+- TradeStat
+
+"""
 
 from .order import Order
 
 
 class Trade(object):
     """
-    Basic order class.
+    Trade represents fill/partial fill of an order.
 
     Attributes
     ----------
     task_id : str
-        id of the task.
+        Id of the task.
     entrust_no : str
         ID of the order.
     entrust_action : str
@@ -21,10 +28,6 @@ class Trade(object):
     fill_time : int
     fill_no : str
         ID of this trade.
-
-    Methods
-    -------
-
 
     """
     
@@ -51,12 +54,14 @@ class Trade(object):
                 raise ValueError("init_from_order only accept argument of type Order.")
         
     def init_from_order(self, order):
+        """Update information from a given order."""
         self.task_id = order.task_id
         self.entrust_no = order.entrust_no
         self.symbol = order.symbol
         self.entrust_action = order.entrust_action
     
     def set_fill_info(self, price, size, date, time, no):
+        """Update filling information."""
         self.fill_price = price
         self.fill_size = size
         self.fill_date = date
@@ -79,6 +84,21 @@ class Trade(object):
 
 
 class TaskInd(object):
+    """
+    TaskInd is a indication of status change of a task.
+    
+    Attributes
+    ----------
+    task_id : int
+        Id of the task.
+    task_status : str
+        Current status of the task.
+    task_algo : str
+        Algorithm of the task.
+    task_msg : str
+        Message relevant to the task.
+    
+    """
     def __init__(self, task_id=0, task_status="", task_algo="", task_msg=""):
         self.task_id = task_id
         self.task_status = task_status
@@ -100,6 +120,22 @@ class TaskInd(object):
 
 
 class TradeStat(object):
+    """
+    TradeStat stores statistics of trading of a certain symbol.
+    
+    Attributes
+    ----------
+    symbol : str
+    buy_filled_size : int
+        Amount of long position that is already filled.
+    buy_want_size : int
+        Amount of long position that is not yet filled.
+    sell_filled_size : int
+        Amount of short position that is already filled.
+    sell_want_size : int
+        Amount of short position that is not yet filled.
+    
+    """
     def __init__(self, symbol=""):
         self.symbol = symbol
         self.buy_filled_size = 0
