@@ -12,7 +12,7 @@ import zmq
 try:
     import queue
 except ImportError:
-    import queue as queue
+    import Queue as queue
 import threading
 import msgpack
 import snappy
