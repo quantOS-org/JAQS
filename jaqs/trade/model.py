@@ -5,6 +5,7 @@ try:
     basestring
 except NameError:
     basestring = str
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
@@ -67,6 +68,7 @@ class Context(object):
         self.snapshot = None
         
         self.storage = dict()
+        self.records = defaultdict(list)
         
         for member, obj in self.__dict__.items():
             if hasattr(obj, 'ctx'):
@@ -82,7 +84,16 @@ class Context(object):
         s = jutil.load_pickle(path)
         if s is not None:
             self.storage = s
-            
+    
+    def record(self, key, value):
+        self.records[key].append((self.trade_date, self.time, value))
+    
+    def get_records(self):
+        dic_df = dict()
+        for key, list_of_entries in self.records.items():
+            dic_df = pd.DataFrame(list_of_entries, columns=['trade_date', 'time', key])
+        return dic_df
+	
     '''
     @property
     def calendar(self):

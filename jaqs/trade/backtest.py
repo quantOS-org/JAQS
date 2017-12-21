@@ -334,7 +334,9 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.strategy.cash = cash_remain + cash_unuse
         # self.liquidate_all()
         
-        self.ctx.strategy.on_after_rebalance(cash_available + market_value_frozen)
+        total = cash_available + market_value_frozen
+        self.ctx.strategy.on_after_rebalance(total)
+        self.ctx.record('total_cash', total)
 
     def run_alpha(self):
         tapi = self.ctx.trade_api
