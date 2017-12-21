@@ -1,6 +1,9 @@
 # JAQS安装步骤
 
-
+## Windows下一键安装脚本
+如果没有安装Python包的经验，或者极度不擅长相关操作，可以使用我们的一键安装脚本。该脚本仅适用于Windows系统，使用步骤为：
+1. 先按照下方**如何安装Anaconda**操作，在系统中安装Anaconda；
+2. 下载[一键安装脚本](http://www.quantos.org/downloads/install_scripts/onekey_install_jaqs.zip)，解压后运行`onekey_install_jaqs.bat`，看到"Successfully installed jaqs"字样，说明安装成功。
 
 ## 1、安装Python环境
 运行JAQS需要Python环境，可通过在控制台（Windows系统为命令提示符，Linux系统为终端）运行`python`命令确定系统是否安装。
@@ -12,14 +15,15 @@
 1. **下载安装包**：打开[Anaconda官网](http://www.continuum.io/downloads)，选择相应的操作系统，确定要安装的Python版本，目前JAQS同时支持Python2/3.
   ![anac](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac.png)
 
-2. **安装**：下载完成后，运行下载好的文件，按提示完成安装。具体安装教程参见[官方文档](https://conda.io/docs/user-guide/install/index.html#regular-installation)。
+2. **安装**：下载完成后，运行下载好的文件，按提示完成安装（**注**：对于Windows系统，在默认情况下，Anaconda不会自动设置`PATH`环境，请确保选择“add Anaconda to system PATH”选项。）。具体安装教程参见[官方文档](https://conda.io/docs/user-guide/install/index.html#regular-installation)。
 
-   *注*：对于Windows系统，在默认情况下，Anaconda不会自动设置`PATH`环境，请选择“add Anaconda to system PATH”选项。
+   
 
 3. **检查安装是否成功**：安装完成后，
 
    - **windows**下，可以在系统菜单中看如下程序目录：![anacm](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_m.png). 在cmd里执行`ipython`命令，可以调出IPython调试器：![anacipython](https://raw.githubusercontent.com/quantOS-org/jaqs/master/doc/img/anac_ipython.png).
    - **Linux**下，可以在Terminal运行`Python`，可看到'Anaconda'字样。
+
 ## 2、安装依赖包
 
 除Anaconda中已包含的常用包外，JAQS还有些额外的依赖，除`python-snappy`这个包外，其他依赖可在使用`pip install jaqs`安装JAQS的过程中**自动安装**。
