@@ -192,7 +192,7 @@ class DataView(object):
              "spe_bal_netcash_inc_undir", "tot_bal_netcash_inc_undir"}
         self.fin_indicator = \
             {"extraordinary","deductedprofit","grossmargin","operateincome","investincome","stmnote_finexp",
-             "stm_is","ebit","ebitda""fcff","fcfe","exinterestdebt_current","exinterestdebt_noncurrent","interestdebt",
+             "stm_is","ebit_daily","ebitda""fcff","fcfe","exinterestdebt_current","exinterestdebt_noncurrent","interestdebt",
              "netdebt","tangibleasset","workingcapital","networkingcapital","investcapital","retainedearnings","eps_basic_daily", # TODO eps_basic
              "eps_diluted","eps_diluted2","bps","ocfps","grps","orps","surpluscapitalps","surplusreserveps","undistributedps",
              "retainedps","cfps","ebitps","fcffps","fcfeps","netprofitmargin","grossprofitmargin","cogstosales",
