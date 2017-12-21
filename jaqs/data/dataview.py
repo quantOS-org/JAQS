@@ -613,7 +613,7 @@ class DataView(object):
             if fields_fin_ind:
                 df_fin_ind, msg4 = self.data_api.query_lb_fin_stat('fin_indicator', symbol_str,
                                                                    self.extended_start_date_q, self.end_date,
-                                                                   sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
+                                                                   sep.join(fields_fin_ind), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
                 if msg4 != '0,':
                     print(msg4)
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
