@@ -1,5 +1,11 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+# encoding: utf-8
+"""
+Classes defined in py_expression_eval moduel are used to parse string expressions
+and do corresponding calculations. They are used in DataView. Since expression parsing
+is error-prone, we do not recommend directly modifying this module .
+
+"""
+
 # Author: AxiaCore S.A.S. http://axiacore.com
 #
 # Based on js-expression-eval, by Matthew Crumley (email@matthewcrumley.com, http://silentmatt.com/)

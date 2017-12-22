@@ -1,6 +1,7 @@
 # encoding: utf-8
 """
-Core data api for fetching data from remote service.
+dataapi defines standard APIs for communicating with data service.
+
 """
 from __future__ import absolute_import
 from __future__ import division

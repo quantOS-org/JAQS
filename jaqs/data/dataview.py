@@ -1,11 +1,6 @@
 # encoding: utf-8
 """
-How to add custom (alternative) data:
-    1. Build a DataFrame of your data, whose index is dv.dates, column is dv.symbol.
-    2. Use dv.append_df to add your DataFrame to the DataView object.
-    
-If you will use this data frequently, you can add define a new method of DataServer, then get data from your DataServer.
-If you want to declare your field in props, instead of append it manually, you will have to modify prepare_data function.
+
 
 """
 from __future__ import print_function

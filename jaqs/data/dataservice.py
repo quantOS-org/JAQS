@@ -1,4 +1,12 @@
 # encoding: UTF-8
+"""
+Module dataservice defines DataService and RemoteDataService.
+
+DataService is just an interface. RemoteDataService is a wrapper class for DataApi.
+It inherits all methods of DataApi and implements several convenient methods making
+query data more natural and easy.
+
+"""
 
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -35,6 +43,14 @@ class QueryDataError(Exception):
 
 
 class Singleton(type):
+    """
+    Metaclass that can make a class to be singleton.
+    
+    Usage:
+        class Foo(with_metaclass(Singleton, OtherMetaClass)):
+            pass
+        
+    """
     _instances = {}
     
     def __call__(cls, *args, **kwargs):
@@ -45,61 +61,29 @@ class Singleton(type):
 
 class DataService(object):
     """
-    Abstract base class providing both historic and live data
+    DataService is an abstract base class providing both historic and live data
     from various data sources.
-    Current API version: 1.8
 
-    Derived classes of DataServer hide different data source, but use the same API.
+    Derived classes of DataService may use different data source, but use the same API.
 
     Attributes
     ----------
-    source_name : str
-        Name of data source.
+    ctx : Context
+        Running context.
 
     Methods
     -------
-    subscribe
-    quote
     daily
+    quote
     bar
-    tick
+    bar_quote
     query
+    subscribe
 
     """
-    def __init__(self, name=""):
-        
-        if name:
-            self.source_name = name
-        else:
-            self.source_name = str(self.__class__.__name__)
-        
+    def __init__(self):
         self.ctx = None
     
-    '''
-    def subscribe(self, targets, callback):
-        """
-        Subscribe real time market data, including bar and tick,
-        processed by respective callback function.
-
-        Parameters
-        ----------
-        targets : str
-            Security and type, eg. "000001.SH/tick,cu1709.SHF/1m"
-        callback : dict of {str: callable}
-            {'on_tick': func1, 'on_bar': func2}
-            Call back functions.
-
-        """
-        # TODO for now it will not publish event
-        for target in targets.split(','):
-            sec, data_type = target.split('/')
-            if data_type == 'tick':
-                func = callback['on_tick']
-            else:
-                func = callback['on_bar']
-            self.add_subscriber(func, target)
-    
-    '''
     def register_context(self, context):
         self.ctx = context
     
@@ -126,6 +110,38 @@ class DataService(object):
     @abstractmethod
     def bar_quote(self, symbol, start_time=200000, end_time=160000,
                   trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        """
+        Query minute bars with latest quote, return DataFrame.
+
+        Parameters
+        ----------
+        symbol : str
+            support multiple securities, separated by comma.
+        start_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market open time.
+        end_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market close time.
+        trade_date : int (YYYMMDD) or str ('YYYY-MM-DD')
+            Default is current trade_date.
+        fields : str, optional
+            separated by comma ',', default "" (all fields included).
+        freq : trade.common.MINBAR_TYPE, optional
+            {'1m', '5m', '15m'}, Minute bar type, default is '1m'
+
+        Returns
+        -------
+        df : pd.DataFrame
+            columns:
+                symbol, code, date, time, trade_date, freq, open, high, low, close, volume, turnover, vwap, oi
+        err_msg : str
+            error code and error message joined by comma
+
+        Examples
+        --------
+        df, err_msg = api.bar("000001.SH,cu1709.SHF", start_time="09:56:00", end_time="13:56:00",
+                          trade_date="20170823", fields="open,high,low,last,volume", freq="5m")
+
+        """
         pass
         
     @abstractmethod
@@ -204,32 +220,6 @@ class DataService(object):
         pass
     
     @abstractmethod
-    def tick(self, symbol, start_time=200000, end_time=160000, trade_date=None, fields=""):
-        """
-        Query tick data in DataFrame.
-        
-        Parameters
-        ----------
-        symbol : str
-        start_time : int (HHMMSS) or str ('HH:MM:SS')
-            Default is market open time.
-        end_time : int (HHMMSS) or str ('HH:MM:SS')
-            Default is market close time.
-        trade_date : int (YYYMMDD) or str ('YYYY-MM-DD')
-            Default is current trade_date.
-        fields : str, optional
-            separated by comma ',', default "" (all fields included).
-
-        Returns
-        -------
-        df : pd.DataFrame
-        err_msg : str
-            error code and error message joined by comma
-            
-        """
-        pass
-    
-    @abstractmethod
     def query(self, view, filter, fields):
         """
         Query reference data.
@@ -253,13 +243,6 @@ class DataService(object):
         """
         pass
     
-    @abstractmethod
-    def get_split_dividend(self):
-        pass
-    
-    def get_suspensions(self):
-        pass
-
 
 class RemoteDataService(with_metaclass(Singleton, DataService)):
     """
@@ -366,6 +349,40 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     # Basic APIs
     def daily(self, symbol, start_date, end_date,
               fields="", adjust_mode=None):
+        """
+        Query dar bar,
+        support auto-fill suspended securities data,
+        support auto-adjust for splits, dividends and distributions.
+
+        Parameters
+        ----------
+        symbol : str
+            support multiple securities, separated by comma.
+        start_date : int or str
+            YYYMMDD or 'YYYY-MM-DD'
+        end_date : int or str
+            YYYMMDD or 'YYYY-MM-DD'
+        fields : str, optional
+            separated by comma ',', default "" (all fields included).
+        adjust_mode : str or None, optional
+            None for no adjust;
+            'pre' for forward adjust;
+            'post' for backward adjust.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            columns:
+                symbol, code, trade_date, open, high, low, close, volume, turnover, vwap, oi, suspended
+        err_msg : str
+            error code and error message joined by comma
+
+        Examples
+        --------
+        df, err_msg = api.daily("00001.SH,cu1709.SHF",start_date=20170503, end_date=20170708,
+                            fields="open,high,low,last,volume", fq=None, skip_suspended=True)
+
+        """
         self._raise_error_if_no_data_api()
         
         df, err_msg = self.data_api.daily(symbol=symbol, start_date=start_date, end_date=end_date,
@@ -380,6 +397,38 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     def bar(self, symbol,
             start_time=200000, end_time=160000, trade_date=None,
             freq='1M', fields=""):
+        """
+        Query minute bars of various type, return DataFrame.
+
+        Parameters
+        ----------
+        symbol : str
+            support multiple securities, separated by comma.
+        start_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market open time.
+        end_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market close time.
+        trade_date : int (YYYMMDD) or str ('YYYY-MM-DD')
+            Default is current trade_date.
+        fields : str, optional
+            separated by comma ',', default "" (all fields included).
+        freq : trade.common.MINBAR_TYPE, optional
+            {'1m', '5m', '15m'}, Minute bar type, default is '1m'
+
+        Returns
+        -------
+        df : pd.DataFrame
+            columns:
+                symbol, code, date, time, trade_date, freq, open, high, low, close, volume, turnover, vwap, oi
+        err_msg : str
+            error code and error message joined by comma
+
+        Examples
+        --------
+        df, err_msg = api.bar("000001.SH,cu1709.SHF", start_time="09:56:00", end_time="13:56:00",
+                          trade_date="20170823", fields="open,high,low,last,volume", freq="5m")
+
+        """
         self._raise_error_if_no_data_api()
         
         df, err_msg = self.data_api.bar(symbol=symbol, fields=fields,
@@ -390,6 +439,22 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         return df, err_msg
     
     def quote(self, symbol, fields=""):
+        """
+        Query latest market data in DataFrame.
+        
+        Parameters
+        ----------
+        symbol : str
+        fields : str, optional
+            default ""
+
+        Returns
+        -------
+        df : pd.DataFrame
+        err_msg : str
+            error code and error message joined by comma
+
+        """
         self._raise_error_if_no_data_api()
         
         df, err_msg = self.data_api.quote(symbol=symbol, fields=fields)
@@ -400,6 +465,38 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     
     def bar_quote(self, symbol, start_time=200000, end_time=160000,
                   trade_date=0, freq="1M", fields="", data_format="", **kwargs):
+        """
+        Query minute bars with latest quote, return DataFrame.
+
+        Parameters
+        ----------
+        symbol : str
+            support multiple securities, separated by comma.
+        start_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market open time.
+        end_time : int (HHMMSS) or str ('HH:MM:SS')
+            Default is market close time.
+        trade_date : int (YYYMMDD) or str ('YYYY-MM-DD')
+            Default is current trade_date.
+        fields : str, optional
+            separated by comma ',', default "" (all fields included).
+        freq : trade.common.MINBAR_TYPE, optional
+            {'1m', '5m', '15m'}, Minute bar type, default is '1m'
+
+        Returns
+        -------
+        df : pd.DataFrame
+            columns:
+                symbol, code, date, time, trade_date, freq, open, high, low, close, volume, turnover, vwap, oi
+        err_msg : str
+            error code and error message joined by comma
+
+        Examples
+        --------
+        df, err_msg = api.bar("000001.SH,cu1709.SHF", start_time="09:56:00", end_time="13:56:00",
+                          trade_date="20170823", fields="open,high,low,last,volume", freq="5m")
+
+        """
         self._raise_error_if_no_data_api()
 
         df, err_msg = self.data_api.bar_quote(symbol=symbol, start_time=start_time, end_time=end_time,
@@ -618,49 +715,6 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io = df_io.fillna(0.0)
         return df_io
 
-    '''
-    def get_index_weights_daily_OLD(self, index, start_date, end_date):
-        """
-        Return all securities that have been in index during start_date and end_date.
-        
-        Parameters
-        ----------
-        index : str
-        start_date : int
-        end_date : int
-
-        Returns
-        -------
-        res : pd.DataFrame
-            Index is trade_date, columns are symbols.
-
-        """
-        # TODO: temparary api
-        trade_dates = self.get_trade_date_range(start_date, end_date)
-        start_date, end_date = trade_dates[0], trade_dates[-1]
-        td = start_date
-        
-        dic = dict()
-        symbols_set = set()
-        while True:
-            if td > end_date:
-                break
-            df = self.get_index_weights(index, td)
-            # update_date = df['trade_date'].iat[0]
-            # if update_date >= start_date and update_date <= end_date:
-            symbols_set.update(set(df.index))
-            dic[td] = df['weight']
-            
-            td = jutil.get_next_period_day(td, 'month', 1)
-        merge = pd.concat(dic, axis=1).T
-        merge = merge.fillna(0.0)  # for those which are not components
-        res = pd.DataFrame(index=trade_dates, columns=sorted(list(symbols_set)), data=np.nan)
-        res.update(merge)
-        res = res.fillna(method='ffill')
-        res = res.loc[start_date: end_date]
-        return res
-
-    '''
     def get_index_weights_daily(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
@@ -1091,146 +1145,3 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         res = dates[mask][0]
     
         return res
-
-        
-
-
-
-'''
-class Calendar_OLD(object):
-    """
-    A calendar for manage trade date.
-    
-    Attributes
-    ----------
-    data_api :
-
-    """
-    
-    def __init__(self, data_api=None):
-        if data_api is None:
-            ds = RemoteDataService()
-            ds.init_from_config()
-            self.data_api = ds
-        else:
-            self.data_api = data_api
-    
-    @staticmethod
-    def _dic2url(d):
-        """
-        Convert a dict to str like 'k1=v1&k2=v2'
-        
-        Parameters
-        ----------
-        d : dict
-
-        Returns
-        -------
-        str
-
-        """
-        l = ['='.join([key, str(value)]) for key, value in d.items()]
-        return '&'.join(l)
-    
-    def get_trade_date_range(self, start_date, end_date):
-        """
-        Get array of trade dates within given range.
-        Return zero size array if no trade dates within range.
-        
-        Parameters
-        ----------
-        start_date : int
-            YYmmdd
-        end_date : int
-
-        Returns
-        -------
-        trade_dates_arr : np.ndarray
-            dtype = int
-
-        """
-        filter_argument = self._dic2url({'start_date': start_date,
-                                         'end_date': end_date})
-        
-        df_raw, err_msg = self.data_api.query("jz.secTradeCal", fields="trade_date",
-                                          filter=filter_argument, orderby="")
-        if df_raw.empty:
-            return np.array([], dtype=int)
-        
-        trade_dates_arr = df_raw['trade_date'].values.astype(int)
-        return trade_dates_arr
-    
-    def get_last_trade_date(self, date):
-        """
-        
-        Parameters
-        ----------
-        date : int
-
-        Returns
-        -------
-        res : int
-
-        """
-        dt = jutil.convert_int_to_datetime(date)
-        delta = pd.Timedelta(weeks=2)
-        dt_old = dt - delta
-        date_old = jutil.convert_datetime_to_int(dt_old)
-        
-        dates = self.get_trade_date_range(date_old, date)
-        mask = dates < date
-        res = dates[mask][-1]
-        
-        return res
-    
-    def is_trade_date(self, date):
-        """
-        Check whether date is a trade date.
-
-        Parameters
-        ----------
-        date : int
-
-        Returns
-        -------
-        bool
-
-        """
-        dates = self.get_trade_date_range(date, date)
-        return len(dates) > 0
-    
-    def get_next_trade_date(self, date):
-        """
-        
-        Parameters
-        ----------
-        date : int
-
-        Returns
-        -------
-        res : int
-
-        """
-        dt = jutil.convert_int_to_datetime(date)
-        delta = pd.Timedelta(weeks=2)
-        dt_new = dt + delta
-        date_new = jutil.convert_datetime_to_int(dt_new)
-        
-        dates = self.get_trade_date_range(date, date_new)
-        mask = dates > date
-        res = dates[mask][0]
-        
-        return res
-
-
-'''
-
-
-
-
-
-
-
-
-
-

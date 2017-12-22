@@ -1,10 +1,15 @@
 # encoding: utf-8
+"""
+Function align is used by DataView, to expand and re-arrange data in a DataFrame
+according to their available time, which is stored in another DataFrame.
+
+"""
 from __future__ import print_function
 import numpy as np
 import pandas as pd
 
 
-def get_neareast(df_ann, df_value, date):
+def _get_neareast(df_ann, df_value, date):
     """
     Get the value whose ann_date is earlier and nearest to date.
     
@@ -65,7 +70,7 @@ def align(df_value, df_ann, date_arr):
     
     date_arr = np.asarray(date_arr, dtype=int)
     
-    res = np.apply_along_axis(lambda date: get_neareast(df_ann.values, df_value.values, date), 1, date_arr.reshape(-1, 1))
+    res = np.apply_along_axis(lambda date: _get_neareast(df_ann.values, df_value.values, date), 1, date_arr.reshape(-1, 1))
 
     df_res = pd.DataFrame(index=date_arr, columns=df_value.columns, data=res)
     return df_res
