@@ -318,12 +318,7 @@ def price2ret(prices, period=5, axis=None):
     ret : pd.DataFrame or pd.Series
     
     """
-    if axis is None or axis == 0:
-        prices = prices.div(prices.iloc[0], axis=1)
-    elif axis == 1:
-        prices = prices.div(prices.iloc[:, 0], aixs=0)
-    prices = prices.sub(1.0)
-    ret = cum2ret(prices, period=period, axis=axis, compound=True)
+    ret = prices.pct_change(periods=period, axis=axis)
     return ret
 
 
