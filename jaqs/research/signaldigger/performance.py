@@ -298,11 +298,6 @@ def calc_active_cum_return(portfolio_ret, benchmark_ret):
     return active_cum
 
 
-def daily_ret_to_cum2(df_ret, axis=0):
-    cum = df_ret.add(1.0).cumprod(axis=axis)
-    return cum
-
-
 def price2ret(prices, period=5, axis=None):
     """
 

@@ -1,5 +1,10 @@
 # encoding: utf-8
 
+"""
+Analyze module defines classes to analyze trading results, including I/O,
+calculation, plot.
+
+"""
 from __future__ import print_function
 import os
 import json

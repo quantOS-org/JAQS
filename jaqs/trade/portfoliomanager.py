@@ -1,12 +1,19 @@
 # encoding: UTF-8
+"""
+PortfolioManager helps manage strategy's trades, orders, positions, etc.
+
+It binds with a strategy and updates trades/orders/positions when relevant callback
+functions are called.
+
+"""
 
 from __future__ import print_function
-import copy
-from collections import defaultdict
 
+import copy
+
+import jaqs.trade
 from jaqs.data.basic import OrderStatusInd, Trade, Task, Order, Position, TradeStat
 from jaqs.trade import common
-import jaqs.trade
 
 
 class PortfolioManager(object):

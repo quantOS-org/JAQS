@@ -1,6 +1,7 @@
 # encoding: utf-8
 """
-Core trade api for simulated and live trading.
+tradeapi defines standard APIs for communicating with
+algorithmic trading & executing system.
 """
 from __future__ import absolute_import
 from __future__ import division

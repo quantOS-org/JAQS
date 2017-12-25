@@ -74,7 +74,6 @@ class ORDER_TYPE(ReprStrEnum):
     VWAP = "vwap"
     
 
-
 @unique
 class ORDER_ACTION(ReprStrEnum):
     """

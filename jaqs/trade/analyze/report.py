@@ -1,4 +1,9 @@
 # encoding: utf-8
+"""
+report module defines Report class which fill and render pre-defined
+HTML templates.
+
+"""
 
 from __future__ import print_function
 try:

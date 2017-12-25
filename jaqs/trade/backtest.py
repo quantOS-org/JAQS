@@ -1,6 +1,15 @@
 # encoding: utf-8
+"""
+Classes defined in backtest module are responsible to run backtests.
+
+They follow a fix procedure, from loading data to looping through
+data and finally save backtest results.
+
+"""
 
 from __future__ import print_function, unicode_literals
+import six
+import abc
 import numpy as np
 import pandas as pd
 
@@ -11,18 +20,27 @@ import jaqs.util as jutil
 from functools import reduce
 
 
-class BacktestInstance(object):
+class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
     """
+    BacktestInstance is an abstract base class. It can be derived to implement
+    various backtest tasks.
+    
     Attributes
     ----------
+    
     start_date : int
+        %YY%mm%dd, start date of the backtest.
     end_date : int
+        %YY%mm%dd, end date of the backtest.
+    ctx : Context
+        Running context of the backtest.
+    props : dict
+        props store configurations (settings) of the backtest. Eg: start_date.
     
     """
     def __init__(self):
         super(BacktestInstance, self).__init__()
         
-        self.strategy = None
         self.start_date = 0
         self.end_date = 0
 
@@ -32,6 +50,8 @@ class BacktestInstance(object):
         
     def init_from_config(self, props):
         """
+        Initialize parameters values for all backtest components such as
+        DataService, PortfolioManager, Strategy, etc.
         
         Parameters
         ----------
@@ -174,10 +194,16 @@ class AlphaBacktestInstance(BacktestInstance):
     
     Attributes
     ----------
+    last_date : int
+        Last trade date before current trade date.
     last_rebalance_date : int
+        Last re-balance date that we do re-balance.
     current_rebalance_date : int
+        Current re-balance date that we do re-balance.
     univ_price_dic : dict
-        Prices of symbols at current_date
+        Prices of symbols on current trade date.
+    commission_rate : float
+        Ratio of commission charged to turnover for each trade.
 
     """
     def __init__(self):
@@ -533,6 +559,15 @@ class AlphaBacktestInstance(BacktestInstance):
 
 
 class EventBacktestInstance(BacktestInstance):
+    """
+    Backtest event-driven strategy using DataService.
+    
+    Attributes
+    ----------
+    bar_type : str
+        {'1d', '1M', '5M', etc.}
+    
+    """
     def __init__(self):
         super(EventBacktestInstance, self).__init__()
         
@@ -683,11 +718,6 @@ class EventBacktestInstance(BacktestInstance):
         
         # on_bar
         self.ctx.strategy.on_bar(quotes_dic)
-
-    '''
-    def generate_report(self, output_format=""):
-        return self.pnlmgr.generateReport(output_format)
-    '''
     
     def save_results(self, folder_path='.'):
         import os

@@ -1,4 +1,7 @@
 # encoding: utf-8
+"""
+Classes defined in strategy module
+"""
 
 from __future__ import print_function
 import abc
