@@ -397,9 +397,11 @@ class BaseAnalyzer(object):
         years = (end - start).days / 365.0
         
         active_cum = df_returns['active_cum'].values
-        max_dd_start = np.argmax(np.maximum.accumulate(active_cum) - active_cum)  # end of the period
-        max_dd_end = np.argmax(active_cum[:max_dd_start])  # start of period
-        max_dd = (active_cum[max_dd_end] - active_cum[max_dd_start]) / active_cum[max_dd_start]
+        cum_peak = np.maximum.accumulate(active_cum)
+        dd_to_cum_peak = (cum_peak - active_cum) / cum_peak
+        max_dd_end = np.argmax(dd_to_cum_peak)  # end of the period
+        max_dd_start = np.argmax(active_cum[:max_dd_end])  # start of period
+        max_dd = dd_to_cum_peak[max_dd_end]
     
         self.performance_metrics['Annual Return (%)'] =\
             100 * (np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1)
@@ -496,7 +498,7 @@ class BaseAnalyzer(object):
         dic['position_change'] = self.position_change
         dic['account'] = self.account
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
-        dic['daily_position'] = self.daily_position
+        dic['daily_position'] = None # self.daily_position
         
         self.report_dic.update(dic)
         
