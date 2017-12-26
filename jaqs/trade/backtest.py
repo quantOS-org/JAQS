@@ -20,6 +20,28 @@ import jaqs.util as jutil
 from functools import reduce
 
 
+def generate_cash_trade_ind(symbol, amount, date, time=200000):
+    trade_ind = Trade()
+    trade_ind.symbol = symbol
+    trade_ind.task_id = 0
+    trade_ind.entrust_no = "0"
+    trade_ind.set_fill_info(price=0.0, size=abs(amount), date=date, time=time, no="0")
+
+    trade_ind2 = Trade()
+    trade_ind2.symbol = symbol
+    trade_ind2.task_id = 0
+    trade_ind2.entrust_no = "0"
+    trade_ind2.set_fill_info(price=1.0, size=abs(amount), date=date, time=time, no="0")
+
+    if amount > 0:
+        trade_ind.entrust_action = common.ORDER_ACTION.BUY
+        trade_ind2.entrust_action = common.ORDER_ACTION.SELL
+    else:
+        trade_ind.entrust_action = common.ORDER_ACTION.SELL
+        trade_ind2.entrust_action = common.ORDER_ACTION.BUY
+    return trade_ind, trade_ind2
+    
+
 class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
     """
     BacktestInstance is an abstract base class. It can be derived to implement
@@ -47,7 +69,12 @@ class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
         self.props = None
         
         self.ctx = None
-        
+
+        self.POSITION_ADJUST_NO = 101010
+        self.POSITION_ADJUST_TIME = 200000
+        self.DELIST_ADJUST_NO = 202020
+        self.DELIST_ADJUST_TIME = 150000
+
     def init_from_config(self, props):
         """
         Initialize parameters values for all backtest components such as
@@ -72,6 +99,9 @@ class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
             self.ctx.init_universe(self.ctx.dataview.symbol)
         else:
             raise ValueError("No dataview, no symbol either.")
+        
+        if 'init_balance' not in props:
+            raise ValueError("No [init_balance] provided. Please specify it in props.")
 
         for obj in ['data_api', 'trade_api', 'pm', 'strategy']:
             obj = getattr(self.ctx, obj)
@@ -215,11 +245,6 @@ class AlphaBacktestInstance(BacktestInstance):
         
         self.univ_price_dic = {}
         
-        self.POSITION_ADJUST_NO = 101010
-        self.POSITION_ADJUST_TIME = 200000
-        self.DELIST_ADJUST_NO = 202020
-        self.DELIST_ADJUST_TIME = 150000
-        
         self.commission_rate = 20E-4
     
     def init_from_config(self, props):
@@ -294,6 +319,7 @@ class AlphaBacktestInstance(BacktestInstance):
                                     date=last_trade_date, time=150000, no=self.DELIST_ADJUST_NO)
 
             self.ctx.strategy.cash += trade_ind.fill_price * trade_ind.fill_size
+            #self.ctx.pm.cash += trade_ind.fill_price * trade_ind.fill_size
             self.ctx.strategy.on_trade(trade_ind)
 
     def re_balance_plan_before_open(self):
@@ -347,6 +373,7 @@ class AlphaBacktestInstance(BacktestInstance):
         # step2. calculate market value and cash
         # market value does not include those suspended
         market_value_float, market_value_frozen = self.ctx.pm.market_value(prices, all_list)
+        #cash_available = self.ctx.pm.cash + market_value_float
         cash_available = self.ctx.strategy.cash + market_value_float
     
         cash_to_use = cash_available * self.ctx.strategy.position_ratio
@@ -355,9 +382,12 @@ class AlphaBacktestInstance(BacktestInstance):
         # step3. generate target positions
         # position of those suspended will remain the same (will not be traded)
         goals, cash_remain = self.ctx.strategy.generate_weights_order(self.ctx.strategy.weights, cash_to_use, prices,
-                                                                  suspensions=all_list)
+                                                                      suspensions=all_list)
         self.ctx.strategy.goal_positions = goals
+        
+        #self.ctx.pm.cash = cash_remain + cash_unuse
         self.ctx.strategy.cash = cash_remain + cash_unuse
+        #print("cash diff: ", self.ctx.pm.cash - self.ctx.strategy.cash)
         # self.liquidate_all()
         
         total = cash_available + market_value_frozen
@@ -401,6 +431,7 @@ class AlphaBacktestInstance(BacktestInstance):
             results = tapi.match_and_callback(self.univ_price_dic)
             for trade_ind, order_status_ind in results:
                 self.ctx.strategy.cash -= trade_ind.commission
+                #self.ctx.pm.cash -= trade_ind.commission
                 
             self.on_after_market_close()
             
@@ -572,17 +603,58 @@ class EventBacktestInstance(BacktestInstance):
         super(EventBacktestInstance, self).__init__()
         
         self.bar_type = ""
+        self.df_dividend = None
         
     def init_from_config(self, props):
         super(EventBacktestInstance, self).init_from_config(props)
         
         self.bar_type = props.get("bar_type", "1d")
+    
+    def _get_dividend_info(self):
+        symbol_str = ','.join(self.ctx.universe)
+        df, msg = self.ctx.data_api.query_dividend(symbol_str, start_date=self.start_date, end_date=self.end_date)
+        df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) / 10.0
+        df.loc[:, 'cash_tax'] = df['cash_tax'] / 10.0
+        self.df_dividend = df
         
     def go_next_trade_date(self):
         next_dt = self.ctx.data_api.get_next_trade_date(self.ctx.trade_date)
         
         self.ctx.trade_date = next_dt
     
+    def settle_for_stocks(self, last_date, date):
+        df = self.df_dividend.loc[(self.df_dividend['exdiv_date'] > last_date) & (self.df_dividend['exdiv_date'] <= date)]
+        if df.empty:
+            return
+        df2 = df.set_index('symbol')
+        for symbol in df2.index:
+            if symbol in self.ctx.pm.holding_securities:
+                df_symbol = df2.loc[symbol]
+                shares_ratio = df_symbol['shares']
+                cash_ratio = df_symbol['cash_tax']
+                pos = self.ctx.pm.get_position(symbol).current_size
+                
+                if cash_ratio > 0:
+                    cash_added = cash_ratio * pos
+                    #self.ctx.pm.cash += cash_added
+                    trade_ind1, trade_ind2 = generate_cash_trade_ind(symbol, cash_added, date, 60000)
+                    self.ctx.strategy.on_trade(trade_ind1)
+                    self.ctx.strategy.on_trade(trade_ind2)
+                    
+                if shares_ratio > 0:
+                    pos_diff = abs(pos * shares_ratio)
+                    trade_ind = Trade()
+                    trade_ind.symbol = symbol
+                    trade_ind.task_id = self.POSITION_ADJUST_NO
+                    trade_ind.entrust_no = self.POSITION_ADJUST_NO
+                    if pos > 0:
+                        trade_ind.entrust_action = common.ORDER_ACTION.BUY
+                    else:
+                        trade_ind.entrust_action = common.ORDER_ACTION.SELL
+                    trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=60000, no=self.POSITION_ADJUST_NO)
+                    
+                    self.ctx.strategy.on_trade(trade_ind)
+            
     def on_new_day(self, date):
         self.ctx.trade_date = date
         self.ctx.time = 0
@@ -620,7 +692,9 @@ class EventBacktestInstance(BacktestInstance):
         """Quotes of different symbols will be aligned into one dictionary."""
         trade_dates = self.ctx.data_api.get_trade_date_range(self.start_date, self.end_date)
 
-        for trade_date in trade_dates:
+        last_trade_date = trade_dates[0]
+        for i, trade_date in enumerate(trade_dates):
+            self.settle_for_stocks(last_trade_date, trade_date)
             self.on_new_day(trade_date)
             
             quotes_dic = self._create_time_symbol_bars(trade_date)
@@ -632,6 +706,7 @@ class EventBacktestInstance(BacktestInstance):
                 self._process_quote_bar(quote_by_symbol)
             
             self.on_after_market_close()
+            last_trade_date = trade_date
     
     def _run_daily(self):
         """Quotes of different symbols will be aligned into one dictionary."""
@@ -639,7 +714,8 @@ class EventBacktestInstance(BacktestInstance):
         
         symbols_str = ','.join(self.ctx.universe)
         df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date,
-                                                adjust_mode='post')
+                                                #adjust_mode='post'
+                                                )
         if msg != '0,':
             print(msg)
         if df_daily is None or df_daily.empty:
@@ -662,6 +738,7 @@ class EventBacktestInstance(BacktestInstance):
             self._process_quote_daily(quote1, quote2)
             
             self.on_after_market_close()
+            self.settle_for_stocks(d1, d2)
     
     def _process_quote_daily(self, quote_yesterday, quote_today):
         # on_bar
@@ -686,6 +763,8 @@ class EventBacktestInstance(BacktestInstance):
         self.on_after_market_close()
 
     def run(self):
+        self._get_dividend_info()
+        
         if self.bar_type == common.QUOTE_TYPE.DAILY:
             self._run_daily()
         
