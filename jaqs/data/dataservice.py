@@ -1022,8 +1022,8 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         #df = df.set_index('exdiv_date').sort_index(axis=0)
         df = df.astype({'cash': float, 'cash_tax': float,
-                        'bonus_list_date': np.integer,
-                        'cashpay_date': np.integer,
+                        #'bonus_list_date': np.integer,
+                        #'cashpay_date': np.integer,
                         'exdiv_date': np.integer,
                         'publish_date': np.integer,
                         'record_date': np.integer})

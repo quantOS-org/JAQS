@@ -190,6 +190,15 @@ def test_remote_data_service_adj_factor():
     res = ds.get_adj_factor_daily(symbol_arr, start_date=20160101, end_date=20170101, div=True)
 
 
+def test_remote_data_service_dividend():
+    arr = ds.get_index_comp(index='000300.SH', start_date=20160101, end_date=20170505)
+    symbol_arr = ','.join(arr)
+    
+    df, msg = ds.query_dividend(symbol_arr, start_date=20160101, end_date=20170101)
+    df2 = df.pivot(index='exdiv_date', columns='symbol', values='share_ratio')
+    assert abs(df.loc[(df['exdiv_date'] == 20160504) & (df['symbol'] == '002085.SZ'), 'share_ratio'] - 2.0).iat[0] < 1e-2
+
+
 def test_remote_data_service_inst_info():
     sec = '000001.SZ'
     res = ds.query_inst_info(sec, fields='status,selllot,buylot,pricetick,multiplier,product')
