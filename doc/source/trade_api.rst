@@ -80,6 +80,17 @@ TradeApi通过回调函数方式通知用户事件。事件包括三种：订单
     print "msg: ", msg
     print "sid: ", sid    
 
+查询账户信息
+~~~~~~~~~~~~
+
+返回当前的策略帐号的账户资金信息。
+
+.. code:: python
+
+    df, msg = tapi.query_account()
+    print "msg: ", msg
+    print df    
+
 查询Portfolio
 ~~~~~~~~~~~~~
 
@@ -87,7 +98,7 @@ TradeApi通过回调函数方式通知用户事件。事件包括三种：订单
 
 .. code:: python
 
-    df, msg = tapi.query_account()
+    df, msg = tapi.query_portfolio()
     print "msg: ", msg
     print df    
 
@@ -158,7 +169,7 @@ cancel\_order(task\_id)
     #  注意：目标持仓中必须包括所有的代码的持仓，即使不修改
 
     # 先查询当前的持仓, 
-    portfolio, msg = tapi.query_portfolio()
+    portfolio, msg = tapi.goal_portfolio(goal, algo, algo_param)
     print "msg", msg
     print "portfolio", portfolio
 
@@ -185,7 +196,7 @@ place\_batch\_order，指定绝对size和交易类型
         {"security":"600519.SH", "action" : "Buy", "price": 320, "size":1000},
         ]
 
-    task_id, msg = tapi.place_batch_order(orders, "", "{}")
+    task_id, msg = tapi.place_batch_order(orders)
     print task_id
     print msg    
 
@@ -204,6 +215,6 @@ basket\_order，指定变化量，不指定交易方向，由系统根据正负�
         {"security":"601997.SH",  "ref_price": 14.540, "inc_size":20000},
         ]
 
-    task_id, msg = tapi.basket_order(orders, "", "{}")
+    task_id, msg = tapi.basket_order(orders)
     print task_id
     print msg
