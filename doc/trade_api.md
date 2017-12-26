@@ -131,7 +131,7 @@ df, msg = tapi.query_trade(task_id = task_id, format = 'pandas')
 #  注意：目标持仓中必须包括所有的代码的持仓，即使不修改
 
 # 先查询当前的持仓, 
-portfolio, msg = tapi.query_portfolio()
+portfolio, msg = tapi.goal_portfolio(goal, algo, algo_param)
 print "msg", msg
 print "portfolio", portfolio
 ```
