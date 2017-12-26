@@ -445,6 +445,38 @@ class DataView(object):
     
         print("Initialize config success.")
 
+    def distributed_query(self, query_func_name, symbol, start_date, end_date, **kwargs):
+        LIMIT = 100 * 1000
+        
+        n_symbols = len(symbol.split(','))
+        dates = self.data_api.get_trade_date_range(start_date, end_date)
+        n_days = len(dates)
+        
+        if n_symbols * n_days > LIMIT:
+            n = LIMIT // n_symbols
+            
+            df_list = []
+            i = 0
+            pos1, pos2 = n * i, n * (i + 1) - 1
+            while pos2 < n_days:
+                print(pos2)
+                df, msg = getattr(self.data_api, query_func_name)(symbol=symbol,
+                                                                  start_date=dates[pos1], end_date=dates[pos2],
+                                                                  **kwargs)
+                df_list.append(df)
+                i += 1
+                pos1, pos2 = n * i, n * (i + 1) - 1
+            if pos1 < n_days:
+                df, msg = getattr(self.data_api, query_func_name)(symbol=symbol,
+                                                                  start_date=dates[pos1], end_date=dates[-1],
+                                                                  **kwargs)
+                df_list.append(df)
+            df = pd.concat(df_list, axis=0)
+        else:
+            df, msg = self.data_api.daily(symbol, start_date=start_date, end_date=end_date,
+                                     **kwargs)
+        return df, msg
+
     def prepare_data(self):
         """Prepare data for the FIRST time."""
         # prepare benchmark and group
@@ -555,18 +587,20 @@ class DataView(object):
             if fields_market_daily:
                 print("NOTE: price adjust method is [{:s} adjust]".format(self.adjust_mode))
                 # no adjust prices and other market daily fields
-                df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                     adjust_mode=None, fields=sep.join(fields_market_daily))
-                if msg1 != '0,':
-                    print(msg1)
+                df_daily, msg1 = self.distributed_query('daily', symbol_str,
+                                                        start_date=self.extended_start_date_d, end_date=self.end_date,
+                                                        adjust_mode=None, fields=sep.join(fields_market_daily))
+                #df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
+                #                                     adjust_mode=None, fields=sep.join(fields_market_daily))
             
                 if self.all_price:
                     adj_cols = ['open', 'high', 'low', 'close', 'vwap']
                     # adjusted prices
-                    df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                                 adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
-                    if msg11 != '0,':
-                        print(msg11)
+                    #df_daily_adjust, msg11 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
+                    #                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
+                    df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
+                                                                   start_date=self.extended_start_date_d, end_date=self.end_date,
+                                                                   adjust_mode=self.adjust_mode, fields=sep.join(fields_market_daily))
                 
                     df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
                                         on=['symbol', 'trade_date'], suffixes=('', '_adj'))
@@ -574,34 +608,27 @@ class DataView(object):
         
             fields_ref_daily = self._get_fields('ref_daily', fields, append=True)
             if fields_ref_daily:
-                df_ref_daily, msg2 = self.data_api.query_lb_dailyindicator(symbol_str, self.extended_start_date_d, self.end_date,
-                                                                           sep.join(fields_ref_daily))
-                if msg2 != '0,':
-                    print(msg2)
+                df_ref_daily, msg2 = self.distributed_query('query_lb_dailyindicator', symbol_str,
+                                                            start_date=self.extended_start_date_d, end_date=self.end_date,
+                                                            fields=sep.join(fields_market_daily))
                 daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
         
             fields_income = self._get_fields('income', fields, append=True)
             if fields_income:
                 df_income, msg3 = self.data_api.query_lb_fin_stat('income', symbol_str, self.extended_start_date_q, self.end_date,
                                                                   sep.join(fields_income), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
-                if msg3 != '0,':
-                    print(msg3)
                 quarterly_list.append(df_income.loc[:, fields_income])
         
             fields_balance = self._get_fields('balance_sheet', fields, append=True)
             if fields_balance:
                 df_balance, msg3 = self.data_api.query_lb_fin_stat('balance_sheet', symbol_str, self.extended_start_date_q, self.end_date,
                                                                    sep.join(fields_balance), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
-                if msg3 != '0,':
-                    print(msg3)
                 quarterly_list.append(df_balance.loc[:, fields_balance])
         
             fields_cf = self._get_fields('cash_flow', fields, append=True)
             if fields_cf:
                 df_cf, msg3 = self.data_api.query_lb_fin_stat('cash_flow', symbol_str, self.extended_start_date_q, self.end_date,
                                                               sep.join(fields_cf), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
-                if msg3 != '0,':
-                    print(msg3)
                 quarterly_list.append(df_cf.loc[:, fields_cf])
         
             fields_fin_ind = self._get_fields('fin_indicator', fields, append=True)
@@ -609,8 +636,6 @@ class DataView(object):
                 df_fin_ind, msg4 = self.data_api.query_lb_fin_stat('fin_indicator', symbol_str,
                                                                    self.extended_start_date_q, self.end_date,
                                                                    sep.join(fields_fin_ind), drop_dup_cols=['symbol', self.REPORT_DATE_FIELD_NAME])
-                if msg4 != '0,':
-                    print(msg4)
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
     
         else:
