@@ -67,10 +67,18 @@ print "msg: ", msg
 print "sid: ", sid    
 ```
 
+### 查询账户信息
+返回当前的策略帐号的账户资金信息。
+```python
+df, msg = tapi.query_account()
+print "msg: ", msg
+print df    
+```
+
 ### 查询Portfolio
 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 ```python
-df, msg = tapi.query_account()
+df, msg = tapi.query_portfolio()
 print "msg: ", msg
 print df    
 ```
