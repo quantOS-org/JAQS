@@ -67,10 +67,18 @@ print "msg: ", msg
 print "sid: ", sid    
 ```
 
+### 查询账户信息
+返回当前的策略帐号的账户资金信息。
+```python
+df, msg = tapi.query_account()
+print "msg: ", msg
+print df    
+```
+
 ### 查询Portfolio
 返回当前的策略帐号的Universe中所有标的的净持仓，包括持仓为0的标的。
 ```python
-df, msg = tapi.query_account()
+df, msg = tapi.query_portfolio()
 print "msg: ", msg
 print df    
 ```
@@ -123,7 +131,7 @@ df, msg = tapi.query_trade(task_id = task_id, format = 'pandas')
 #  注意：目标持仓中必须包括所有的代码的持仓，即使不修改
 
 # 先查询当前的持仓, 
-portfolio, msg = tapi.query_portfolio()
+portfolio, msg = tapi.goal_portfolio(goal, algo, algo_param)
 print "msg", msg
 print "portfolio", portfolio
 ```
