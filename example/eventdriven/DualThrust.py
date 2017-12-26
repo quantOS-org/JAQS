@@ -94,6 +94,8 @@ class DualThrust(EventDrivenStrategy):
         if self.bufferCount <= self.bufferSize:
             return
         self.quote = quote.get(self.symbol)
+        if self.quote.close < 1e-3:
+            return
 
         if self.quote.time > 90100 and self.quote.time <= 142800:
             if self.pos == 0:
