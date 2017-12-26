@@ -511,11 +511,11 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         Parameters
         ----------
-        view : str
+        view : str or unicode
             data source.
-        fields : str
+        fields : str or unicode
             Separated by ','
-        filter : str
+        filter : str or unicode
             filter expressions.
         kwargs
 
@@ -536,7 +536,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         """
         self._raise_error_if_no_data_api()
         
-        df, err_msg = self.data_api.query(view, fields=fields, filter=filter, data_format="", **kwargs)
+        df, err_msg = self.data_api.query(view, fields=fields, filter=filter, **kwargs)
         
         self._raise_error_if_msg(err_msg)
         return df, err_msg
@@ -1010,6 +1010,26 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                     'adjust_factor': float
                                     })
         return df_raw.drop_duplicates()
+    
+    def query_dividend(self, symbol, start_date, end_date):
+        filter_argument = self._dic2url({'symbol': symbol,
+                                         'start_date': start_date,
+                                         'end_date': end_date})
+        df, err_msg = self.query(view="lb.secDividend",
+                                 fields="",
+                                 filter=filter_argument,
+                                 data_format='pandas')
+        
+        #df = df.set_index('exdiv_date').sort_index(axis=0)
+        df = df.astype({'cash': float, 'cash_tax': float,
+                        'bonus_list_date': np.integer,
+                        'cashpay_date': np.integer,
+                        'exdiv_date': np.integer,
+                        'publish_date': np.integer,
+                        'record_date': np.integer})
+        self._raise_error_if_msg(err_msg)
+        
+        return df, err_msg
     
     def query_inst_info(self, symbol, inst_type="", fields=""):
         if inst_type == "":
