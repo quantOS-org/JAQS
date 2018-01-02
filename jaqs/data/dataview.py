@@ -620,7 +620,7 @@ class DataView(object):
             if fields_ref_daily:
                 df_ref_daily, msg2 = self.distributed_query('query_lb_dailyindicator', symbol_str,
                                                             start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                            fields=sep.join(fields_market_daily))
+                                                            fields=sep.join(fields_ref_daily))
                 daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
         
             fields_income = self._get_fields('income', fields, append=True)
