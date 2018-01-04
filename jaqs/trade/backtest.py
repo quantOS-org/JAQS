@@ -10,6 +10,7 @@ data and finally save backtest results.
 from __future__ import print_function, unicode_literals
 import six
 import abc
+from collections import defaultdict
 import numpy as np
 import pandas as pd
 
@@ -70,6 +71,8 @@ class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
         
         self.ctx = None
 
+        self.commission_rate = 20E-4
+
         self.POSITION_ADJUST_NO = 101010
         self.POSITION_ADJUST_TIME = 200000
         self.DELIST_ADJUST_NO = 202020
@@ -92,6 +95,8 @@ class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
         self.props = props
         self.start_date = props.get("start_date")
         self.end_date = props.get("end_date")
+
+        self.commission_rate = props.get('commission_rate', 20E-4)
         
         if 'symbol' in props:
             self.ctx.init_universe(props['symbol'])
@@ -244,13 +249,9 @@ class AlphaBacktestInstance(BacktestInstance):
         self.current_rebalance_date = 0
         
         self.univ_price_dic = {}
-        
-        self.commission_rate = 20E-4
     
     def init_from_config(self, props):
         super(AlphaBacktestInstance, self).init_from_config(props)
-        
-        self.commission_rate = props.get('commission_rate', 20E-4)
 
     def position_adjust(self):
         """
@@ -611,6 +612,10 @@ class EventBacktestInstance(BacktestInstance):
         self.bar_type = props.get("bar_type", "1d")
     
     def _get_dividend_info(self):
+        """
+        Query dividend information of stocks for use of daily settlement.
+        
+        """
         symbol_str = ','.join(self.ctx.universe)
         df, msg = self.ctx.data_api.query_dividend(symbol_str, start_date=self.start_date, end_date=self.end_date)
         df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) / 10.0
@@ -669,8 +674,6 @@ class EventBacktestInstance(BacktestInstance):
         pass
 
     def _create_time_symbol_bars(self, date):
-        from collections import defaultdict
-        
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
         df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
@@ -710,8 +713,6 @@ class EventBacktestInstance(BacktestInstance):
     
     def _run_daily(self):
         """Quotes of different symbols will be aligned into one dictionary."""
-        from collections import defaultdict
-        
         symbols_str = ','.join(self.ctx.universe)
         df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date,
                                                 #adjust_mode='post'
@@ -762,6 +763,26 @@ class EventBacktestInstance(BacktestInstance):
         
         self.on_after_market_close()
 
+    def _process_quote_bar(self, quotes_dic):
+        results = self.ctx.trade_api.match_and_callback(quotes_dic, freq=self.bar_type)
+    
+        '''
+        # match
+        trade_results = self.ctx.trade_api._process_quote(quotes_dic, freq=self.bar_type)
+        
+        # trade indication
+        for trade_ind, status_ind in trade_results:
+            comm = self.calc_commission(trade_ind)
+            trade_ind.commission = comm
+            # self.ctx.strategy.cash -= comm
+    
+            self.ctx.strategy.on_trade(trade_ind)
+            self.ctx.strategy.on_order_status(status_ind)
+        '''
+    
+        # on_bar
+        self.ctx.strategy.on_bar(quotes_dic)
+
     def run(self):
         self._get_dividend_info()
         
@@ -778,26 +799,6 @@ class EventBacktestInstance(BacktestInstance):
         
         print("Backtest done.")
         
-    def _process_quote_bar(self, quotes_dic):
-        self.ctx.trade_api.match_and_callback(quotes_dic, freq=self.bar_type)
-        
-        '''
-        # match
-        trade_results = self.ctx.trade_api._process_quote(quotes_dic, freq=self.bar_type)
-        
-        # trade indication
-        for trade_ind, status_ind in trade_results:
-            comm = self.calc_commission(trade_ind)
-            trade_ind.commission = comm
-            # self.ctx.strategy.cash -= comm
-    
-            self.ctx.strategy.on_trade(trade_ind)
-            self.ctx.strategy.on_order_status(status_ind)
-        '''
-        
-        # on_bar
-        self.ctx.strategy.on_bar(quotes_dic)
-    
     def save_results(self, folder_path='.'):
         import os
         import pandas as pd
