@@ -516,7 +516,7 @@ class BaseAnalyzer(object):
         print("get daily stats...")
         self.get_daily()
         print("calc strategy return...")
-        self.get_returns(consider_commission=False)
+        self.get_returns(consider_commission=True)
 
         if len(selected_sec) > 0:
             print("Plot single securities PnL")
@@ -755,7 +755,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         print("get daily stats...")
         self.get_daily()
         print("calc strategy return...")
-        self.get_returns(consider_commission=False)
+        self.get_returns(consider_commission=True)
     
         not_none_sec = []
         if len(selected_sec) > 0:
