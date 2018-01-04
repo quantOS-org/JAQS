@@ -537,14 +537,19 @@ class PortfolioManager(object):
         ind : Trade
 
         """
-        turnover = ind.fill_size * ind.fill_price
+        curr_pos = self.get_pos(ind.symbol)
+        closed_size = min((abs(curr_pos), ind.fill_size))
+        turnover = ind.fill_price * closed_size
         if common.ORDER_ACTION.is_positive(ind.entrust_action):
+            #turnover = ind.fill_size * ind.fill_price
             self.cash -= turnover
         else:
             self.cash += turnover
         
+        # TODO
         if self.cash < 0:
-            print("WARNING: cash is not enough when executing trade\n", ind)
+            pass
+            #print("WARNING: cash is not enough when executing trade\n", ind)
         
     def _update_order_from_trade_ind(self, ind):
         order = self.orders.get(ind.entrust_no)
