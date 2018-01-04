@@ -29,6 +29,12 @@ class TradeCallback(with_metaclass(abc.ABCMeta)):
 '''
 
 
+def calc_commission(trade_ind, commission_rate):
+    turnover = abs(trade_ind.fill_price * trade_ind.fill_size)
+    res = turnover * commission_rate
+    return res
+
+
 class BaseTradeApi(object):
     def __init__(self):
         super(BaseTradeApi, self).__init__()
@@ -794,13 +800,8 @@ class AlphaTradeApi(BaseTradeApi):
         return self._simulator.match(price_dict, date=self.ctx.trade_date, time=time)
 
     '''
-    def calc_commission(self, trade_ind):
-        to = abs(trade_ind.fill_price * trade_ind.fill_size)
-        res = to * self.commission_rate
-        return res
-
     def _add_commission(self, ind):
-        comm = self.calc_commission(ind)
+        comm = calc_commission(ind, self.commission_rate)
         ind.commission = comm
         
     def match_and_callback(self, price_dict):
@@ -1279,11 +1280,6 @@ class BacktestTradeApi(BaseTradeApi):
     def _process_quote(self, df_quote, freq):
         return self._orderbook.make_trade(df_quote, freq)
 
-    def calc_commission(self, trade_ind):
-        to = abs(trade_ind.fill_price * trade_ind.fill_size)
-        res = to * self.commission_rate
-        return res
-    
     def _add_task_id(self, ind):
         no = ind.entrust_no
         task_id = self.entrust_no_task_id_map[no]
@@ -1291,7 +1287,7 @@ class BacktestTradeApi(BaseTradeApi):
         # ind.task_no = task_id
     
     def _add_commission(self, ind):
-        comm = self.calc_commission(ind)
+        comm = calc_commission(ind, self.commission_rate)
         ind.commission = comm
         
     def match_and_callback(self, quote, freq):
@@ -1312,4 +1308,6 @@ class BacktestTradeApi(BaseTradeApi):
                 task_ind = TaskInd(task_id, task_status=task.task_status,
                                    task_algo='', task_msg="")
                 self._task_status_callback(task_ind)
+        
+        return results
 
