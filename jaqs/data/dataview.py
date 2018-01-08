@@ -5,7 +5,6 @@
 """
 from __future__ import print_function
 import os
-from multiprocessing import Pool
 try:
     basestring
 except NameError:
@@ -17,15 +16,6 @@ import pandas as pd
 import jaqs.util as jutil
 from jaqs.data.align import align
 from jaqs.data.py_expression_eval import Parser
-
-
-def apply_in_subprocess(func, args, kwargs):
-    pool = Pool(processes=1)  # start 4 worker processes
-    res = pool.apply(func, args=args, kwds=kwargs)  # runs in *only* one process
-    #return_value = res.get()  # prints "400"
-    pool.close()
-    pool.join()
-    return res
 
 
 class DataView(object):
@@ -483,8 +473,9 @@ class DataView(object):
                 df_list.append(df)
             df = pd.concat(df_list, axis=0)
         else:
-            df, msg = self.data_api.daily(symbol, start_date=start_date, end_date=end_date,
-                                     **kwargs)
+            df, msg = getattr(self.data_api, query_func_name)(symbol,
+                                                              start_date=start_date, end_date=end_date,
+                                                              **kwargs)
         return df, msg
 
     def prepare_data(self):
@@ -1139,10 +1130,12 @@ class DataView(object):
         multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
         df.columns = multi_idx
 
-        the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
-                                    kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
+        #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
+        the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        the_data = the_data.sortlevel(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
-        the_data = the_data.sort_index(axis=1, level=['symbol', 'field'])
+        #sort_columns(the_data)
     
         if is_quarterly:
             self.data_q = the_data
