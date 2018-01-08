@@ -74,5 +74,5 @@ def simple_test_signal():
     print("Signal return & IC test finished.")
 
 if __name__ == "__main__":
-    #save_dataview()
+    save_dataview()
     simple_test_signal()
