@@ -152,7 +152,7 @@ props = {
     "k2": 0.2,
     "bar_type": "1M",
     "init_balance": 3e4,
-    "commission_rate": 0.0
+    "commission_rate": 1e-4
 }
 props.update(data_config)
 props.update(trade_config)
