@@ -837,6 +837,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             dic[sec] = mask
             
         res = pd.DataFrame(index=dates, data=dic)
+        res.index.name = 'trade_date'
         
         return res
 
