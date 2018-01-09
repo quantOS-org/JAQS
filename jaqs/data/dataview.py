@@ -434,14 +434,23 @@ class DataView(object):
         if not (symbol or universe):
             raise ValueError("One of [symbol] or [universe] must be provided.")
         if universe:
-            self.universe = universe
-            self.symbol = sorted(data_api.get_index_comp(self.universe, self.extended_start_date_d, self.end_date))
+            univ_list = universe.split(',')
+            self.universe = univ_list
+            symbols_list = []
+            for univ in univ_list:
+                symbols_list.extend(data_api.get_index_comp(univ, self.extended_start_date_d, self.end_date))
+            self.symbol = sorted(list(set(symbols_list)))
         else:
             self.symbol = sorted(symbol.split(sep))
         if benchmark:
             self.benchmark = benchmark
         else:
-            self.benchmark = self.universe
+            if len(self.universe) > 1:
+                print("More than one universe are used: {}, "
+                                 "use the first one ({}) as index by default. "
+                                 "If you want to use other benchmark, "
+                                 "please specify benchmark in configs.".format(repr(self.universe), self.universe[0]))
+            self.benchmark = self.universe[0]
     
         print("Initialize config success.")
 
@@ -920,10 +929,17 @@ class DataView(object):
         self.append_df(df_adj, 'adjust_factor', is_quarterly=False)
 
     def _prepare_comp_info(self):
-        df = self.data_api.get_index_comp_df(self.universe, self.extended_start_date_d, self.end_date)
+        # if a symbol is index member of any one universe, its value of index_member will be 1.0
+        res = dict()
+        for univ in self.universe:
+            df = self.data_api.get_index_comp_df(univ, self.extended_start_date_d, self.end_date)
+            res[univ] = df
+        df_res = pd.concat(res, axis=0)
+        df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
         self.append_df(df, 'index_member', is_quarterly=False)
     
-        df_weights = self.data_api.get_index_weights_daily(self.universe, self.extended_start_date_d, self.end_date)
+        # use weights of the first universe
+        df_weights = self.data_api.get_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
         self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
     def _prepare_inst_info(self):
@@ -1366,8 +1382,13 @@ class DataView(object):
             Folder path to store hd5 file and meta data.
             
         """
-        meta_data = jutil.read_json(os.path.join(folder_path, 'meta_data.json'))
-        dic = self._load_h5(os.path.join(folder_path, 'data.hd5'))
+        path_meta_data = os.path.join(folder_path, 'meta_data.json')
+        path_data = os.path.join(folder_path, 'data.hd5')
+        if not (os.path.exists(path_meta_data) and os.path.exists(path_data)):
+            raise IOError("There is no data file under directory {}".format(folder_path))
+        
+        meta_data = jutil.read_json(path_meta_data)
+        dic = self._load_h5(path_data)
         self.data_d = dic.get('/data_d', None)
         self.data_q = dic.get('/data_q', None)
         self._data_benchmark = dic.get('/data_benchmark', None)
