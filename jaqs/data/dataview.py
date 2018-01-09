@@ -445,12 +445,13 @@ class DataView(object):
         if benchmark:
             self.benchmark = benchmark
         else:
-            if len(self.universe) > 1:
-                print("More than one universe are used: {}, "
-                                 "use the first one ({}) as index by default. "
-                                 "If you want to use other benchmark, "
-                                 "please specify benchmark in configs.".format(repr(self.universe), self.universe[0]))
-            self.benchmark = self.universe[0]
+            if self.universe:
+                if len(self.universe) > 1:
+                    print("More than one universe are used: {}, "
+                                     "use the first one ({}) as index by default. "
+                                     "If you want to use other benchmark, "
+                                     "please specify benchmark in configs.".format(repr(self.universe), self.universe[0]))
+                self.benchmark = self.universe[0]
     
         print("Initialize config success.")
 
@@ -1040,7 +1041,7 @@ class DataView(object):
             self.append_df(df_expanded, field_name, is_quarterly=False)
         return True
     
-    def add_formula(self, field_name, formula, is_quarterly,
+    def add_formula(self, field_name, formula, is_quarterly, overwrite=True,
                     formula_func_name_style='camel', data_api=None,
                     within_index=True):
         """
@@ -1054,6 +1055,8 @@ class DataView(object):
             A custom name for the new field.
         is_quarterly : bool
             Whether df is quarterly data (like quarterly financial statement) or daily data.
+        overwrite : bool, optional
+            Whether overwrite existing field. True by default.
         formula_func_name_style : {'upper', 'lower'}, optional
         data_api : RemoteDataService, optional
         within_index : bool
@@ -1064,8 +1067,12 @@ class DataView(object):
             self.data_api = data_api
             
         if field_name in self.fields:
-            print("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
-            return
+            if overwrite:
+                self.remove_field(field_name)
+                print("Field [{:s}] is overwritten.".format(field_name))
+            else:
+                print("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
+                return
         
         parser = Parser()
         parser.set_capital(formula_func_name_style)
@@ -1075,8 +1082,7 @@ class DataView(object):
         var_df_dic = dict()
         var_list = expr.variables()
         
-        # TODO
-        # users do not need to prepare data before add_formula
+        # TODO: users do not need to prepare data before add_formula
         if not self.fields:
             self.fields.extend(var_list)
             self.prepare_data()
@@ -1123,7 +1129,12 @@ class DataView(object):
         field_name : str
         is_quarterly : bool
             Whether df is quarterly data (like quarterly financial statement) or daily data.
-
+            
+        Notes
+        -----
+        append_df does not support overwrite. To overwrite a field, you must first do self.remove_fields(),
+        then append_df() again.
+        
         """
         df = df.copy()
         if isinstance(df, pd.DataFrame):
@@ -1137,7 +1148,7 @@ class DataView(object):
             the_data = self.data_q
         else:
             the_data = self.data_d
-    
+        
         exist_symbols = the_data.columns.levels[0]
         if len(df.columns) < len(exist_symbols):
             df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
@@ -1196,6 +1207,7 @@ class DataView(object):
                 return
         
             # remove field data
+            
             self.data_d = self.data_d.drop(field_name, axis=1, level=1)
             if is_quarterly:
                 self.data_q = self.data_q.drop(field_name, axis=1, level=1)
