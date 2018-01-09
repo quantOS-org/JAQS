@@ -647,7 +647,7 @@ class Parser(object):
     def group_rank(self, x, group):
         x = self._align_univariate(x)
         x = self._mask_non_index_member(x)
-        vals = np.unique(group.values.flatten())
+        vals = np.unique(pd.Series(group.values.flatten()).dropna())
         res = None
         for val in vals:
             rank = x[group == val].rank(axis=1, na_option='keep')
@@ -698,7 +698,8 @@ class Parser(object):
         df = self._mask_non_index_member(df)
         
         res = None
-        for val in np.unique(group.values.flatten()):
+        groups = np.unique(pd.Series(group.values.flatten()).dropna())
+        for val in groups:
             val_res = self.to_quantile(df[group == val], n_quantiles=n_quantiles)
             if res is None:
                 res = val_res
