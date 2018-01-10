@@ -657,16 +657,14 @@ class Parser(object):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
-        mask = (~df.isnull())
-        rank = rank_with_mask(df, axis=1, mask=mask, normalize=False)
+        rank = rank_with_mask(df, axis=1, normalize=False)
         return rank
 
     def percentile(self, df):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
-        mask = (~df.isnull())
-        rank = rank_with_mask(df, axis=1, mask=mask, normalize=True)
+        rank = rank_with_mask(df, axis=1, normalize=True)
         return rank
     
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.

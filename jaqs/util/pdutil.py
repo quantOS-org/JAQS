@@ -45,11 +45,15 @@ def group_df_to_dict(df, by):
 
 
 def rank_with_mask(df, axis=1, mask=None, normalize=False):
+    not_nan_mask = (~df.isnull())
+    
     if mask is None:
-        to_be_ranked = df
+        mask = not_nan_mask
     else:
-        to_be_ranked = df[mask]
-    rank = to_be_ranked.rank(axis=axis, na_option='keep')
+        mask = np.logical_and(not_nan_mask, mask)
+    
+    rank = df[mask].rank(axis=axis, na_option='keep')
+    
     if normalize:
         rank = rank.div(mask.sum(axis=axis), axis=(1 - axis))
     return rank

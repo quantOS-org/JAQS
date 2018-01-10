@@ -106,6 +106,20 @@ def test_dtutil():
         assert datetime.datetime.strptime(str(monthly), "%Y%m%d").weekday() < 5
 
 
+def test_rank_percentile():
+    df = pd.DataFrame(np.random.rand(500, 3000))
+    res1 = jutil.rank_with_mask(df, axis=1, mask=None, normalize=False)
+    res2 = jutil.rank_with_mask(df, axis=1, mask=None, normalize=True)
+    print
+    
+    #assert np.nanmean(val[res == 1].values.flatten()) < 0.11
+    #
+    #val = pd.DataFrame(np.random.rand(1000, 100))
+    #expr = parser.parse('Ts_Quantile(val, 500, 12)')
+    #res = parser.evaluate({'val': val})
+    #assert np.nanmean(val[res == 1].values.flatten()) < 0.11
+
+
 def test_io():
     folder_relative = '../output/test/test_file_io'
     folder = jutil.join_relative_path(folder_relative)
