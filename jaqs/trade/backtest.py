@@ -461,13 +461,13 @@ class AlphaBacktestInstance(BacktestInstance):
         else:
             return self.ctx.data_api.is_trade_date(date)
     
-    def _get_next_trade_date(self, date):
+    def _get_next_trade_date(self, date, n=1):
         if self.ctx.dataview is not None:
             dates = self.ctx.dataview.dates
             mask = dates > date
-            return dates[mask][0]
+            return dates[mask][n-1]
         else:
-            return self.ctx.data_api.get_next_trade_date(date)
+            return self.ctx.data_api.get_next_trade_date(date, n)
     
     def _get_last_trade_date(self, date):
         if self.ctx.dataview is not None:
@@ -489,20 +489,28 @@ class AlphaBacktestInstance(BacktestInstance):
         """
         current_date = self.ctx.trade_date
         if self.ctx.trade_api.match_finished:
-            next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
-                                                        n=self.ctx.strategy.n_periods,
-                                                        extra_offset=self.ctx.strategy.days_delay)
-            if next_period_day > self.end_date:
-                return True
-            
-            # update current_date: next_period_day is a workday, but not necessarily a trade date
-            if self._is_trade_date(next_period_day):
-                current_date = next_period_day
-            else:
+            if self.ctx.strategy.period == 'day':
+                # use trade dates array
                 try:
-                    current_date = self._get_next_trade_date(next_period_day)
+                    current_date = self._get_next_trade_date(current_date, self.ctx.strategy.n_periods)
                 except IndexError:
                     return True
+            else:
+                # use natural week/month
+                next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
+                                                            n=self.ctx.strategy.n_periods,
+                                                            extra_offset=self.ctx.strategy.days_delay)
+                if next_period_day > self.end_date:
+                    return True
+                
+                # update current_date: next_period_day is a workday, but not necessarily a trade date
+                if self._is_trade_date(next_period_day):
+                    current_date = next_period_day
+                else:
+                    try:
+                        current_date = self._get_next_trade_date(next_period_day)
+                    except IndexError:
+                        return True
         
             # update re-balance date
             if self.current_rebalance_date > 0:
