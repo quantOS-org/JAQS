@@ -29,6 +29,7 @@ import pandas as pd
 
 from jaqs.data.align import align
 import jaqs.util.numeric as numeric
+from jaqs.util import rank_with_mask
 
 TNUMBER = 0
 TOP1 = 1
@@ -282,11 +283,11 @@ class Parser(object):
             # cross section
             'Min': np.minimum,
             'Max': np.maximum,
-            'Rank': self.rank,
-            #'Percentile': self.percentile,
+            'Percentile': self.percentile,
+            'GroupPercentile': self.group_percentile,
             'Quantile': self.to_quantile,
-            'Ts_Quantile': self.ts_quantile,
             'GroupQuantile': self.group_quantile,
+            'Rank': self.rank,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
             'Standardize': self.standardize,
@@ -294,6 +295,8 @@ class Parser(object):
             # 'GroupApply': self.group_apply,
             # time series
             'Ts_Rank': self.ts_rank,
+            'Ts_Percentile': self.ts_percentile,
+            'Ts_Quantile': self.ts_quantile,
             'Ewma': self.ewma,
             'Sma':self.sma,
             'Sum': self.sum,
@@ -591,6 +594,19 @@ class Parser(object):
         res = roll.apply(_rank_arr, kwargs={'norm': window})
         return res
 
+    @staticmethod
+    def ts_percentile(df, window):
+        """Return a DataFrame with values ranging from 0.0 to 1.0"""
+        roll = df.rolling(window=window)
+    
+        def _rank_arr(arr, norm=1.0):
+            norm = norm * 1.0
+            ranks = np.argsort(np.argsort(arr))[-1] + 1
+            return ranks / norm
+    
+        res = roll.apply(_rank_arr)
+        return res
+    
     def step(self, x, n):
         st = x.copy()
         n = n + 1
@@ -641,8 +657,18 @@ class Parser(object):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
-        return df.rank(axis=1).div((df.shape[1] - df.isnull().sum(axis=1)), axis=0)
+        mask = (~df.isnull())
+        rank = rank_with_mask(df, axis=1, mask=mask, normalize=False)
+        return rank
 
+    def percentile(self, df):
+        """Return a DataFrame with values ranging from 0.0 to 1.0"""
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+        mask = (~df.isnull())
+        rank = rank_with_mask(df, axis=1, mask=mask, normalize=True)
+        return rank
+    
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
     def group_rank(self, x, group):
         x = self._align_univariate(x)
@@ -650,7 +676,22 @@ class Parser(object):
         vals = np.unique(pd.Series(group.values.flatten()).dropna())
         res = None
         for val in vals:
-            rank = x[group == val].rank(axis=1, na_option='keep')
+            mask = (group == val)
+            rank = rank_with_mask(x, mask=mask, axis=1, normalize=False)
+            if res is None:
+                res = rank
+            else:
+                res = res.fillna(rank)
+        return res
+    
+    def group_percentile(self, x, group):
+        x = self._align_univariate(x)
+        x = self._mask_non_index_member(x)
+        vals = np.unique(pd.Series(group.values.flatten()).dropna())
+        res = None
+        for val in vals:
+            mask = (group == val)
+            rank = rank_with_mask(x, mask=mask, axis=1, normalize=True)
             if res is None:
                 res = rank
             else:

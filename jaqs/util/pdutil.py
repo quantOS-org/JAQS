@@ -42,3 +42,15 @@ def group_df_to_dict(df, by):
     gp = df.groupby(by=by)
     res = {key: value for key, value in gp}
     return res
+
+
+def rank_with_mask(df, axis=1, mask=None, normalize=False):
+    if mask is None:
+        to_be_ranked = df
+    else:
+        to_be_ranked = df[mask]
+    rank = to_be_ranked.rank(axis=axis, na_option='keep')
+    if normalize:
+        rank = rank.div(mask.sum(axis=axis), axis=(1 - axis))
+    return rank
+
