@@ -7,6 +7,7 @@ calculation, plot.
 """
 from __future__ import print_function
 import os
+import codecs
 import json
 from collections import OrderedDict
 try:
@@ -71,13 +72,36 @@ class MyFormatter(Formatter):
 
 class BaseAnalyzer(object):
     """
+    BaseAnalyzer is a concrete class. It defines what should be analyzed for all types
+    of strategies.
+    
     Attributes
     ----------
     _trades : pd.DataFrame
+        Raw trading records, inluding fill_price, fill_time, fill_size, etc.
     _configs : dict
+        Configuration read from file.
     data_api : BaseDataServer
+    dataview : DataView
     _universe : set
         All securities that have been traded.
+    _closes : pd.DataFrame
+        Daily close prices of all symbols.
+    _closes_adj : pd.DataFrame
+        Daily adjusted close prices of all symbols.
+    returns : pd.DataFrame
+        Daily return and cumulative return of strategy, benchmark and excess.
+    daily : pd.DataFrame
+        Essential daily statistics of trading.
+    df_pnl : pd.DataFrame
+        Daily trading, holding and total PnL.
+    adjust_mode : {'pre', 'post', None}
+        Adjust_mode for adjusted price.
+    inst_map : dict
+        Keys are symbols, values are dict of symbol attributes like multiplier.
+    performance_metrics : dict
+        Names and values of strategy performance indicator.
+    risk_metrics : dict
         
     """
     def __init__(self):
@@ -96,6 +120,7 @@ class BaseAnalyzer(object):
         self.position_change = None
         self.account = None
         self.daily = None
+        self.df_pnl = None
         
         self.adjust_mode = None
         
@@ -133,7 +158,10 @@ class BaseAnalyzer(object):
 
     def initialize(self, data_api=None, dataview=None, file_folder='.'):
         """
-        Read trades from csv file to DataFrame of given data type.
+        Read trading records and configurations from file.
+        Initialized various data for analysis, including:
+            - Daily close price
+            - Basic instrument information
 
         Parameters
         ----------
@@ -169,6 +197,10 @@ class BaseAnalyzer(object):
         self._init_inst_data()
     
     def _init_inst_data(self):
+        """
+        Query instrument info from DataService or DataView.
+        
+        """
         symbol_str = ','.join(self.universe)
         if self.dataview is not None:
             data_inst = self.dataview.data_inst
@@ -181,7 +213,15 @@ class BaseAnalyzer(object):
             raise ValueError("no dataview or dataapi provided.")
         
     def _init_trades(self, df):
-        """Add datetime column. """
+        """
+        Modify trading records dataframe. (Add datetime column)
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Each row represents a single trading record.
+        
+        """
         df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
         
         df = df.set_index(['symbol', 'fill_dt']).sort_index(axis=0)
@@ -190,7 +230,11 @@ class BaseAnalyzer(object):
         self._trades = df
     
     def _init_symbol_price(self):
-        """Get close price of securities in the universe from data server."""
+        """
+        Get close price of securities in the universe from DataService or DataView.
+        Both raw close prices and adjusted close prices are stored.
+
+        """
         if self.dataview is not None:
             df_close = self.dataview.get_ts('close', start_date=self.start_date, end_date=self.end_date)
             df_close_adj = self.dataview.get_ts('close_adj', start_date=self.start_date, end_date=self.end_date)
@@ -214,7 +258,15 @@ class BaseAnalyzer(object):
         self._universe = set(securities)
     
     def _init_configs(self, folder):
-        import codecs
+        """
+        Read configs from file and get some important items.
+        
+        Parameters
+        ----------
+        folder : str
+            Directory path where configs.json is under.
+
+        """
         with codecs.open(os.path.join(folder, 'configs.json'), 'r', encoding='utf-8') as f:
             configs = json.load(f)
         self._configs = configs
@@ -224,11 +276,20 @@ class BaseAnalyzer(object):
         
     @staticmethod
     def _process_trades(df):
-        """Add various statistics to trades DataFrame."""
+        """
+        Add various statistics to trades DataFrame.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Index is int datetime, columns are different terms.
+
+        Returns
+        -------
+
+        """
         from jaqs.trade import common
         
-        # df = df.set_index('fill_date')
-    
         # pre-process
         cols_to_drop = ['task_id', 'entrust_no', 'fill_no']
         df = df.drop(cols_to_drop, axis=1)
@@ -259,15 +320,21 @@ class BaseAnalyzer(object):
         return res
     
     def process_trades(self):
-        # self._trades = {k: self._process_trades(v) for k, v in self.trades.items()}
         self._trades = self._process_trades(self._trades)
     
     def get_pos_change_info(self):
+        """
+        Calculate daily position and average holding price.
+        Definition of Average Holding price:
+            If abs(position) increases, avg_price will be weighted average of fill_price. Weights are fill_size.
+            If abs(position) decreases, avg_price will NOT change.
+
+        """
         trades = pd.concat(self.trades.values(), axis=0)
         gp = trades.groupby(by=['fill_date'], as_index=False)
         res = OrderedDict()
         account = OrderedDict()
-    
+        
         for date, df in gp:
             df_mod = df.loc[:, ['symbol', 'entrust_action', 'fill_size', 'fill_price',
                                 'position', 'AvgPosPrice']]
@@ -285,6 +352,14 @@ class BaseAnalyzer(object):
         self.account = account
 
     def get_daily(self):
+        """
+        Calculate daily trading statistics, including:
+        - daily Buy/Sell volume
+        - daily position
+        - daily average holding price
+        - daily trading, holding and total PnL
+        
+        """
         close = self.closes
         trade = self.trades
         
@@ -353,6 +428,18 @@ class BaseAnalyzer(object):
     '''
 
     def get_returns(self, compound_return=True, consider_commission=True):
+        """
+        Calculate strategy daily return and various metrics indicating strategy's performance.
+        
+        Parameters
+        ----------
+        compound_return : bool
+            If True, we will calculate compound return. Otherwise non-compound (just sum).
+        consider_commission : bool
+            If True, we will consider commission when calculating PnL curve. Otherwise no commission.
+            Note: commission is stored in a column in self.trades.
+
+        """
         cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit']
         '''
         dic_symbol = {sec: self.inst_map[sec]['multiplier'] * df_daily.loc[:, cols]
@@ -420,6 +507,17 @@ class BaseAnalyzer(object):
         self.returns = df_returns
     
     def plot_pnl(self, save_folder=None):
+        """
+        Plot 2 graphs:
+            1. Percentage return of strategy, benchmark and strategy's excess part.
+            2. Daily trading, holding and total PnL.
+        
+        Parameters
+        ----------
+        save_folder : str
+            Output folder of the PnL image.
+
+        """
         old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
         mpl.rcParams.update(MPL_RCPARAMS)
         
@@ -440,6 +538,7 @@ class BaseAnalyzer(object):
         
         mpl.rcParams.update(old_mpl_rcparams)
 
+    """
     def plot_pnl_OLD(self, save_folder=None):
         if save_folder is None:
             save_folder = self.file_folder
@@ -470,6 +569,8 @@ class BaseAnalyzer(object):
         fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
         plt.close()
 
+    """
+    
     def gen_report(self, source_dir, template_fn, out_folder='.', selected=None):
         """
         Generate HTML (and PDF) report of the trade analysis.
@@ -508,6 +609,20 @@ class BaseAnalyzer(object):
         r.output_html('report.html')
 
     def do_analyze(self, result_dir, selected_sec=None):
+        """
+        Convenient function to do a series of analysis.
+        The reason why define these separate steps and put them in one function is
+        this function is convenient for common users but advanced users can still customize.
+        
+        Parameters
+        ----------
+        result_dir
+        selected_sec
+
+        Returns
+        -------
+
+        """
         if selected_sec is None:
             selected_sec = []
             
