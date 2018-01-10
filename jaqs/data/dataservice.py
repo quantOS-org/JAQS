@@ -1144,12 +1144,14 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         dates = self.get_trade_date_range(date, date)
         return len(dates) > 0
 
-    def get_next_trade_date(self, date):
+    def get_next_trade_date(self, date, n=1):
         """
         
         Parameters
         ----------
         date : int
+        n : int, optional
+            Next n trade dates, default 0 (next trade date).
 
         Returns
         -------
@@ -1157,12 +1159,12 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         """
         dt = jutil.convert_int_to_datetime(date)
-        delta = pd.Timedelta(weeks=2)
+        delta = pd.Timedelta(weeks=(n // 7 + 2))
         dt_new = dt + delta
         date_new = jutil.convert_datetime_to_int(dt_new)
     
         dates = self.get_trade_date_range(date, date_new)
         mask = dates > date
-        res = dates[mask][0]
+        res = dates[mask][n-1]
     
         return res
