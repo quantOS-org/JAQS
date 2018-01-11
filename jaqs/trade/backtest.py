@@ -630,11 +630,6 @@ class EventBacktestInstance(BacktestInstance):
         df.loc[:, 'cash_tax'] = df['cash_tax'] / 10.0
         self.df_dividend = df
         
-    def go_next_trade_date(self):
-        next_dt = self.ctx.data_api.get_next_trade_date(self.ctx.trade_date)
-        
-        self.ctx.trade_date = next_dt
-    
     def settle_for_stocks(self, last_date, date):
         df = self.df_dividend.loc[(self.df_dividend['exdiv_date'] > last_date) & (self.df_dividend['exdiv_date'] <= date)]
         if df.empty:
