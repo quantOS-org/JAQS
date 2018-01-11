@@ -682,111 +682,114 @@ class EventBacktestInstance(BacktestInstance):
         pass
 
     def _create_time_symbol_bars(self, date):
+        """
+        Given a trade date, query bars of all symbols on that day and return a nested dict.
+        
+        Parameters
+        ----------
+        date : int
+            Trade date.
+
+        Returns
+        -------
+        res : list of tuples
+            Three-element tuple: (trade_date, time, dict of quote)
+
+        """
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
-        df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str, start_time=200000, end_time=160000,
-                                               trade_date=date, freq=self.bar_type)
-        if msg != '0,':
-            print(msg)
+        df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str,
+                                               start_time=200000, end_time=160000, trade_date=date,
+                                               freq=self.bar_type)
         if df_quotes is None or df_quotes.empty:
             return dict()
     
         # create nested dict
-        quotes_list = Bar.create_from_df(df_quotes)
+        df_quotes = df_quotes.sort_values(['trade_date', 'time', 'symbol'])
+        res = []
+        for (date, time), df in df_quotes.groupby(by=['trade_date', 'time']):
+            quotes_list = Bar.create_from_df(df)
+            dic = {quote.symbol: quote for quote in quotes_list}
+            res.append((date, time, dic))
         
-        dic = defaultdict(dict)
-        for quote in quotes_list:
-            dic[jutil.combine_date_time(quote.date, quote.time)][quote.symbol] = quote
-        return dic
+        return res
     
     def _run_bar(self):
         """Quotes of different symbols will be aligned into one dictionary."""
-        trade_dates = self.ctx.data_api.get_trade_date_range(self.start_date, self.end_date)
+        trade_dates_arr = self.ctx.data_api.get_trade_date_range(self.start_date, self.end_date)
 
-        last_trade_date = trade_dates[0]
-        for i, trade_date in enumerate(trade_dates):
+        last_trade_date = trade_dates_arr[0]
+        for trade_date in trade_dates_arr:
             self.settle_for_stocks(last_trade_date, trade_date)
             self.on_new_day(trade_date)
             
-            quotes_dic = self._create_time_symbol_bars(trade_date)
-            for dt in sorted(quotes_dic.keys()):
-                _, time = jutil.split_date_time(dt)
-                self.ctx.time = time
-                
-                quote_by_symbol = quotes_dic.get(dt)
-                self._process_quote_bar(quote_by_symbol)
+            list_of_quotes_tuples = self._create_time_symbol_bars(trade_date)
+            for _, time, quotes_dic in list_of_quotes_tuples:
+                self._process_quote_bar(quotes_dic)
             
             self.on_after_market_close()
             last_trade_date = trade_date
-    
-    def _run_daily(self):
-        """Quotes of different symbols will be aligned into one dictionary."""
+
+    def _create_daily_symbol_bars(self, start_date, end_date):
+        """
+        Given a trade date range, query daily bars of all symbols in that range and return a list.
+        
+        Parameters
+        ----------
+        start_date : int
+            Trade date.
+        end_date : int
+            Trade date.
+
+        Returns
+        -------
+        res : list of tuples
+            Two-element tuple: (trade_date, dict of quotes)
+
+        """
+        # query quotes data
         symbols_str = ','.join(self.ctx.universe)
-        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str, start_date=self.start_date, end_date=self.end_date,
-                                                #adjust_mode='post'
-                                                )
-        if msg != '0,':
-            print(msg)
+        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str,
+                                                start_date=start_date, end_date=end_date,
+                                                adjust_mode=None)
         if df_daily is None or df_daily.empty:
             return dict()
-        
-        # create nested dict
-        quotes_list = Bar.create_from_df(df_daily)
 
-        dic = defaultdict(dict)
-        for quote in quotes_list:
-            dic[quote.trade_date][quote.symbol] = quote
+        # create nested dict
+        df_daily = df_daily.sort_values(['trade_date', 'symbol'])
+        res = []
+        for date, df in df_daily.groupby(by='trade_date'):
+            quotes_list = Bar.create_from_df(df)
+            dic = {quote.symbol: quote for quote in quotes_list}
+            res.append((date, dic))
+    
+        return res
+
+    def _run_daily(self):
+        """Quotes of different symbols will be aligned into one dictionary."""
+        # create nested dict
+        list_of_quotes_tuples = self._create_daily_symbol_bars(self.start_date, self.end_date)
         
-        dates = sorted(dic.keys())
-        for i in range(len(dates) - 1):
-            d1, d2 = dates[i], dates[i + 1]
-            self.on_new_day(d2)
+        for i in range(len(list_of_quotes_tuples) - 1):
+            date1, quotes_dic1 = list_of_quotes_tuples[i]
+            date2, quotes_dic2 = list_of_quotes_tuples[i + 1]
+            self.on_new_day(date2)
             
-            quote1 = dic.get(d1)
-            quote2 = dic.get(d2)
-            self._process_quote_daily(quote1, quote2)
+            self._process_quote_daily(quotes_dic1, quotes_dic2)
             
             self.on_after_market_close()
-            self.settle_for_stocks(d1, d2)
+            self.settle_for_stocks(date1, date2)
     
     def _process_quote_daily(self, quote_yesterday, quote_today):
         # on_bar
         self.ctx.strategy.on_bar(quote_yesterday)
         
         self.ctx.trade_api.match_and_callback(quote_today, freq=self.bar_type)
-        
-        '''
-        # match
-        trade_results = self.ctx.gateway._process_quote(quote_today, freq=self.bar_type)
-
-        # trade indication
-        for trade_ind, status_ind in trade_results:
-            comm = self.calc_commission(trade_ind)
-            trade_ind.commission = comm
-            # self.ctx.strategy.cash -= comm
-            
-            self.ctx.strategy.on_trade(trade_ind)
-            self.ctx.strategy.on_order_status(status_ind)
-        '''
-        
+  
         self.on_after_market_close()
 
     def _process_quote_bar(self, quotes_dic):
         results = self.ctx.trade_api.match_and_callback(quotes_dic, freq=self.bar_type)
-    
-        '''
-        # match
-        trade_results = self.ctx.trade_api._process_quote(quotes_dic, freq=self.bar_type)
-        
-        # trade indication
-        for trade_ind, status_ind in trade_results:
-            comm = self.calc_commission(trade_ind)
-            trade_ind.commission = comm
-            # self.ctx.strategy.cash -= comm
-    
-            self.ctx.strategy.on_trade(trade_ind)
-            self.ctx.strategy.on_order_status(status_ind)
-        '''
     
         # on_bar
         self.ctx.strategy.on_bar(quotes_dic)
@@ -841,58 +844,3 @@ class EventBacktestInstance(BacktestInstance):
         jutil.save_json(self.props, configs_fn)
     
         print ("Backtest results has been successfully saved to:\n" + folder_path)
-    
-    '''
-    def run_event(self):
-        data_api = self.ctx.data_api
-        universe = self.ctx.universe
-        
-        data_api.add_batch_subscribe(self, universe)
-        
-        self.ctx.trade_date = self.start_date
-        
-        def __extract(func):
-            return lambda event: func(event.data, **event.kwargs)
-        
-        ee = self.ctx.strategy.eventEngine  # TODO event-driven way of lopping, is it proper?
-        ee.register(EVENT.CALENDAR_NEW_TRADE_DATE, __extract(self.ctx.strategy.on_new_day))
-        ee.register(EVENT.MD_QUOTE, __extract(self._process_quote_bar))
-        ee.register(EVENT.MARKET_CLOSE, __extract(self.close_day))
-        
-        while self.ctx.trade_date <= self.end_date:  # each loop is a new trading day
-            quotes = data_api.get_daily_quotes(self.ctx.trade_date)
-            if quotes is not None:
-                # gateway.oneNewDay()
-                e_newday = Event(EVENT.CALENDAR_NEW_TRADE_DATE)
-                e_newday.data = self.ctx.trade_date
-                ee.put(e_newday)
-                ee.process_once()  # this line should be done on another thread
-                
-                # self.ctx.strategy.onNewday(self.ctx.trade_date)
-                self.ctx.strategy.pm.on_new_day(self.ctx.trade_date, self.last_date)
-                self.ctx.strategy.ctx.trade_date = self.ctx.trade_date
-                
-                for quote in quotes:
-                    # self.processQuote(quote)
-                    e_quote = Event(EVENT.MD_QUOTE)
-                    e_quote.data = quote
-                    ee.put(e_quote)
-                    ee.process_once()
-                
-                # self.ctx.strategy.onMarketClose()
-                # self.closeDay(self.ctx.trade_date)
-                e_close = Event(EVENT.MARKET_CLOSE)
-                e_close.data = self.ctx.trade_date
-                ee.put(e_close)
-                ee.process_once()
-                # self.ctx.strategy.onSettle()
-                
-            else:
-                # no quotes because of holiday or other issues. We don't update last_date
-                print "in trade.py: function run(): {} quotes is None, continue.".format(self.last_date)
-            
-            self.ctx.trade_date = self.go_next_trade_date(self.ctx.trade_date)
-            
-            # self.ctx.strategy.onTradingEnd()
-
-    '''
