@@ -367,7 +367,7 @@ class BaseAnalyzer(object):
         trade_cols = ['fill_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
     
         trade = trade.loc[:, trade_cols]
-        gp = trade.groupby(by=['symbol', 'fill_date'])
+        gp = trade.reset_index().groupby(by=['symbol', 'fill_date'])
         func_last = lambda ser: ser.iat[-1]
         trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
                         'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
@@ -905,7 +905,10 @@ def plot_daily_trading_holding_pnl(trading, holding, total, total_cum):
     """
     Parameters
     ----------
-    Series
+    trading : pd.Series
+    holding : pd.Series
+    total : pd.Series
+    total_cum : pd.Series
     
     """
     idx0 = total.index
@@ -931,7 +934,6 @@ def plot_daily_trading_holding_pnl(trading, holding, total, total_cum):
     ax1.set(ylabel='Cum. ' + y_label)
     ax1.yaxis.label.set_color(curve_color)
 
-    
     color_arr = color_arr_raw.copy()
     color_arr[trading < 0] = lose_color
     ax2.bar(idx-bar_width/2, trading, width=bar_width, color=color_arr)
@@ -940,7 +942,7 @@ def plot_daily_trading_holding_pnl(trading, holding, total, total_cum):
     color_arr = color_arr_raw.copy()
     color_arr[holding < 0] = lose_color
     ax3.bar(idx+bar_width/2, holding, width=bar_width, color=color_arr)
-    ax3.set(title='Daily Holding PnL', ylabel=y_label, xticks=idx[: : n//10])
+    ax3.set(title='Daily Holding PnL', ylabel=y_label, xticks=idx[: : n//10 + 1])
     return fig
     
     
