@@ -624,13 +624,20 @@ class EventBacktestInstance(BacktestInstance):
         Query dividend information of stocks for use of daily settlement.
         
         """
-        symbol_str = ','.join(self.ctx.universe)
-        df, msg = self.ctx.data_api.query_dividend(symbol_str, start_date=self.start_date, end_date=self.end_date)
-        df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) / 10.0
-        df.loc[:, 'cash_tax'] = df['cash_tax'] / 10.0
-        self.df_dividend = df
+        if self.ctx.data_api is not None:
+            symbol_str = ','.join(self.ctx.universe)
+            df, msg = self.ctx.data_api.query_dividend(symbol_str, start_date=self.start_date, end_date=self.end_date)
+            df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) / 10.0
+            df.loc[:, 'cash_tax'] = df['cash_tax'] / 10.0
+            self.df_dividend = df
+        else:
+            # TODO
+            pass
         
     def settle_for_stocks(self, last_date, date):
+        if self.df_dividend is None:
+            return
+        
         df = self.df_dividend.loc[(self.df_dividend['exdiv_date'] > last_date) & (self.df_dividend['exdiv_date'] <= date)]
         if df.empty:
             return
@@ -675,7 +682,35 @@ class EventBacktestInstance(BacktestInstance):
     
     def on_after_market_close(self):
         pass
+        
+    def _get_df_bar(self, symbols, date):
+        """
+        Get bar DataFrame from DataApi or DataView.
+        
+        Parameters
+        ----------
+        symbols : str
+        date : int
 
+        Returns
+        -------
+        res : pd.DataFrame
+
+        """
+        if self.ctx.dataview is not None:
+            df_quotes = self.ctx.dataview.get(symbol=symbols,
+                                              start_date=date, end_date=date,
+                                              fields='open,high,low,close,volume,oi,trade_date,time',
+                                              data_format='long')
+        elif self.ctx.data_api is not None:
+            df_quotes, _ = self.ctx.data_api.bar(symbol=symbols,
+                                                   start_time=200000, end_time=160000, trade_date=date,
+                                                   freq=self.bar_type)
+        else:
+            raise ValueError()
+        
+        return df_quotes
+            
     def _create_time_symbol_bars(self, date):
         """
         Given a trade date, query bars of all symbols on that day and return a nested dict.
@@ -693,9 +728,7 @@ class EventBacktestInstance(BacktestInstance):
         """
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
-        df_quotes, msg = self.ctx.data_api.bar(symbol=symbols_str,
-                                               start_time=200000, end_time=160000, trade_date=date,
-                                               freq=self.bar_type)
+        df_quotes = self._get_df_bar(symbols_str, date)
         if df_quotes is None or df_quotes.empty:
             return dict()
     
@@ -725,6 +758,35 @@ class EventBacktestInstance(BacktestInstance):
             self.on_after_market_close()
             last_trade_date = trade_date
 
+    def _get_df_daily(self, symbol, start_date, end_date):
+        """
+        Get bar DataFrame from DataApi or DataView.
+        
+        Parameters
+        ----------
+        symbol : str or unicode
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+
+        """
+        if self.ctx.dataview is not None:
+            df_daily = self.ctx.dataview.get(symbol=symbol,
+                                             start_date=start_date, end_date=end_date,
+                                             fields='open,high,low,close,volume,oi,trade_date,time',
+                                             data_format='long')
+        elif self.ctx.data_api is not None:
+            df_daily, _ = self.ctx.data_api.daily(symbol=symbol,
+                                                  start_date=start_date, end_date=end_date,
+                                                  adjust_mode=None)
+        else:
+            raise ValueError()
+    
+        return df_daily
+
     def _create_daily_symbol_bars(self, start_date, end_date):
         """
         Given a trade date range, query daily bars of all symbols in that range and return a list.
@@ -744,9 +806,7 @@ class EventBacktestInstance(BacktestInstance):
         """
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
-        df_daily, msg = self.ctx.data_api.daily(symbol=symbols_str,
-                                                start_date=start_date, end_date=end_date,
-                                                adjust_mode=None)
+        df_daily = self._get_df_daily(symbol=symbols_str, start_date=start_date, end_date=end_date)
         if df_daily is None or df_daily.empty:
             return dict()
 
