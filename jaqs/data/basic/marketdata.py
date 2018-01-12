@@ -14,6 +14,7 @@ class Bar(object):
     
     Attributes
     ----------
+    symbol : str
     open : float
         The first price in the time span.
     high : float
@@ -35,6 +36,7 @@ class Bar(object):
     
     """
     def __init__(self):
+        self.symbol = ""
         self.open = 0.
         self.close = 0.
         self.high = 0.
