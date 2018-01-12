@@ -591,7 +591,7 @@ class Parser(object):
             ranks = np.argsort(np.argsort(arr))[-1] + 1
             return ranks / norm
     
-        res = roll.apply(_rank_arr, kwargs={'norm': window})
+        res = roll.apply(_rank_arr)
         return res
 
     @staticmethod
@@ -604,7 +604,7 @@ class Parser(object):
             ranks = np.argsort(np.argsort(arr))[-1] + 1
             return ranks / norm
     
-        res = roll.apply(_rank_arr)
+        res = roll.apply(_rank_arr, kwargs={'norm': window})
         return res
     
     def step(self, x, n):
