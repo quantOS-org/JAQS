@@ -12,6 +12,7 @@ import numpy as np
 
 from jaqs.data.basic import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
+from jaqs.data.basic import Bar, Quote
 # import jaqs.util as jutil
 
 from jaqs.trade import model
@@ -704,7 +705,6 @@ class EventDrivenStrategy(Strategy):
         
         super(EventDrivenStrategy, self).__init__()
     
-    @abstractmethod
     def on_bar(self, quote):
         pass
     
@@ -716,6 +716,59 @@ class EventDrivenStrategy(Strategy):
     
     def initialize(self):
         pass
+    
+    def buy_or_sell_with_bar(self, action, bar, size, slippage=0.0):
+        """
+        Send a limit Buy order with quote.close + slippage.
+        
+        Parameters
+        ----------
+        action : {'Buy', 'Sell'}
+        bar : Bar
+        size : int or float
+            Should be positive.
+        slippage : float, optional
+            Should be non-negative
+
+        """
+        if not isinstance(bar, Bar):
+            raise TypeError("quote must be Bar type. You may have passed a Quote.")
+        
+        if action == common.ORDER_ACTION.SELL:
+            slippage *= -1
+        entrust_price = bar.close + slippage
+        task_id, msg = self.ctx.trade_api.place_order(bar.symbol,
+                                                      action,
+                                                      entrust_price,
+                                                      size)
+        if (task_id is None) or (task_id == 0):
+            print("place_order FAILED! msg = {}".format(msg))
+        
+    def buy(self, bar, size=1, slippage=0.0):
+        """
+        Send a limit Buy order with bar.close + slippage.
+        
+        Parameters
+        ----------
+        bar : Bar
+        size : int or float
+        slippage : float
+
+        """
+        self.buy_or_sell_with_bar(common.ORDER_ACTION.BUY, bar, size, slippage)
+
+    def sell(self, bar, size=1, slippage=0.0):
+        """
+        Send a limit Sell order with bar.close + slippage.
+        
+        Parameters
+        ----------
+        bar : Bar
+        size : int or float
+        slippage : float
+
+        """
+        self.buy_or_sell_with_bar(common.ORDER_ACTION.SELL, bar, size, slippage)
 
     def cancel_all_orders(self):
         for task_id, task in self.ctx.pm.tasks.items():
