@@ -46,7 +46,9 @@ class PortfolioManager(object):
         self.orders = dict()
         self.tasks = dict()
         self.trades = []
+        self._cum_net_turnover = 0.0
         self.cash = 0.0
+        self.init_balance = 0.0
         
         self.positions = dict()
         self.tradestat = dict()
@@ -54,7 +56,8 @@ class PortfolioManager(object):
         self.holding_securities = set()
     
     def init_from_config(self, props):
-        self.cash = props.get("init_balance", 0.0)
+        self.init_balance = props.get("init_balance", 0.0)
+        self.cash = self.init_balance
         
         self._hook_strategy()
         if isinstance(self.ctx.trade_api, jaqs.trade.RealTimeTradeApi):
@@ -509,10 +512,13 @@ class PortfolioManager(object):
             else:
                 order.order_status = common.ORDER_STATUS.ACCEPTED
         '''
-        
+
         # Change Position
         self._update_position_by_trade_ind(ind)
-        
+
+        # Update cash
+        self._update_cash_from_trade_ind(ind)
+
         # Change TradeStat
         self._update_trade_stat_from_trade_ind(ind)
 
@@ -522,9 +528,6 @@ class PortfolioManager(object):
         # Update Tasks
         if not (ind.entrust_no == 101010 or ind.entrust_no == 202020):  # trades generate by system
             self._update_task_if_done(ind.task_id)
-        
-        # Update cash
-        self._update_cash_from_trade_ind(ind)
         
         # hook:
         self.original_on_trade(ind)
@@ -538,18 +541,17 @@ class PortfolioManager(object):
 
         """
         curr_pos = self.get_pos(ind.symbol)
-        closed_size = min((abs(curr_pos), ind.fill_size))
-        turnover = ind.fill_price * closed_size
+        turnover = ind.fill_price * ind.fill_size
         if common.ORDER_ACTION.is_positive(ind.entrust_action):
-            #turnover = ind.fill_size * ind.fill_price
-            self.cash -= turnover
+            self._cum_net_turnover += turnover
         else:
-            self.cash += turnover
+            self._cum_net_turnover -= turnover
+        self.cash = self.init_balance - (self._cum_net_turnover - curr_pos * ind.fill_price)
         
         # TODO
         if self.cash < 0:
             pass
-            #print("WARNING: cash is not enough when executing trade\n", ind)
+            # print("WARNING: cash is not enough when executing trade\n", ind)
         
     def _update_order_from_trade_ind(self, ind):
         order = self.orders.get(ind.entrust_no)
