@@ -455,15 +455,13 @@ class DataView(object):
     
         print("Initialize config success.")
 
-    def distributed_query(self, query_func_name, symbol, start_date, end_date, **kwargs):
-        LIMIT = 100 * 1000
-        
+    def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
         n_symbols = len(symbol.split(','))
         dates = self.data_api.get_trade_date_range(start_date, end_date)
         n_days = len(dates)
         
-        if n_symbols * n_days > LIMIT:
-            n = LIMIT // n_symbols
+        if n_symbols * n_days > limit:
+            n = limit // n_symbols
             
             df_list = []
             i = 0
@@ -600,7 +598,7 @@ class DataView(object):
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.distributed_query('daily', symbol_str,
                                                         start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                        adjust_mode=None, fields=sep.join(fields_market_daily))
+                                                        adjust_mode=None, fields=sep.join(fields_market_daily), limit=100000)
                 #df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                 #                                     adjust_mode=None, fields=sep.join(fields_market_daily))
             
@@ -611,7 +609,7 @@ class DataView(object):
                     #                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
                     df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
                                                                    start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                                   adjust_mode=self.adjust_mode, fields=sep.join(fields_market_daily))
+                                                                   adjust_mode=self.adjust_mode, fields=sep.join(fields_market_daily), limit=100000)
                 
                     df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
                                         on=['symbol', 'trade_date'], suffixes=('', '_adj'))
@@ -621,7 +619,7 @@ class DataView(object):
             if fields_ref_daily:
                 df_ref_daily, msg2 = self.distributed_query('query_lb_dailyindicator', symbol_str,
                                                             start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                            fields=sep.join(fields_ref_daily))
+                                                            fields=sep.join(fields_ref_daily), limit=20000)
                 daily_list.append(df_ref_daily.loc[:, fields_ref_daily])
         
             fields_income = self._get_fields('income', fields, append=True)
@@ -1756,17 +1754,15 @@ class EventDataView(object):
                 self.benchmark = self.universe[0]
         
         print("Initialize config success.")
-    
-    def distributed_query(self, query_func_name, symbol, start_date, end_date, **kwargs):
-        LIMIT = 100 * 1000
-        
+
+    def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
         n_symbols = len(symbol.split(','))
         dates = self.data_api.get_trade_date_range(start_date, end_date)
         n_days = len(dates)
+    
+        if n_symbols * n_days > limit:
+            n = limit // n_symbols
         
-        if n_symbols * n_days > LIMIT:
-            n = LIMIT // n_symbols
-            
             df_list = []
             i = 0
             pos1, pos2 = n * i, n * (i + 1) - 1
@@ -1884,7 +1880,7 @@ class EventDataView(object):
                 # no adjust prices and other market daily fields
                 df_daily, msg1 = self.distributed_query('daily', symbol_str,
                                                         start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                        adjust_mode=None, fields=sep.join(fields_market_daily))
+                                                        adjust_mode=None, fields=sep.join(fields_market_daily), limit=100000)
                 #df_daily, msg1 = self.data_api.daily(symbol_str, start_date=self.extended_start_date_d, end_date=self.end_date,
                 #                                     adjust_mode=None, fields=sep.join(fields_market_daily))
                 
@@ -1895,7 +1891,7 @@ class EventDataView(object):
                     #                                             adjust_mode=self.adjust_mode, fields=','.join(adj_cols))
                     df_daily_adjust, msg1 = self.distributed_query('daily', symbol_str,
                                                                    start_date=self.extended_start_date_d, end_date=self.end_date,
-                                                                   adjust_mode=self.adjust_mode, fields=sep.join(fields_market_daily))
+                                                                   adjust_mode=self.adjust_mode, fields=sep.join(fields_market_daily), limit=100000)
                     
                     df_daily = pd.merge(df_daily, df_daily_adjust, how='outer',
                                         on=['symbol', 'trade_date'], suffixes=('', '_adj'))
