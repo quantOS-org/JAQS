@@ -541,8 +541,8 @@ class RealTimeTradeApi(TradeApi):
         strategy_no = get_from_list_of_dict(dic_list, "strategy_no", 0)
         sid, msg = self.use_strategy(strategy_no)
         if not msg.split(',')[0] == '0':
-            print(msg)
-            raise RuntimeError("use strategy failed. Please re-try.")
+            raise RuntimeError("use strategy failed. Error msg: {}\n"
+                               "Please re-try.".format(msg))
         time.sleep(0.1)
     
     def set_trade_api_callbacks(self):
