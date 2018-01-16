@@ -1047,9 +1047,9 @@ class DataView(object):
         
         Parameters
         ----------
-        formula : str
+        formula : str or unicode
             A formula contains operations and function calls.
-        field_name : str
+        field_name : str or unicode
             A custom name for the new field.
         is_quarterly : bool
             Whether df is quarterly data (like quarterly financial statement) or daily data.
@@ -1129,7 +1129,7 @@ class DataView(object):
         Parameters
         ----------
         df : pd.DataFrame or pd.Series
-        field_name : str
+        field_name : str or unicode
         is_quarterly : bool
             Whether df is quarterly data (like quarterly financial statement) or daily data.
             
@@ -1339,7 +1339,7 @@ class DataView(object):
         
         Parameters
         ----------
-        field : str
+        field : str or unicode
             Single field.
         symbol : str, optional
             Separated by ',' default "" (all securities).
@@ -1393,7 +1393,7 @@ class DataView(object):
         
         Parameters
         ----------
-        folder_path : str, optional
+        folder_path : str or unicode, optional
             Folder path to store hd5 file and meta data.
             
         """
@@ -1419,7 +1419,7 @@ class DataView(object):
         
         Parameters
         ----------
-        folder_path : str
+        folder_path : str or unicode
             Path to store your data.
 
         """
