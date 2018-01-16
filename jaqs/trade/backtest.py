@@ -509,8 +509,8 @@ class AlphaBacktestInstance(BacktestInstance):
                     except IndexError:
                         return True
                 
-                if current_date > self.end_date:
-                    return True
+            if current_date > self.end_date:
+                return True
 
             # update re-balance date
             if self.current_rebalance_date > 0:
