@@ -4,6 +4,10 @@
 Analyze module defines classes to analyze trading results, including I/O,
 calculation, plot.
 
+# TODO:
+each year metrics, Max DD;
+psotion during each re-balance period
+
 """
 from __future__ import print_function
 import os
@@ -107,6 +111,7 @@ class BaseAnalyzer(object):
     def __init__(self):
         self.file_folder = ""
         
+        self._raw_trades = None
         self._trades = None
         self._configs = None
         self.data_api = None
@@ -116,6 +121,7 @@ class BaseAnalyzer(object):
         self._closes = None
         self._closes_adj = None
         self.daily_position = None
+        self.rebalance_positions = None
         self.returns = None
         self.position_change = None
         self.account = None
@@ -222,6 +228,8 @@ class BaseAnalyzer(object):
             Each row represents a single trading record.
         
         """
+        self._raw_trades = df.copy()
+        
         df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
         
         df = df.set_index(['symbol', 'fill_dt']).sort_index(axis=0)
@@ -600,6 +608,7 @@ class BaseAnalyzer(object):
         dic['account'] = self.account
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
         dic['daily_position'] = None # self.daily_position
+        dic['rebalance_positions'] = self.rebalance_positions
         
         self.report_dic.update(dic)
         
@@ -706,6 +715,7 @@ class AlphaAnalyzer(BaseAnalyzer):
                 self.data_benchmark.columns = ['bench']
             else:
                 self.data_benchmark = pd.DataFrame(index=self.closes.index, columns=['bench'], data=np.ones(len(self.closes), dtype=float))
+    
     @staticmethod
     def _to_pct_return(arr, cumulative=False):
         """Convert portfolio value to portfolio (linear) return."""
@@ -717,43 +727,6 @@ class AlphaAnalyzer(BaseAnalyzer):
             r[1:] = arr[1:] / arr[:-1] - 1
         return r
 
-    '''
-    def get_returns_OLD(self, compound_return=True, consider_commission=True):
-        profit_col_name = 'CumProfitComm' if consider_commission else 'CumProfit'
-        vp_list = {sec: df_profit.loc[:, profit_col_name] for sec, df_profit in self.daily.items()}
-        df_profit = pd.concat(vp_list, axis=1)  # this is cumulative profit
-        # TODO temperary solution
-        df_profit = df_profit.fillna(method='ffill').fillna(0.0)
-        strategy_value = df_profit.sum(axis=1) + self.configs['init_balance']
-        
-        market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
-        market_values.columns = ['strat', 'bench']
-        
-        df_returns = market_values.pct_change(periods=1).fillna(0.0)
-        
-        df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod(), rsuffix='_cum')
-        if compound_return:
-            df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
-            df_returns.loc[:, 'active'] = df_returns['active_cum'].pct_change(1).fillna(0.0)
-        else:
-            df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
-            df_returns.loc[:, 'active_cum'] = df_returns['active'].add(1.0).cumprod(axis=0)
-        
-        start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
-        end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
-        years = (end - start).days / 365.0
-        
-        self.metrics['yearly_return'] = np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1
-        self.metrics['yearly_vol'] = df_returns.loc[:, 'active'].std() * np.sqrt(225.)
-        self.metrics['beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
-        self.metrics['sharpe'] = self.metrics['yearly_return'] / self.metrics['yearly_vol']
-        
-        # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
-        # df_returns = df_returns.join(bt_strat_mv, how='right')
-        self.returns = df_returns
-
-    '''
-    
     def _get_index_weight(self):
         if self.dataview is not None:
             res = self.dataview.get_ts('index_weight', start_date=self.start_date, end_date=self.end_date)
@@ -861,6 +834,27 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.report_dic['df_brinson'] = df_brinson
         plot_brinson(df_brinson, save_folder=self.file_folder)
 
+    def get_rebalance_position(self):
+        mask = (self._raw_trades['fill_no'] != '101010') & (self._raw_trades['fill_no'] != '202020')
+        trades_rebalance = self._raw_trades.loc[mask]
+        rebalance_dates = trades_rebalance['fill_date'].unique()
+        
+        daily_pos_name = self.daily_position.T.copy()
+        daily_pos_name.loc[:, 0] = u'               '
+        for idx, _ in daily_pos_name.iterrows():
+            daily_pos_name.loc[idx, 0] = self.inst_map[idx]['name']
+        
+        dic_pos = OrderedDict()
+        for date in rebalance_dates:
+            daily = daily_pos_name.loc[:, [0, date]]
+            daily = daily.loc[daily[date] > 0]
+            daily = daily.reset_index()
+            daily.index.name = date
+            daily.columns = ['symbol', 'name', 'position']
+            daily.loc[:, 'position'] = daily['position'].astype(np.integer)
+            dic_pos[date] = daily
+        self.rebalance_positions = dic_pos
+        
     def do_analyze(self, result_dir, selected_sec=None, brinson_group=None):
         if selected_sec is None:
             selected_sec = []
@@ -871,6 +865,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.get_daily()
         print("calc strategy return...")
         self.get_returns(consider_commission=True)
+        print("calc re-balance position")
+        self.get_rebalance_position()
     
         not_none_sec = []
         if len(selected_sec) > 0:

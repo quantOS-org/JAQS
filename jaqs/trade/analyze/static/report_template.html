@@ -143,21 +143,41 @@
             <!-- Selected Assets Investigation -->
             {% if selected_securities|length > 0 %}
             <h2 id="symbol_pnl_img">Visualization for Selected Security </h2>
-            {% for symbol in selected_securities %}
-            <img src="{{symbol}}.png" class="img-fluid" alt="Responsive Image">
-            {% endfor %}
+                {% for symbol in selected_securities %}
+                <img src="{{symbol}}.png" class="img-fluid" alt="Responsive Image">
+                {% endfor %}
 
             <h2 id="symbol_pnl_table">Daily PnL for Selected Security</h2>
-            {% for symbol in selected_securities %}
+                {% for symbol in selected_securities %}
 
-            <span> {{ symbol }} </span>
-            <br>
-            {{ df_daily[symbol].to_html(classes="table table-striped", border=0) }}
-            <br>
+                <span> {{ symbol }} </span>
+                <br>
+                {{ df_daily[symbol].to_html(classes="table table-striped", border=0) }}
+                <br>
 
-            {% endfor %}
+                {% endfor %}
 
             {% endif %}
+
+            <!-- Position on Re-balance Days -->
+            {% if rebalance_positions is not none %}
+            <h2 id="rebalance_positions"> Table of Position on Re-balance Days </h2>
+                {% for date, df in rebalance_positions.items() %}
+                    <p>
+                        <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#collapsePos{{date}}" aria-expanded="false" aria-controls="collapsePos{{date}}">
+                            Position at {{ date }}
+                        </button>
+                    </p>
+                    <div class="collapse" id="collapsePos{{date}}">
+                        <div class="card card-body">
+                            {{ df.to_html(classes="table table-striped", border=0) }}
+                        </div>
+                    </div>
+                {% endfor %}
+
+                <p>This data is stored in <code>Analyzer.rebalance_positions</code></p>
+            {% endif %}
+
 
             <!-- Daily Position -->
             {% if daily_position is not none %}
@@ -170,16 +190,16 @@
             <!-- Position Changes -->
             {% if position_change is not none %}
             <h2 id="position_change">Table of Records of Position Changes</h2>
-            {% for date, df in position_change.items() %}
+                {% for date, df in position_change.items() %}
 
-            <span>{{ date }}</span>
-            <br>
-            market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k,
-            cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
-            <br>
-            {{ df.to_html(classes="table table-striped", border=0) }}
+                <span>{{ date }}</span>
+                <br>
+                market value = {{ account[date]['market_value'] / 1000.0 | round(0) }}k,
+                cash = {{ account[date]['cash'] / 1000.0 | round(0) }}k,
+                <br>
+                {{ df.to_html(classes="table table-striped", border=0) }}
 
-            {% endfor %}
+                {% endfor %}
 
             <p>This data is stored in <code>Analyzer.position_change</code></p>
             {% endif %}
