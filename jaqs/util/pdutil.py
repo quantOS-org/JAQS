@@ -13,7 +13,7 @@ def to_quantile(df, n_quantiles=5, axis=1):
     
     Parameters
     ----------
-    df : DataFrame
+    df : pd.DataFrame or pd.Series
         index date, column symbols
     n_quantiles : int
         The number of quantile to be divided to.
@@ -30,7 +30,12 @@ def to_quantile(df, n_quantiles=5, axis=1):
     # import warnings
     # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
     res_arr = numeric.quantilize_without_nan(df.values, n_quantiles=n_quantiles, axis=axis)
-    res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
+    if isinstance(df, pd.DataFrame):
+        res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
+    elif isinstance(df, pd.Series):
+        res = pd.Series(index=df.index, data=res_arr)
+    else:
+        raise ValueError
     return res
 
 
