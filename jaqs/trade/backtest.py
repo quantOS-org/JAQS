@@ -500,9 +500,6 @@ class AlphaBacktestInstance(BacktestInstance):
                 next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
                                                             n=self.ctx.strategy.n_periods,
                                                             extra_offset=self.ctx.strategy.days_delay)
-                if next_period_day > self.end_date:
-                    return True
-                
                 # update current_date: next_period_day is a workday, but not necessarily a trade date
                 if self._is_trade_date(next_period_day):
                     current_date = next_period_day
@@ -511,7 +508,10 @@ class AlphaBacktestInstance(BacktestInstance):
                         current_date = self._get_next_trade_date(next_period_day)
                     except IndexError:
                         return True
-        
+                
+                if current_date > self.end_date:
+                    return True
+
             # update re-balance date
             if self.current_rebalance_date > 0:
                 self.last_rebalance_date = self.current_rebalance_date
