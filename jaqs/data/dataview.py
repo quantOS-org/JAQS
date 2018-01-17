@@ -1179,7 +1179,8 @@ class DataView(object):
         
         Parameters
         ----------
-        field_names : str or list
+        field_names : str
+            Separated by comma.
             The (custom) field to be removed from dataview.
         
         Returns
@@ -1190,10 +1191,8 @@ class DataView(object):
         """
         if isinstance(field_names, basestring):
             field_names = field_names.split(',')
-        elif isinstance(field_names, (list, tuple)):
-            pass
         else:
-            raise ValueError("field_names must be str or list of str.")
+            raise ValueError("field_names must be str separated by comma.")
     
         for field_name in field_names:
             # parameter validation
