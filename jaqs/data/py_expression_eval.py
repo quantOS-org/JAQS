@@ -652,44 +652,59 @@ class Parser(object):
             self.index_member = self.index_member.astype(bool)
             df[~self.index_member] = np.nan
         return df
+    
+    @staticmethod
+    def _mask_df(df, mask):
+        if mask is not None:
+            mask = mask.astype(bool)
+            df[~mask] = np.nan
+        return df
 
-    def rank(self, df):
+    def rank(self, df, mask=None):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
+        df = self._mask_df(df, mask)
+        
         rank = rank_with_mask(df, axis=1, normalize=False)
         return rank
 
-    def percentile(self, df):
+    def percentile(self, df, mask=None):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
+        df = self._mask_df(df, mask)
+        
         rank = rank_with_mask(df, axis=1, normalize=True)
         return rank
     
     # TODO: all cross-section operations support in-group modification: neutral, extreme values, standardize.
-    def group_rank(self, x, group):
-        x = self._align_univariate(x)
-        x = self._mask_non_index_member(x)
+    def group_rank(self, df, group, mask=None):
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+        df = self._mask_df(df, mask)
+        
         vals = np.unique(pd.Series(group.values.flatten()).dropna())
         res = None
         for val in vals:
             mask = (group == val)
-            rank = rank_with_mask(x, mask=mask, axis=1, normalize=False)
+            rank = rank_with_mask(df, mask=mask, axis=1, normalize=False)
             if res is None:
                 res = rank
             else:
                 res = res.fillna(rank)
         return res
     
-    def group_percentile(self, x, group):
-        x = self._align_univariate(x)
-        x = self._mask_non_index_member(x)
+    def group_percentile(self, df, group, mask=None):
+        df = self._align_univariate(df)
+        df = self._mask_non_index_member(df)
+        df = self._mask_df(df, mask)
+        
         vals = np.unique(pd.Series(group.values.flatten()).dropna())
         res = None
         for val in vals:
             mask = (group == val)
-            rank = rank_with_mask(x, mask=mask, axis=1, normalize=True)
+            rank = rank_with_mask(df, mask=mask, axis=1, normalize=True)
             if res is None:
                 res = rank
             else:
@@ -703,7 +718,7 @@ class Parser(object):
         res = roll.apply(func)
         return res
     
-    def to_quantile(self, df, n_quantiles=5, axis=1):
+    def to_quantile(self, df, n_quantiles=5, axis=1, mask=None):
         """
         Convert cross-section values to the quantile number they belong.
         Small values get small quantile numbers.
@@ -725,6 +740,8 @@ class Parser(object):
         """
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
+        df = self._mask_df(df, mask)
+
         # TODO: unnecesssary warnings
         # import warnings
         # warnings.filterwarnings(action='ignore', category=RuntimeWarning, module='py_exp')
@@ -732,10 +749,12 @@ class Parser(object):
         res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
         return res
 
-    def group_quantile(self, df, group, n_quantiles=5):
+    def group_quantile(self, df, group, n_quantiles=5, mask=None):
         df = self._align_univariate(df)
         df = self._mask_non_index_member(df)
-        
+        df = self._mask_df(df, mask)
+
+
         res = None
         groups = np.unique(pd.Series(group.values.flatten()).dropna())
         for val in groups:
