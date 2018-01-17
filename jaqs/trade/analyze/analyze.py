@@ -847,7 +847,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         dic_pos = OrderedDict()
         for date in rebalance_dates:
             daily = daily_pos_name.loc[:, [0, date]]
-            daily = daily.loc[daily[date] > 0]
+            daily = daily.loc[daily[date] >= 1]
             daily = daily.reset_index()
             daily.index.name = date
             daily.columns = ['symbol', 'name', 'position']
