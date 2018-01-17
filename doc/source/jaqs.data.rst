@@ -20,6 +20,14 @@ jaqs\.data\.align module
     :undoc-members:
     :show-inheritance:
 
+jaqs\.data\.continueContract module
+-----------------------------------
+
+.. automodule:: jaqs.data.continueContract
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 jaqs\.data\.dataservice module
 ------------------------------
 
