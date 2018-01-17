@@ -464,6 +464,141 @@ class SignalDigger(object):
         res.update(self.fig_data)
         return res
 
+    def single_inst(self, signal, price, periods, n_quantiles, mask=None, buy_condition=None):
+        """
+        
+        Parameters
+        ----------
+        signal : pd.Series
+        index is integer date, values are signals
+        price : pd.Series
+        index is integer date, values are prices
+        mask : pd.Series or None, optional
+        index is integer date, values are bool
+        periods : list of int
+        buy_condition : dict of dict, optional
+            {'cond_name1': {'col_name': str, 'hold': int, 'filter': func},
+             'cond_name2': {'col_name': str, 'hold': int, 'filter': func},
+            }
+        
+        Returns
+        -------
+        res : dict
+        
+        """
+        if isinstance(signal, pd.DataFrame):
+            signal = signal.iloc[:, 0]
+        if isinstance(price, pd.DataFrame):
+            price = price.iloc[:, 0]
+            
+        # calc return
+        ret_l = {period: pfm.price2ret(price, period=period, axis=0) for period in periods}
+        df_ret = pd.concat(ret_l, axis=1)
+
+        # ----------------------------------------------------------------------
+        # calculate quantile
+        if n_quantiles == 1:
+            df_quantile = signal.copy()
+            df_quantile.loc[:] = 1.0
+        else:
+            df_quantile = jutil.to_quantile(signal, n_quantiles=n_quantiles, axis=0)
+
+        # ----------------------------------------------------------------------
+        # concat signal value
+        res = pd.DataFrame(signal.shift(1))
+        res.columns = ['signal']
+        res['quantile'] = df_quantile
+        res = pd.concat([res, df_ret], axis=1)
+        res = res.dropna()
+
+        print("Nan Data Count (should be zero) : {:d};  " \
+              "Percentage of effective data: {:.0f}%".format(res.isnull().sum(axis=0).sum(),
+                                                             len(res) * 100. / signal.size))
+        
+        # calc quantile stats
+        gp = res.groupby(by='quantile')
+        dic_raw = {k: v for k, v in gp}
+        dic_stats = OrderedDict()
+        for q, df in gp:
+            df_stat = pd.DataFrame(index=['mean', 'std'], columns=df_ret.columns, data=np.nan)
+            df_stat.loc['mean', :] = df.loc[:, df_ret.columns].mean(axis=0)
+            df_stat.loc['std', :] = df.loc[:, df_ret.columns].std(axis=0)
+            dic_stats[q] = df_stat
+        
+        # calculate IC
+        ics = calc_various_ic(res, ret_cols=df_ret.columns)
+        
+        # backtest
+        if buy_condition is not None:
+            def sim_backtest(df, dic_of_cond):
+                dic_cum_ret = dict()
+                for key, dic in dic_of_cond.items():
+                    col_name = dic['column']
+                    func = dic['filter']
+                    n_hold = dic['hold']
+                    mask = df[col_name].apply(func).astype(int)
+                    dic_cum_ret[key] = (df[n_hold] * mask).cumsum()
+                df_cumret = pd.concat(dic_cum_ret, axis=1)
+                return df_cumret
+            df_backtest = sim_backtest(res, buy_condition)
+            
+        # plot
+        gf = plotting.GridFigure(rows=3, cols=1, height_ratio=1.2)
+        gf.fig.suptitle("Event Return Analysis (annualized)")
+        
+        plotting.plot_ic_decay(ics, ax=gf.next_row())
+        
+        plotting.plot_quantile_return_mean_std(dic_stats, ax=gf.next_row())
+        
+        if buy_condition is not None:
+            plotting.plot_batch_backtest(df_backtest, ax=gf.next_row())
+        
+        self.show_fig(gf.fig, 'single_inst.pdf')
+
+
+def calc_ic(x, y, method='rank'):
+    """
+    Calculate IC between x and y.
+    
+    Parameters
+    ----------
+    x : np.ndarray
+    y : np.ndarray
+    method : {'rank', 'normal'}
+
+    Returns
+    -------
+    corr : float
+
+    """
+    import scipy.stats as scst
+    if method == 'rank':
+        corr = scst.spearmanr(x, y)[0]
+    elif method == 'normal':
+        corr = np.corrcoef(x, y)[0, 1]
+    else:
+        raise NotImplementedError("method = {}".format(method))
+    return corr
+
+
+def calc_various_ic(df, ret_cols):
+    res_dic = dict()
+    
+    # signal normal IC: signal value v.s. return
+    res_dic['normal'] = [calc_ic(df['signal'], df[col], method='normal') for col in ret_cols]
+    
+    # signal rank IC: signal value v.s. return
+    res_dic['rank'] = [calc_ic(df['signal'], df[col], method='rank') for col in ret_cols]
+    
+    # quantile normal IC: signal quantile v.s. return
+    res_dic['normal_q'] = [calc_ic(df['quantile'], df[col], method='normal') for col in ret_cols]
+    
+    # quantile rank IC: signal quantile v.s. return
+    res_dic['rank_q'] = [calc_ic(df['quantile'], df[col], method='rank') for col in ret_cols]
+    
+    res = pd.DataFrame(index=ret_cols, data=res_dic)
+    return res
+    
 
 def calc_quantile_stats_table(signal_data):
     quantile_stats = signal_data.groupby('quantile').agg(['min', 'max', 'mean', 'std', 'count'])['signal']

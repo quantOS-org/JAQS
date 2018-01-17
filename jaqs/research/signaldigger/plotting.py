@@ -6,6 +6,8 @@ from functools import wraps
 import numpy as np
 import pandas as pd
 
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from matplotlib.ticker import ScalarFormatter
@@ -18,7 +20,26 @@ import jaqs.util as jutil
 
 DECIMAL_TO_BPS = 10000
 DECIMAL_TO_PCT = 100
-
+COLOR_MAP = cm.get_cmap('rainbow') # cm.get_cmap('RdBu')
+MPL_RCPARAMS = {'figure.facecolor': '#F6F6F6',
+                'axes.facecolor': '#F6F6F6',
+                'axes.edgecolor': '#D3D3D3',
+                'text.color': '#555555',
+                'grid.color': '#B1B1B1',
+                'grid.alpha': 0.3,
+                # scale
+                'axes.linewidth': 2.0,
+                'axes.titlepad': 12,
+                'grid.linewidth': 1.0,
+                'grid.linestyle': '-',
+                # font size
+                'font.size': 13,
+                'axes.titlesize': 18,
+                'axes.labelsize': 14,
+                'legend.fontsize': 'small',
+                'lines.linewidth': 2.5,
+                }
+mpl.rcParams.update(MPL_RCPARAMS)
 
 # -----------------------------------------------------------------------------------
 # plotting settings
@@ -284,7 +305,7 @@ def plot_quantile_returns_ts(mean_ret_by_q, ax=None):
     ret_wide = ret_wide.mul(DECIMAL_TO_PCT)
     # ret_wide = ret_wide.rolling(window=22).mean()
     
-    ret_wide.plot(lw=1.2, ax=ax, cmap=cm.get_cmap('RdBu'))
+    ret_wide.plot(lw=1.2, ax=ax, cmap=COLOR_MAP)
     df = pd.DataFrame()
     ax.legend(loc='upper left')
     ymin, ymax = ret_wide.min().min(), ret_wide.max().max()
@@ -450,7 +471,7 @@ def plot_cumulative_returns_by_quantile(quantile_ret, ax=None):
     cum_ret.index = pd.to_datetime(cum_ret.index, format="%Y%m%d")
     cum_ret = cum_ret.mul(DECIMAL_TO_PCT)
     
-    cum_ret.plot(lw=2, ax=ax, cmap=cm.get_cmap('RdBu'))
+    cum_ret.plot(lw=2, ax=ax, cmap=COLOR_MAP)
     ax.axhline(0.0, linestyle='-', color='black', lw=1)
     
     ax.legend(loc='upper left')
@@ -766,3 +787,71 @@ def plot_event_pvalue(pv, ax):
            title="P Value of Test: Mean(return) == 0")
     ax.set(xticks=idx)
     return ax
+
+
+def plot_ic_decay(df_ic, ax):
+    df_ic.mul(DECIMAL_TO_PCT).plot(marker='x', lw=1.2, ax=ax, cmap=COLOR_MAP)
+    ax.axhline(0.0, color='k', ls='--', lw=0.7, alpha=.5)
+    ax.set(xlabel="Period Length (trade days)", ylabel="IC (%)",
+           title="IC Decay",
+           xticks=df_ic.index,
+           xlim=(0, df_ic.index[-1] + 1))
+
+
+def plot_quantile_return_mean_std(dic, ax):
+    n_quantiles = len(dic)
+    palette_gen = (COLOR_MAP(x) for x in np.linspace(0, 1, n_quantiles))
+    #palette_gen_light = (COLOR_MAP(x) for x in np.linspace(0, 1, n_quantiles))
+    # palette_gen = (c for c in sns.color_palette("RdBu", n_quantiles, desat=0.5))
+    # palette_gen =\
+       # (c for c in sns.cubehelix_palette(n_quantiles,
+       #                                             start=0, rot=0.5,
+       #                                             dark=0.1, light=0.8, reverse=True,
+       #                                             gamma=.9))
+    # palette_gen_light = (c for c in sns.color_palette("RdBu", n_quantiles, desat=0.5))
+    # palette_gen_light = (c for c in sns.cubehelix_palette(n_quantiles,
+    #                                                start=0, rot=0.5,
+    #                                                dark=0.1, light=0.8, reverse=True,
+    #                                                gamma=.3))
+    df_tmp = list(dic.values())[0]
+    idx = df_tmp.columns
+    offsets = np.linspace(-0.3, 0.3, n_quantiles)
+    
+    for i, (quantile, df) in enumerate(dic.items()):
+        mean = df.loc['mean', :]
+        std = df.loc['std', :]
+        c = next(palette_gen)
+        c_light = list(c)
+        c_light[3] = c_light[3] * .2
+        # c_light = next(palette_gen_light)
+    
+        ax.errorbar(idx + offsets[i], mean * DECIMAL_TO_PCT,
+                    marker='x', color=c, lw=1.2,
+                    yerr=std * DECIMAL_TO_PCT, ecolor=c_light, elinewidth=1,
+                    label="Quantile {}".format(int(quantile)))
+    ax.axhline(0.0, color='k', ls='--', lw=0.7, alpha=.5)
+    ax.set(xlabel='Period Length (trade days)', ylabel='Return (%)',
+           title="Mean & Std of Return",
+           xticks=idx)
+    ax.legend(loc='upper left')
+    #ax.set(xticks=idx)
+
+
+def plot_batch_backtest(df, ax):
+    """
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+    ax : axes
+
+    """
+    df = df.copy()
+    df.index = jutil.convert_int_to_datetime(df.index)
+    df.mul(DECIMAL_TO_PCT).plot(# marker='x',
+                                lw=1.2, ax=ax, cmap=COLOR_MAP)
+    ax.axhline(0.0, color='k', ls='--', lw=0.7, alpha=.5)
+    ax.set(xlabel="Date", ylabel="Cumulative Return (%)",
+           title="Cumulative Return for Different Buy Condition", )
+    
+
