@@ -1163,7 +1163,7 @@ class DataView(object):
         #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = the_data.sortlevel(axis=1)
+        the_data = the_data.sort_index(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         #sort_columns(the_data)
     
@@ -2211,7 +2211,7 @@ class EventDataView(object):
         #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = the_data.sortlevel(axis=1)
+        the_data = the_data.sort_index(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         #sort_columns(the_data)
         
@@ -2260,7 +2260,7 @@ class EventDataView(object):
         #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
         the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = the_data.sortlevel(axis=1)
+        the_data = the_data.sort_index(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         #sort_columns(the_data)
     
