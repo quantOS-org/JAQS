@@ -173,10 +173,13 @@ class BaseAnalyzer(object):
         ----------
         data_api : RemoteDataService
         dataview : DataView
-        file_folder : str
+        file_folder : str or list of str
             Directory path where trades and configs are stored.
 
         """
+        if isinstance(file_folder, str):
+            file_folder = [file_folder]
+        
         self.data_api = data_api
         self.dataview = dataview
         
@@ -190,11 +193,16 @@ class BaseAnalyzer(object):
                     'fill_time': np.integer,
                     'fill_no': str,
                     'commission': float}
-        abs_path = os.path.abspath(file_folder)
-        self.file_folder = abs_path
-        trades = pd.read_csv(os.path.join(self.file_folder, 'trades.csv'), ',', dtype=type_map)
-        if trades.empty:
+        abs_path_list = [os.path.abspath(folder) for folder in file_folder]
+        self.file_folder = abs_path_list
+        trades_list = [pd.read_csv(os.path.join(folder, 'trades.csv'), ',', dtype=type_map)
+                       for folder in self.file_folder]
+        if any([trades.empty for trades in trades_list]):
             raise TradeRecordEmptyError("No trade records found in your 'trades.csv' file. Analysis stopped.")
+        
+        # combine trades
+        trades = pd.concat(trades_list, axis=0)
+        trades = trades.sort_values(['fill_date', 'fill_time'])
         
         self._init_universe(trades.loc[:, 'symbol'].values)
         self._init_configs(self.file_folder)
@@ -265,19 +273,28 @@ class BaseAnalyzer(object):
         """Return a set of securities."""
         self._universe = set(securities)
     
-    def _init_configs(self, folder):
+    def _init_configs(self, folder_list):
         """
         Read configs from file and get some important items.
         
         Parameters
         ----------
-        folder : str
+        folder_list : list of str
             Directory path where configs.json is under.
 
         """
-        with codecs.open(os.path.join(folder, 'configs.json'), 'r', encoding='utf-8') as f:
-            configs = json.load(f)
-        self._configs = configs
+        configs_list = []
+        for folder in folder_list:
+            with codecs.open(os.path.join(folder, 'configs.json'), 'r', encoding='utf-8') as f:
+                configs_list.append(json.load(f))
+                
+        self._configs = configs_list[0]
+        
+        self._configs['start_date'] = min([c['start_date'] for c in configs_list])
+        self._configs['end_date'] = max([c['end_date'] for c in configs_list])
+        self._configs['init_balance'] = sum([c['init_balance'] for c in configs_list])
+        
+        self.benchmark = self.configs.get('benchmark', "")
         self.init_balance = self.configs['init_balance']
         self.start_date = self.configs['start_date']
         self.end_date = self.configs['end_date']
@@ -353,7 +370,7 @@ class BaseAnalyzer(object):
         
             mv = sum(df_mod.loc[:, 'price'] * df.loc[:, 'position'])
             current_profit = sum(df.loc[:, 'CumProfit'])
-            cash = self.configs['init_balance'] + current_profit - mv
+            cash = self.init_balance + current_profit - mv
         
             account[str(date)] = {'market_value': mv, 'cash': cash}
         self.position_change = res
@@ -487,8 +504,8 @@ class BaseAnalyzer(object):
             df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
             df_returns.loc[:, 'active_cum'] = df_returns['active'].add(1.0).cumprod(axis=0)
     
-        start = pd.to_datetime(self.configs['start_date'], format="%Y%m%d")
-        end = pd.to_datetime(self.configs['end_date'], format="%Y%m%d")
+        start = pd.to_datetime(self.start_date, format="%Y%m%d")
+        end = pd.to_datetime(self.end_date, format="%Y%m%d")
         years = (end - start).days / 365.0
         
         active_cum = df_returns['active_cum'].values
@@ -514,7 +531,7 @@ class BaseAnalyzer(object):
         # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
     
-    def plot_pnl(self, save_folder=None):
+    def plot_pnl(self, output_folder):
         """
         Plot 2 graphs:
             1. Percentage return of strategy, benchmark and strategy's excess part.
@@ -522,63 +539,28 @@ class BaseAnalyzer(object):
         
         Parameters
         ----------
-        save_folder : str
+        output_folder : str
             Output folder of the PnL image.
 
         """
         old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
         mpl.rcParams.update(MPL_RCPARAMS)
         
-        if save_folder is None:
-            save_folder = self.file_folder
         fig1 = plot_portfolio_bench_pnl(self.returns.loc[:, 'strat_cum'],
                                         self.returns.loc[:, 'bench_cum'],
                                         self.returns.loc[:, 'active_cum'],
                                         self.risk_metrics['Maximum Drawdown start'],
                                         self.risk_metrics['Maximum Drawdown end'])
-        fig1.savefig(os.path.join(save_folder,'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
+        fig1.savefig(os.path.join(output_folder, 'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
         
         fig2 = plot_daily_trading_holding_pnl(self.df_pnl['trading_pnl'],
                                               self.df_pnl['holding_pnl'],
                                               self.df_pnl['total_pnl'],
                                               self.df_pnl['total_pnl'].cumsum())
-        fig2.savefig(os.path.join(save_folder,'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(), dpi=fig2.get_dpi())
+        fig2.savefig(os.path.join(output_folder, 'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(), dpi=fig2.get_dpi())
         
         mpl.rcParams.update(old_mpl_rcparams)
 
-    """
-    def plot_pnl_OLD(self, save_folder=None):
-        if save_folder is None:
-            save_folder = self.file_folder
-        
-        fig, (ax0, ax1, ax2) = plt.subplots(3, 1, figsize=(21, 8), dpi=300, sharex=True)
-        idx0 = self.returns.index
-        idx = np.arange(len(idx0))
-        
-        bar_width = 0.3
-        ax0.bar(idx-bar_width/2, self.df_pnl['trading_pnl'], width=bar_width, color='indianred', label='Trading PnL',)
-        ax0.bar(idx+bar_width/2, self.df_pnl['holding_pnl'], width=bar_width, color='royalblue', label='Holding PnL')
-        ax0.axhline(0.0, color='k', lw=1, ls='--')
-        # ax0.plot(idx, self.pnl['total_pnl'], lw=1.5, color='violet', label='Total PnL')
-        ax0.legend(loc='upper left')
-        
-        ax1.plot(idx, self.returns.loc[:, 'bench_cum'], label='Benchmark')
-        ax1.plot(idx, self.returns.loc[:, 'strat_cum'], label='Strategy')
-        ax1.legend(loc='upper left')
-        
-        ax2.plot(idx, self.returns.loc[:, 'active_cum'], label='Extra Return')
-        ax2.legend(loc='upper left')
-        ax2.set_xlabel("Date")
-        ax2.set_ylabel("Net Value")
-        ax1.set_ylabel("Net Value")
-        ax2.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
-    
-        plt.tight_layout()
-        fig.savefig(os.path.join(save_folder, 'pnl_img.png'))
-        plt.close()
-
-    """
-    
     def gen_report(self, source_dir, template_fn, out_folder='.', selected=None):
         """
         Generate HTML (and PDF) report of the trade analysis.
@@ -648,7 +630,7 @@ class BaseAnalyzer(object):
                 df_daily = self.daily.loc[pd.IndexSlice[symbol, :], :]
                 df_daily.index = df_daily.index.droplevel(0)
                 if df_daily is not None:
-                    plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
+                    plot_trades(df_daily, symbol=symbol, output_folder=result_dir)
 
         print("Plot strategy PnL...")
         self.plot_pnl(result_dir)
@@ -678,9 +660,8 @@ class EventAnalyzer(BaseAnalyzer):
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
                                                                    &(self.dataview.data_benchmark.index <= self.end_date)]
         else:
-            benchmark = self.configs.get('benchmark', "")
-            if benchmark and data_server_:
-                df, msg = data_server_.daily(benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
+            if self.benchmark and data_server_:
+                df, msg = data_server_.daily(self.benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
                 self.data_benchmark = df.set_index('trade_date').loc[:, ['close']]
                 self.data_benchmark.columns = ['bench']
             else:
@@ -708,9 +689,8 @@ class AlphaAnalyzer(BaseAnalyzer):
             self.data_benchmark = self.dataview.data_benchmark.loc[(self.dataview.data_benchmark.index >= self.start_date)
                                                                    &(self.dataview.data_benchmark.index <= self.end_date)]
         else:
-            benchmark = self.configs.get('benchmark', "")
-            if benchmark and data_api:
-                df, msg = data_api.daily(benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
+            if self.benchmark and data_api:
+                df, msg = data_api.daily(self.benchmark, start_date=self.closes.index[0], end_date=self.closes.index[-1])
                 self.data_benchmark = df.set_index('trade_date').loc[:, ['close']]
                 self.data_benchmark.columns = ['bench']
             else:
@@ -800,7 +780,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         
         return {'df_brinson': df_brinson, 'allocation': allo_ret_group, 'selection': selection_ret_group}
     
-    def brinson(self, group):
+    def brinson(self, group, output_folder):
         """
         
         Parameters
@@ -832,7 +812,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         df_brinson = res_dic['df_brinson']
         self.df_brinson = df_brinson
         self.report_dic['df_brinson'] = df_brinson
-        plot_brinson(df_brinson, save_folder=self.file_folder)
+        plot_brinson(df_brinson, output_folder=output_folder)
 
     def get_rebalance_position(self):
         mask = (self._raw_trades['fill_no'] != '101010') & (self._raw_trades['fill_no'] != '202020')
@@ -876,7 +856,7 @@ class AlphaAnalyzer(BaseAnalyzer):
                 df_daily.index = df_daily.index.droplevel(0)
                 if df_daily is not None:
                     not_none_sec.append(symbol)
-                    plot_trades(df_daily, symbol=symbol, save_folder=self.file_folder)
+                    plot_trades(df_daily, symbol=symbol, output_folder=result_dir)
     
         print("Plot strategy PnL...")
         self.plot_pnl(result_dir)
@@ -886,7 +866,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             group = self.dataview.get_ts(brinson_group)
             if group is None:
                 raise ValueError("group data is None.")
-            self.brinson(group)
+            self.brinson(group, output_folder=result_dir)
     
         self.daily_position.to_csv(os.path.join(result_dir, 'daily_position.csv'))
         self.returns.to_csv(os.path.join(result_dir, 'returns.csv'))
@@ -976,7 +956,8 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     fig.tight_layout()  
     return fig
     
-def plot_brinson(df, save_folder):
+    
+def plot_brinson(df, output_folder):
     """
     
     Parameters
@@ -1003,7 +984,7 @@ def plot_brinson(df, save_folder):
     ax1.xaxis.set_major_formatter(MyFormatter(idx0, '%Y-%m-%d'))
 
     plt.tight_layout()
-    fig.savefig(os.path.join(save_folder, 'brinson_attribution.png'))
+    fig.savefig(os.path.join(output_folder, 'brinson_attribution.png'))
     plt.close()
     
 
@@ -1033,7 +1014,7 @@ def calc_avg_pos_price(pos_arr, price_arr):
     return avg_price
 
 
-def plot_trades(df, symbol="", save_folder='.', marker_size_adjust_ratio=0.1):
+def plot_trades(df, symbol="", output_folder='.', marker_size_adjust_ratio=0.1):
     old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
     mpl.rcParams.update(MPL_RCPARAMS)
 
@@ -1076,7 +1057,7 @@ def plot_trades(df, symbol="", save_folder='.', marker_size_adjust_ratio=0.1):
     ax3.set(title="Position of {:s}".format(symbol))
     
     fig.tight_layout()
-    fig.savefig(save_folder + '/' + "{}.png".format(symbol), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+    fig.savefig(output_folder + '/' + "{}.png".format(symbol), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
 
     mpl.rcParams.update(old_mpl_rcparams)
 
