@@ -464,7 +464,7 @@ class SignalDigger(object):
         res.update(self.fig_data)
         return res
 
-    def single_inst(self, signal, price, periods, n_quantiles, mask=None, buy_condition=None):
+    def create_single_signal_report(self, signal, price, periods, n_quantiles, mask=None, buy_condition=None):
         """
         
         Parameters
@@ -476,7 +476,7 @@ class SignalDigger(object):
         mask : pd.Series or None, optional
         index is integer date, values are bool
         periods : list of int
-        buy_condition : dict of dict, optional
+        buy_condition : dict , optional
             {'cond_name1': {'col_name': str, 'hold': int, 'filter': func},
              'cond_name2': {'col_name': str, 'hold': int, 'filter': func},
             }
