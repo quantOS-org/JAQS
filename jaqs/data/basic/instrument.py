@@ -68,7 +68,8 @@ class InstManager(object):
         return self._inst_map
     
     def load_instruments(self, inst_type="", symbol=""):
-        fields = ['symbol', 'inst_type', 'market', 'status', 'multiplier', 'list_date', 'delist_date']
+        fields = ['symbol', 'name', 'inst_type', 'market',
+                  'status', 'multiplier', 'list_date', 'delist_date', 'pricetick', 'buylot', 'selllot']
         res = self.data_api.query_inst_info(symbol=symbol, fields=','.join(fields), inst_type=inst_type)
         res = res.reset_index()
 
