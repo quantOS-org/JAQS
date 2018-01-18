@@ -44,15 +44,15 @@ single quarter / TTM + year on year / month on month
 
 
 def calc_ttm(df):
-    return df.roll(window=4).sum()
+    return df.roll(window=4, axis=0).sum()
 
 
 def calc_year_on_year_return(df):
-    return df.pct_change(4)
+    return df.pct_change(4, axis=0)
 
 
 def calc_quarter_on_quarter_return(df):
-    return df.pct_change(1)
+    return df.pct_change(1, axis=0)
 
 
 class Expression(object):
@@ -311,6 +311,9 @@ class Parser(object):
             'Cutoff': self.cutoff,
             # 'GroupApply': self.group_apply,
             # time series
+            'TTM': calc_ttm,
+            'YOY': calc_year_on_year_return,
+            'QOQ': calc_quarter_on_quarter_return,
             'Ts_Rank': self.ts_rank,
             'Ts_Percentile': self.ts_percentile,
             'Ts_Quantile': self.ts_quantile,
