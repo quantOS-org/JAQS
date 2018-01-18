@@ -711,7 +711,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         if self.dataview is not None:
             res = self.dataview.get_ts('index_weight', start_date=self.start_date, end_date=self.end_date)
         else:
-            res = self.data_api.get_index_weights_daily(self.universe, self.start_date, self.end_date)
+            res = self.data_api.query_index_weights_daily(self.universe, self.start_date, self.end_date)
         return res
     
     def _brinson(self, close, pos, index_weight, group):

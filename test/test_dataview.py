@@ -139,7 +139,6 @@ def test_dataview_universe():
         pass
     
     dv.remove_field('roe,net_assets')
-    dv.remove_field(['roe', 'net_assets'])
     dv.remove_field('close')
 
 

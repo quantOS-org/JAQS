@@ -212,7 +212,7 @@ class AlphaLiveTradeInstance(object):
             mask = dates > date
             return dates[mask][0]
         else:
-            return self.ctx.data_api.get_next_trade_date(date)
+            return self.ctx.data_api.query_next_trade_date(date)
     
     def _get_last_trade_date(self, date):
         if self.ctx.dataview is not None:
@@ -220,7 +220,7 @@ class AlphaLiveTradeInstance(object):
             mask = dates < date
             return dates[mask][-1]
         else:
-            return self.ctx.data_api.get_last_trade_date(date)
+            return self.ctx.data_api.query_last_trade_date(date)
     
     '''
     def on_new_day(self, date):

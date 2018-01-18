@@ -653,7 +653,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._raise_error_if_msg(err_msg)
         return res, err_msg
 
-    def get_index_weights(self, index, trade_date):
+    def query_index_weights_raw(self, index, trade_date):
         """
         Return all securities that have been in index during start_date and end_date.
         
@@ -682,7 +682,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io.loc[:, 'weight'] = df_io['weight'] / 100.
         return df_io
 
-    def get_index_weights_range(self, index, start_date, end_date):
+    def query_index_weights_range(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
         
@@ -715,7 +715,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io = df_io.fillna(0.0)
         return df_io
 
-    def get_index_weights_daily(self, index, start_date, end_date):
+    def query_index_weights_daily(self, index, start_date, end_date):
         """
         Return all securities that have been in index during start_date and end_date.
         
@@ -735,9 +735,9 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         start_dt = jutil.convert_int_to_datetime(start_date)
         start_dt_extended = start_dt - pd.Timedelta(days=45)
         start_date_extended = jutil.convert_datetime_to_int(start_dt_extended)
-        trade_dates = self.get_trade_date_range(start_date_extended, end_date)
+        trade_dates = self.query_trade_dates(start_date_extended, end_date)
         
-        df_weight_raw = self.get_index_weights_range(index, start_date=start_date_extended, end_date=end_date)
+        df_weight_raw = self.query_index_weights_range(index, start_date=start_date_extended, end_date=end_date)
         res = df_weight_raw.reindex(index=trade_dates)
         res = res.fillna(method='ffill')
         res = res.loc[res.index >= start_date]
@@ -773,7 +773,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._raise_error_if_msg(err_msg)
         return df_io, err_msg
     
-    def get_index_comp(self, index, start_date, end_date):
+    def query_index_member(self, index, start_date, end_date):
         """
         Return list of symbols that have been in index during start_date and end_date.
         
@@ -792,7 +792,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io, err_msg = self._get_index_comp(index, start_date, end_date)
         return list(np.unique(df_io.loc[:, 'symbol']))
     
-    def get_index_comp_df(self, index, start_date, end_date):
+    def query_index_member_daily(self, index, start_date, end_date):
         """
         Get index components on each day during start_date and end_date.
         
@@ -825,7 +825,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
         
         # df_io.set_index('symbol', inplace=True)
-        dates = self.get_trade_date_range(start_date=start_date, end_date=end_date)
+        dates = self.query_trade_dates(start_date=start_date, end_date=end_date)
 
         dic = dict()
         gp = df_io.groupby(by='symbol')
@@ -841,7 +841,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         return res
 
-    def get_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
+    def query_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
         
@@ -860,7 +860,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             values are industry code
 
         """
-        df_raw = self.get_industry_raw(symbol, type_=type_, level=level)
+        df_raw = self.query_industry_raw(symbol, type_=type_, level=level)
         
         dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
@@ -878,7 +878,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         df_value = pd.DataFrame(index=idx, columns=symbol_arr, data=np.nan)
         df_value.loc[df_value_tmp.index, df_value_tmp.columns] = df_value_tmp
 
-        dates_arr = self.get_trade_date_range(start_date, end_date)
+        dates_arr = self.query_trade_dates(start_date, end_date)
         df_industry = align.align(df_value, df_ann, dates_arr)
         
         # TODO before industry classification is available, we assume they belong to their first group.
@@ -887,7 +887,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         return df_industry
         
-    def get_industry_raw(self, symbol, type_='ZZ', level=1):
+    def query_industry_raw(self, symbol, type_='ZZ', level=1):
         """
         Get daily industry of securities from ShenWanZhiShu or ZhongZhengZhiShu.
         
@@ -928,7 +928,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                      })
         return df_raw.drop_duplicates()
 
-    def get_adj_factor_daily(self, symbol, start_date, end_date, div=False):
+    def query_adj_factor_daily(self, symbol, start_date, end_date, div=False):
         """
         Get index components on each day during start_date and end_date.
         
@@ -948,7 +948,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             values are industry code
 
         """
-        df_raw = self.get_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
+        df_raw = self.query_adj_factor_raw(symbol, start_date=start_date, end_date=end_date)
     
         dic_sec = jutil.group_df_to_dict(df_raw, by='symbol')
         dic_sec = {sec: df.set_index('trade_date').loc[:, 'adjust_factor']
@@ -964,7 +964,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         # align to every trade date
         s, e = df_raw.loc[:, 'trade_date'].min(), df_raw.loc[:, 'trade_date'].max()
-        dates_arr = self.get_trade_date_range(s, e)
+        dates_arr = self.query_trade_dates(s, e)
         if not len(dates_arr) == len(res_final.index):
             res_final = res_final.reindex(dates_arr)
             
@@ -977,7 +977,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         return res_final
 
-    def get_adj_factor_raw(self, symbol, start_date=None, end_date=None):
+    def query_adj_factor_raw(self, symbol, start_date=None, end_date=None):
         """
         Query adjust factor for symbols.
         
@@ -1002,14 +1002,16 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                          'start_date': start_date, 'end_date': end_date})
         fields_list = ['symbol', 'trade_date', 'adjust_factor']
 
-        df_raw, err_msg = self.query("lb.secAdjFactor", fields=','.join(fields_list),
-                                 filter=filter_argument, orderby="symbol")
+        df_raw, err_msg = self.query("lb.secAdjFactor",
+                                     fields=','.join(fields_list),
+                                     filter=filter_argument,
+                                     orderby="symbol")
         self._raise_error_if_msg(err_msg)
         
         df_raw = df_raw.astype(dtype={'symbol': str,
-                                    'trade_date': np.integer,
-                                    'adjust_factor': float
-                                    })
+                                      'trade_date': np.integer,
+                                      'adjust_factor': float
+                                      })
         return df_raw.drop_duplicates()
     
     def query_dividend(self, symbol, start_date, end_date):
@@ -1075,7 +1077,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     # ---------------------------------------------------------------------
     # Calendar
     
-    def get_trade_date_range(self, start_date, end_date):
+    def query_trade_dates(self, start_date, end_date):
         """
         Get array of trade dates within given range.
         Return zero size array if no trade dates within range.
@@ -1105,7 +1107,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         trade_dates_arr = df_raw['trade_date'].values.astype(np.integer)
         return trade_dates_arr
 
-    def get_last_trade_date(self, date):
+    def query_last_trade_date(self, date):
         """
         
         Parameters
@@ -1122,7 +1124,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         dt_old = dt - delta
         date_old = jutil.convert_datetime_to_int(dt_old)
     
-        dates = self.get_trade_date_range(date_old, date)
+        dates = self.query_trade_dates(date_old, date)
         mask = dates < date
         res = dates[mask][-1]
     
@@ -1141,10 +1143,10 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         bool
 
         """
-        dates = self.get_trade_date_range(date, date)
+        dates = self.query_trade_dates(date, date)
         return len(dates) > 0
 
-    def get_next_trade_date(self, date, n=1):
+    def query_next_trade_date(self, date, n=1):
         """
         
         Parameters
@@ -1163,7 +1165,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         dt_new = dt + delta
         date_new = jutil.convert_datetime_to_int(dt_new)
     
-        dates = self.get_trade_date_range(date, date_new)
+        dates = self.query_trade_dates(date, date_new)
         mask = dates > date
         res = dates[mask][n-1]
     

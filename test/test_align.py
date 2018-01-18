@@ -27,7 +27,7 @@ def test_align():
     df_value = raw_idx.loc[pd.IndexSlice[:, :], 'oper_rev']
     df_value = df_value.unstack(level=1)
     
-    date_arr = ds.get_trade_date_range(20160101, 20170501)
+    date_arr = ds.query_trade_dates(20160101, 20170501)
     df_close = pd.DataFrame(index=date_arr, columns=df_value.columns, data=1e3)
     
     # -------------------------------------------------------------------------------------

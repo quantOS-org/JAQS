@@ -467,7 +467,7 @@ class AlphaBacktestInstance(BacktestInstance):
             mask = dates > date
             return dates[mask][n-1]
         else:
-            return self.ctx.data_api.get_next_trade_date(date, n)
+            return self.ctx.data_api.query_next_trade_date(date, n)
     
     def _get_last_trade_date(self, date):
         if self.ctx.dataview is not None:
@@ -475,7 +475,7 @@ class AlphaBacktestInstance(BacktestInstance):
             mask = dates < date
             return dates[mask][-1]
         else:
-            return self.ctx.data_api.get_last_trade_date(date)
+            return self.ctx.data_api.query_last_trade_date(date)
     
     def go_next_rebalance_day(self):
         """
@@ -744,7 +744,7 @@ class EventBacktestInstance(BacktestInstance):
     
     def _run_bar(self):
         """Quotes of different symbols will be aligned into one dictionary."""
-        trade_dates_arr = self.ctx.data_api.get_trade_date_range(self.start_date, self.end_date)
+        trade_dates_arr = self.ctx.data_api.query_trade_dates(self.start_date, self.end_date)
 
         last_trade_date = trade_dates_arr[0]
         for trade_date in trade_dates_arr:

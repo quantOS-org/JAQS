@@ -156,7 +156,7 @@ def run_strategy():
     
     ds = RemoteDataService()
     ds.init_from_config(data_config)
-    symbol_list = ds.get_index_comp(index, start_date, start_date)
+    symbol_list = ds.query_index_member(index, start_date, start_date)
 
     # add the benchmark index to the last position of symbol_list
     symbol_list.append(index)

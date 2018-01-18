@@ -38,6 +38,23 @@ TVAR = 3
 TFUNCALL = 4
 
 
+'''
+single quarter / TTM + year on year / month on month
+'''
+
+
+def calc_ttm(df):
+    return df.roll(window=4).sum()
+
+
+def calc_year_on_year_return(df):
+    return df.pct_change(4)
+
+
+def calc_quarter_on_quarter_return(df):
+    return df.pct_change(1)
+
+
 class Expression(object):
     
     def __init__(self, tokens, ops1, ops2, functions):

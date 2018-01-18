@@ -18,6 +18,8 @@ from jaqs.data.align import align
 from jaqs.data.py_expression_eval import Parser
 
 
+
+
 class DataView(object):
     """
     Prepare data before research / trade. Support file I/O.
@@ -255,7 +257,7 @@ class DataView(object):
         if self.data_d is not None:
             res = self.data_d.index.values
         elif self.data_api is not None:
-            res = self.data_api.get_trade_date_range(self.extended_start_date_d, self.end_date)
+            res = self.data_api.query_trade_dates(self.extended_start_date_d, self.end_date)
         else:
             raise ValueError("Cannot get dates array when neither of data and data_api exists.")
     
@@ -438,7 +440,7 @@ class DataView(object):
             self.universe = univ_list
             symbols_list = []
             for univ in univ_list:
-                symbols_list.extend(data_api.get_index_comp(univ, self.extended_start_date_d, self.end_date))
+                symbols_list.extend(data_api.query_index_member(univ, self.extended_start_date_d, self.end_date))
             self.symbol = sorted(list(set(symbols_list)))
         else:
             self.symbol = sorted(symbol.split(sep))
@@ -457,7 +459,7 @@ class DataView(object):
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
         n_symbols = len(symbol.split(','))
-        dates = self.data_api.get_trade_date_range(start_date, end_date)
+        dates = self.data_api.query_trade_dates(start_date, end_date)
         n_days = len(dates)
         
         if n_symbols * n_days > limit:
@@ -652,191 +654,6 @@ class DataView(object):
     
         return daily_list, quarterly_list
 
-    '''
-    @staticmethod
-    def _process_index(df, index_name='trade_date'):
-        """
-        Drop duplicates, set and sort index.
-        
-        Parameters
-        ----------
-        df : pd.DataFrame
-            index of df must be unique.
-        index_name : str, optional
-            label of column which will be used as index.
-
-        Returns
-        -------
-        df : pd.DataFrame
-            processed
-        
-        Notes
-        -----
-        We do not use inplace operations, which will be a lot slower
-
-        """
-        # df.drop_duplicates(subset=index_name, inplace=True)  # TODO not a good solution
-        dtype_idx = df.dtypes[index_name].type
-        if not issubclass(dtype_idx, (int, np.integer)):
-            df = df.astype(dtype={index_name: int})  # fast data type conversion
-        
-        dup = df.duplicated(subset=index_name)
-        if np.sum(dup.values) > 0:
-            # TODO
-            print "WARNING: Duplicate {:s} encountered, droped.".format(index_name)
-            idx = np.logical_not(dup)
-            df = df.loc[idx, :]
-        
-        df = df.set_index(index_name)
-        df = df.sort_index(axis=0)
-
-        if 'symbol' in df.columns:
-            df = df.drop(['symbol'], axis=1)
-        
-        return df
-
-    def _dic_of_df_to_multi_index_df(self, dic, level_names=None):
-        """
-        Convert dict of DataFrame to MultiIndex DataFrame.
-        Columns of result will be MultiIndex constructed using keys of dict and columns of DataFrame.
-        Index of result will be the same with DataFrame.
-        Different DataFrame will be aligned (outer join) using index.
-
-        Parameters
-        ----------
-        dic : dict
-            {symbol: DataFrame with index be datetime and columns be fields}.
-        fields : list or np.ndarray
-            Column labels for MultiIndex level 0.
-        level_names : list of str
-            Name of columns.
-
-        Returns
-        -------
-        merge : pd.DataFrame
-            with MultiIndex columns.
-
-        """
-        if level_names is None:
-            level_names = ['symbol', 'field']
-        merge = pd.concat(dic, axis=1)
-        
-        values = dic.values()
-        idx = np.unique(np.concatenate([df.index.values for df in values]))
-        fields = np.unique(np.concatenate([df.columns.values for df in values]))
-
-        cols_multi = pd.MultiIndex.from_product([self.symbol, fields], names=level_names)
-        cols_multi = cols_multi.sort_values()
-        merge_final = pd.DataFrame(index=idx, columns=cols_multi, data=np.nan)
-
-        merge_final.update(merge)
-
-        if merge_final.isnull().sum().sum() > 0:
-            print "WARNING: there are NaN values in your data, NO fill."
-            # merge.fillna(method='ffill')
-
-        if merge_final.shape != merge.shape:
-            idx_diff = sorted(set(merge_final.index) - set(merge.index))
-            col_diff = sorted(set(merge_final.columns.levels[0].values) - set(merge.columns.levels[0].values))
-            print ("WARNING: some data is unavailable: "
-                   + "\n    At index " + ', '.join(idx_diff)
-                   + "\n    At fields " + ', '.join(col_diff))
-        return merge_final
-
-    def _preprocess_market_daily(self, dic):
-        """
-        Process data and construct MultiIndex.
-        
-        Parameters
-        ----------
-        dic : dict
-
-        Returns
-        -------
-        res : pd.DataFrame
-
-        """
-        if not dic:
-            return None
-        
-        dic_res = dict()
-        n = len(dic)
-        for i, (sec, df) in enumerate(dic.items()):
-            x = i * 1. / n
-            k = int(10 * x)
-            if x - 0.1 * k < 1. / n:
-                print '.',
-            dic_res[sec] = self._process_index(df, self.TRADE_DATE_FIELD_NAME)
-        print
-        
-        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
-        return res
-        
-    def _preprocess_ref_daily(self, dic, fields):
-        """
-        Process data and construct MultiIndex.
-        
-        Parameters
-        ----------
-        dic : dict
-
-        Returns
-        -------
-        res : pd.DataFrame
-
-        """
-        if not dic:
-            return None
-        
-        dic_res = dict()
-        n = len(dic)
-        for i, (sec, df) in enumerate(dic.items()):
-            x = i * 1. / n
-            k = int(10 * x)
-            if x - 0.1 * k < 1. / n:
-                print '.',
-            
-            df_mod = self._process_index(df, self.TRADE_DATE_FIELD_NAME)
-            df_mod = df_mod.loc[:, self._get_fields('ref_daily', fields)]
-            dic_res[sec] = df_mod
-        print
-        
-        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
-        return res
-
-    def _preprocess_ref_quarterly(self, type_, dic, fields):
-        """
-        Process data and construct MultiIndex.
-        
-        Parameters
-        ----------
-        dic : dict
-
-        Returns
-        -------
-        res : pd.DataFrame
-
-        """
-        if not dic:
-            return None
-        
-        dic_res = dict()
-        n = len(dic)
-        for i, (sec, df) in enumerate(dic.items()):
-            x = i * 1. / n
-            k = int(10 * x)
-            if x - 0.1 * k < 1. / n:
-                print '.',
-            df_mod = df.loc[:, self._get_fields(type_, fields, append=True)]
-            df_mod = self._process_index(df_mod, self.REPORT_DATE_FIELD_NAME)
-            
-            dic_res[sec] = df_mod
-        print
-    
-        res = self._dic_of_df_to_multi_index_df(dic_res, level_names=['symbol', 'field'])
-        return res
-    
-    '''
     @staticmethod
     def _merge_data(dfs, index_name='trade_date'):
         """
@@ -923,22 +740,22 @@ class DataView(object):
             return
         symbol_stocks = self.data_inst.loc[mask_stocks].index.values
         symbol_str = ','.join(symbol_stocks)
-        df_adj = self.data_api.get_adj_factor_daily(symbol_str,
-                                                    start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
+        df_adj = self.data_api.query_adj_factor_daily(symbol_str,
+                                                      start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
         self.append_df(df_adj, 'adjust_factor', is_quarterly=False)
 
     def _prepare_comp_info(self):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
         res = dict()
         for univ in self.universe:
-            df = self.data_api.get_index_comp_df(univ, self.extended_start_date_d, self.end_date)
+            df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
             res[univ] = df
         df_res = pd.concat(res, axis=0)
         df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
         self.append_df(df, 'index_member', is_quarterly=False)
     
         # use weights of the first universe
-        df_weights = self.data_api.get_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
+        df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
         self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
     def _prepare_inst_info(self):
@@ -958,9 +775,9 @@ class DataView(object):
                     'zz2': ('ZZ', 2)}
         for field in group_fields:
             type_, level = data_map[field]
-            df = self.data_api.get_industry_daily(symbol=','.join(self.symbol),
-                                                  start_date=self.extended_start_date_q, end_date=self.end_date,
-                                                  type_=type_, level=level)
+            df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
+                                                    start_date=self.extended_start_date_q, end_date=self.end_date,
+                                                    type_=type_, level=level)
             self.append_df(df, field, is_quarterly=False)
 
     def _prepare_benchmark(self):
@@ -1565,7 +1382,7 @@ class EventDataView(object):
         if self.data_d is not None:
             res = self.data_d.index.values
         elif self.data_api is not None:
-            res = self.data_api.get_trade_date_range(self.extended_start_date_d, self.end_date)
+            res = self.data_api.query_trade_dates(self.extended_start_date_d, self.end_date)
         else:
             raise ValueError("Cannot get dates array when neither of data and data_api exists.")
         
@@ -1737,7 +1554,7 @@ class EventDataView(object):
             self.universe = univ_list
             symbols_list = []
             for univ in univ_list:
-                symbols_list.extend(data_api.get_index_comp(univ, self.extended_start_date_d, self.end_date))
+                symbols_list.extend(data_api.query_index_member(univ, self.extended_start_date_d, self.end_date))
             self.symbol = sorted(list(set(symbols_list)))
         else:
             self.symbol = sorted(symbol.split(sep))
@@ -1756,7 +1573,7 @@ class EventDataView(object):
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
         n_symbols = len(symbol.split(','))
-        dates = self.data_api.get_trade_date_range(start_date, end_date)
+        dates = self.data_api.query_trade_dates(start_date, end_date)
         n_days = len(dates)
     
         if n_symbols * n_days > limit:
@@ -1970,22 +1787,22 @@ class EventDataView(object):
             return
         symbol_stocks = self.data_inst.loc[mask_stocks].index.values
         symbol_str = ','.join(symbol_stocks)
-        df_adj = self.data_api.get_adj_factor_daily(symbol_str,
-                                                    start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
+        df_adj = self.data_api.query_adj_factor_daily(symbol_str,
+                                                      start_date=self.extended_start_date_d, end_date=self.end_date, div=False)
         self.append_df(df_adj, 'adjust_factor', is_quarterly=False)
     
     def _prepare_comp_info(self):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
         res = dict()
         for univ in self.universe:
-            df = self.data_api.get_index_comp_df(univ, self.extended_start_date_d, self.end_date)
+            df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
             res[univ] = df
         df_res = pd.concat(res, axis=0)
         df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
         self.append_df(df, 'index_member', is_quarterly=False)
         
         # use weights of the first universe
-        df_weights = self.data_api.get_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
+        df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
         self.append_df(df_weights, 'index_weight', is_quarterly=False)
     
     def _prepare_inst_info(self):
@@ -2005,9 +1822,9 @@ class EventDataView(object):
                     'zz2': ('ZZ', 2)}
         for field in group_fields:
             type_, level = data_map[field]
-            df = self.data_api.get_industry_daily(symbol=','.join(self.symbol),
-                                                  start_date=self.extended_start_date_q, end_date=self.end_date,
-                                                  type_=type_, level=level)
+            df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
+                                                    start_date=self.extended_start_date_q, end_date=self.end_date,
+                                                    type_=type_, level=level)
             self.append_df(df, field, is_quarterly=False)
     
     def _prepare_benchmark(self):
@@ -2424,7 +2241,6 @@ class EventDataView(object):
 
         res.columns = res.columns.droplevel(level='symbol')
         return res
-
 
     def get_ts(self, field, symbol="", start_date=0, end_date=0):
         """
