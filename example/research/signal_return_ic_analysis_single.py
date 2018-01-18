@@ -45,18 +45,18 @@ def analyze_event():
     
     # Step.4 analyze!
     obj = SignalDigger(output_folder='../../output', output_format='pdf')
-    
+
     obj.create_single_signal_report(signal, price, [1, 5, 9, 21], 6, mask=None,
                                     buy_condition={'cond1': {'column': 'quantile',
-                                             'filter': lambda x: x > 3,
-                                             'hold': 5},
-                                   'cond2': {'column': 'quantile',
-                                             'filter': lambda x: x > 5,
-                                             'hold': 5},
-                                   'cond3': {'column': 'quantile',
-                                             'filter': lambda x: x > 5,
-                                             'hold': 9},
-                                   })
+                                                             'filter': lambda x: x > 3,
+                                                             'hold': 5},
+                                                   'cond2': {'column': 'quantile',
+                                                             'filter': lambda x: x > 5,
+                                                             'hold': 5},
+                                                   'cond3': {'column': 'quantile',
+                                                             'filter': lambda x: x > 5,
+                                                             'hold': 9},
+                                                   })
 
 
 if __name__ == "__main__":
