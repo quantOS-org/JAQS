@@ -1105,7 +1105,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             return np.array([], dtype=int)
     
         trade_dates_arr = df_raw['trade_date'].values.astype(np.integer)
-        return trade_dates_arr
+        return trade_dates_arr.tolist()
 
     def query_last_trade_date(self, date):
         """
@@ -1128,7 +1128,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         mask = dates < date
         res = dates[mask][-1]
     
-        return res
+        return int(res)
 
     def is_trade_date(self, date):
         """
@@ -1169,4 +1169,4 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         mask = dates > date
         res = dates[mask][n-1]
     
-        return res
+        return int(res)
