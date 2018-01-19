@@ -104,3 +104,26 @@ def split_date_time(dt):
     date = dt // 1000000
     time = dt % 1000000
     return date, time
+
+
+def date_to_month(ser):
+    # ser = pd.Series(ser)
+    res = ser % 10000 // 100
+    MONTH_MAP = {1: 'Jan',
+                 2: 'Feb',
+                 3: 'Mar',
+                 4: 'Apr',
+                 5: 'May',
+                 6: 'Jun',
+                 7: 'Jul',
+                 8: 'Aug',
+                 9: 'Sep',
+                 10: 'Oct',
+                 11: 'Nov',
+                 12: 'Dec'}
+    # res = res.replace(MONTH_MAP)
+    return res
+
+
+def date_to_year(ser):
+    return ser // 10000

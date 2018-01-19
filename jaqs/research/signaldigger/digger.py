@@ -400,9 +400,9 @@ class SignalDigger(object):
             return df_res
 
         if group_by == 'year':
-            grouper_func = get_year
+            grouper_func = jutil.date_to_year
         elif group_by == 'month':
-            grouper_func = get_month
+            grouper_func = jutil.date_to_month
         else:
             grouper_func = get_dummy_grouper
 
@@ -606,29 +606,6 @@ def calc_quantile_stats_table(signal_data):
     return quantile_stats
 
 
-def get_month(ser):
-    # ser = pd.Series(ser)
-    res = ser % 10000 // 100
-    MONTH_MAP = {1: 'Jan',
-                 2: 'Feb',
-                 3: 'Mar',
-                 4: 'Apr',
-                 5: 'May',
-                 6: 'Jun',
-                 7: 'Jul',
-                 8: 'Aug',
-                 9: 'Sep',
-                 10: 'Oct',
-                 11: 'Nov',
-                 12: 'Dec'}
-    # res = res.replace(MONTH_MAP)
-    return res
-
-
-def get_year(ser):
-    return ser // 10000
-
-
 def get_dummy_grouper(ser):
     res = pd.Index(np.array(['all_sample'] * len(ser)), name=ser.name)
     return res
@@ -638,8 +615,8 @@ def calc_calendar_distribution(df_signal):
     daily_signal = df_signal.sum(axis=1)
     daily_signal = daily_signal.fillna(0).astype(int)
     idx = daily_signal.index.values
-    month = get_month(idx)
-    year = get_year(idx)
+    month = jutil.date_to_month(idx)
+    year = jutil.date_to_year(idx)
     
     monthly_signal = daily_signal.groupby(by=month).sum()
     yearly_signal = daily_signal.groupby(by=year).sum()
