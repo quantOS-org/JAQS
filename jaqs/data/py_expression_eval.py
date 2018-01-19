@@ -44,7 +44,7 @@ single quarter / TTM + year on year / month on month
 
 
 def calc_ttm(df):
-    return df.roll(window=4, axis=0).sum()
+    return df.rolling(window=4, axis=0).sum()
 
 
 def calc_year_on_year_return(df):
