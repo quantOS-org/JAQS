@@ -1014,7 +1014,7 @@ class DataView(object):
         for field_name in field_names:
             # parameter validation
             if field_name not in self.fields:
-                print("Field name [{:s}] does not exist.".format(field_name))
+                print("Field name [{:s}] does not exist. Stop remove_field.".format(field_name))
                 return
         
             if self._is_daily_field(field_name):
