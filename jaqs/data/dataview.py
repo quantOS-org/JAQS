@@ -494,8 +494,10 @@ class DataView(object):
         print("Query data...")
         data_d, data_q = self._prepare_daily_quarterly(self.fields)
         self.data_d, self.data_q = data_d, data_q
+        if self.data_q is not None:
+            self._prepare_report_date()
         self._align_and_merge_q_into_d()
-    
+        
         print("Query instrument info...")
         self._prepare_inst_info()
     
@@ -758,6 +760,15 @@ class DataView(object):
         df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d, self.end_date)
         self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
+    def _prepare_report_date(self):
+        idx = self.data_q.index
+        df_report_date = pd.DataFrame(index=idx, columns=self.symbol, data=0)
+        n = len(idx)
+        quarter = idx.values // 100 % 100
+        df_report_date.loc[:, :] = quarter.reshape(n, -1)
+        
+        self.append_df(df_report_date, 'quarter', is_quarterly=True)
+    
     def _prepare_inst_info(self):
         res = self.data_api.query_inst_info(symbol=','.join(self.symbol),
                                             fields='symbol,inst_type,name,list_date,'
