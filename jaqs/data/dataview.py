@@ -2022,6 +2022,8 @@ class EventDataView(object):
             df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
             df2.update(df)
             df = df2
+        elif len(df.columns) > len(exist_symbols):
+            df = df.loc[:, exist_symbols]
         multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
         df.columns = multi_idx
         
