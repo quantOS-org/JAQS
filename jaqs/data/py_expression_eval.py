@@ -43,6 +43,22 @@ single quarter / TTM + year on year / month on month
 '''
 
 
+def cum_to_single_quarter(df, report_date):
+    df = df.copy()
+    is_nan = df.isnull()
+    df = df.fillna(method='ffill').fillna(0.0)
+    year = report_date // 10000
+    
+    def cum_to_single_within_year(df_):
+        first_row = df_.iloc[0, :].copy()
+        df_ = df_.diff(1, axis=0)
+        df_.iloc[0, :] = first_row
+        return df_
+    single_quarter = df.groupby(by=year).apply(cum_to_single_within_year)
+    single_quarter[is_nan] = np.nan
+    return single_quarter
+
+
 def calc_ttm(df):
     return df.rolling(window=4, axis=0).sum()
 
@@ -311,6 +327,7 @@ class Parser(object):
             'Cutoff': self.cutoff,
             # 'GroupApply': self.group_apply,
             # time series
+            'CumToSingle': self.cum_to_single,
             'TTM': calc_ttm,
             'YOY': calc_year_on_year_return,
             'QOQ': calc_quarter_on_quarter_return,
@@ -600,6 +617,9 @@ class Parser(object):
     
     def product(self, x, n):
         return pd.rolling_apply(x, n, np.product)
+    
+    def cum_to_single(self, df):
+        return cum_to_single_quarter(df, df.index)
 
     @staticmethod
     def ts_rank(df, window):

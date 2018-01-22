@@ -58,6 +58,21 @@ def test_quantile():
     expr = parser.parse('Ts_Quantile(val, 500, 12)')
     res = parser.evaluate({'val': val})
     assert np.nanmean(val[res == 1].values.flatten()) < 0.11
+
+
+def test_ttm():
+    from jaqs.data import DataView
+    
+    ds = RemoteDataService()
+    ds.init_from_config(data_config)
+    dv = DataView()
+    props = {'start_date': 20120101, 'end_date': 20170601, 'universe': '000016.SH',
+             'fields': ('net_profit_incl_min_int_inc'), 'freq': 1}
+    dv.init_from_config(props, ds)
+    dv.prepare_data()
+
+    dv.add_formula('single', 'CumToSingle(net_profit_incl_min_int_inc)', is_quarterly=True)
+    print()
     
     
 def test_logical_and_or():
