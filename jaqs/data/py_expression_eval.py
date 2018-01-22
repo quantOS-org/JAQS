@@ -329,6 +329,7 @@ class Parser(object):
             # time series
             'CumToSingle': self.cum_to_single,
             'TTM': self.calc_ttm,
+            'TTM_jl': self.calc_ttm_jl,
             'YOY': calc_year_on_year_return,
             'QOQ': calc_quarter_on_quarter_return,
             'Ts_Rank': self.ts_rank,
@@ -617,11 +618,15 @@ class Parser(object):
     
     def product(self, x, n):
         return pd.rolling_apply(x, n, np.product)
-
+    
     @staticmethod
     def calc_ttm(df):
         return calc_ttm(cum_to_single_quarter(df, df.index))
     
+    @staticmethod
+    def calc_ttm(df):
+        return calc_ttm(df)
+
     @staticmethod
     def cum_to_single(df):
         return cum_to_single_quarter(df, df.index)
