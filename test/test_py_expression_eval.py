@@ -71,8 +71,7 @@ def test_ttm():
     dv.init_from_config(props, ds)
     dv.prepare_data()
 
-    dv.add_formula('single', 'CumToSingle(net_profit_incl_min_int_inc)', is_quarterly=True)
-    print()
+    dv.add_formula('single', 'TTM(net_profit_incl_min_int_inc)', is_quarterly=True)
     
     
 def test_logical_and_or():
