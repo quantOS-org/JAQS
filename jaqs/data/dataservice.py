@@ -1125,6 +1125,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         date_old = jutil.convert_datetime_to_int(dt_old)
     
         dates = self.query_trade_dates(date_old, date)
+        dates = np.array(dates)
         mask = dates < date
         res = dates[mask][-1]
     
@@ -1166,6 +1167,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         date_new = jutil.convert_datetime_to_int(dt_new)
     
         dates = self.query_trade_dates(date, date_new)
+        dates = np.array(dates)
         mask = dates > date
         res = dates[mask][n-1]
     
