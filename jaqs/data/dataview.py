@@ -902,8 +902,9 @@ class DataView(object):
                 self.remove_field(field_name)
                 print("Field [{:s}] is overwritten.".format(field_name))
             else:
-                print("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
-                return
+                raise ValueError("Add formula failed: name [{:s}] exist. Try another name.".format(field_name))
+        elif self._is_predefined_field(field_name):
+            raise ValueError("[{:s}] is alread a pre-defined field. Please use another name.".format(field_name))
         
         parser = Parser()
         parser.set_capital(formula_func_name_style)
