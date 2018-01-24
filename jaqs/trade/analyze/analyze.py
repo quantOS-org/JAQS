@@ -177,7 +177,7 @@ class BaseAnalyzer(object):
             Directory path where trades and configs are stored.
 
         """
-        if isinstance(file_folder, str):
+        if isinstance(file_folder, basestring):
             file_folder = [file_folder]
         
         self.data_api = data_api
@@ -284,6 +284,7 @@ class BaseAnalyzer(object):
 
         """
         configs_list = []
+        # TODO: support weight
         for folder in folder_list:
             with codecs.open(os.path.join(folder, 'configs.json'), 'r', encoding='utf-8') as f:
                 configs_list.append(json.load(f))
@@ -376,6 +377,67 @@ class BaseAnalyzer(object):
         self.position_change = res
         self.account = account
 
+    def get_minute(self):
+        freq = 'fill_time'
+        td = 20180118  # self.trades['fill_date'].iat[0]
+        df, msg = self.data_api.bar(symbol=','.join(self.universe), fields='trade_date,symbol,close',
+                                    trade_date=td)
+        df_close = df.pivot(index='time', columns='symbol', values='close')
+        
+        close = df_close
+        trade = self.trades
+    
+        # pro-process
+        trade_cols = [freq, 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+    
+        trade = trade.loc[:, trade_cols]
+        trade.loc[:, 'fill_minute'] = trade['fill_time'] // 100 * 100
+        gp = trade.reset_index().groupby(by=['symbol', 'fill_minute'])
+        func_last = lambda ser: ser.iat[-1]
+        trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
+                        'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
+        trade.index.names = ['symbol', freq]
+    
+        # get daily position
+        df_position = trade['position'].unstack('symbol').fillna(method='ffill').fillna(0.0)
+        daily_position = df_position.reindex(close.index)
+        daily_position = daily_position.fillna(method='ffill').fillna(0)
+        self.daily_position = daily_position
+    
+        # calculate statistics
+        close = pd.DataFrame(close.T.stack())
+        close.columns = ['close']
+        close.index.names = ['symbol', freq]
+        merge = pd.concat([close, trade], axis=1, join='outer')
+    
+        def _apply(gp_df):
+            cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
+            cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+            # merge: pd.DataFrame
+            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(method='ffill')
+            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(0)
+        
+            gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
+        
+            mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
+            gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
+        
+            gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
+            gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
+        
+            daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
+            daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
+            gp_df['trading_pnl'] = (daily_net_turnover + gp_df['close'] * daily_position_change)
+            gp_df['holding_pnl'] = (gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
+            gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
+        
+            return gp_df
+    
+        gp = merge.groupby(by='symbol')
+        res = gp.apply(_apply)
+    
+        self.daily = res
+        
     def get_daily(self):
         """
         Calculate daily trading statistics, including:
@@ -552,12 +614,14 @@ class BaseAnalyzer(object):
                                         self.risk_metrics['Maximum Drawdown start'],
                                         self.risk_metrics['Maximum Drawdown end'])
         fig1.savefig(os.path.join(output_folder, 'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
+        plt.close(fig1)
         
         fig2 = plot_daily_trading_holding_pnl(self.df_pnl['trading_pnl'],
                                               self.df_pnl['holding_pnl'],
                                               self.df_pnl['total_pnl'],
                                               self.df_pnl['total_pnl'].cumsum())
         fig2.savefig(os.path.join(output_folder, 'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(), dpi=fig2.get_dpi())
+        plt.close(fig2)
         
         mpl.rcParams.update(old_mpl_rcparams)
 
@@ -614,6 +678,9 @@ class BaseAnalyzer(object):
         -------
 
         """
+        
+        jutil.create_dir(os.path.join(os.path.abspath(result_dir), 'dummy.dummy'))
+        
         if selected_sec is None:
             selected_sec = []
             
@@ -835,6 +902,33 @@ class AlphaAnalyzer(BaseAnalyzer):
             dic_pos[date] = daily
         self.rebalance_positions = dic_pos
         
+    @staticmethod
+    def calc_win_ratio(ret_arr):
+        n_total = len(ret_arr)
+        n_win = (ret_arr > 0).sum()
+        n_lose = (ret_arr < 0).sum()
+        n_equal = n_total - n_win - n_lose
+        win_ratio = n_win / n_total
+        return n_win, n_total, win_ratio
+        
+    def get_stats(self):
+        df_return = self.returns.copy()
+        idx = df_return.index
+        df_return.loc[:, 'daily_active'] = df_return['strat'] - df_return['bench']
+        df_return.loc[:, 'month'] = jutil.date_to_month(idx)
+        df_return.loc[:, 'year'] = jutil.date_to_year(idx)
+        def calc_cum(df):
+            return np.prod(df.add(1.0)) - 1.0
+        stats_monthly = df_return.groupby('month')['daily_active'].apply(calc_cum)
+        stats_yearly = df_return.groupby('year')['daily_active'].apply(calc_cum)
+        '''
+        plt.figure(figsize=(16, 10))
+        sns.distplot(df_return['daily_active'], bins=np.arange(-5e-2, 5e-2, 1e-3), kde=False)
+        plt.savefig('a.png')
+        plt.close()
+        '''
+        print
+        
     def do_analyze(self, result_dir, selected_sec=None, brinson_group=None):
         if selected_sec is None:
             selected_sec = []
@@ -847,6 +941,8 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.get_returns(consider_commission=True)
         print("calc re-balance position")
         self.get_rebalance_position()
+        print("Get stats")
+        self.get_stats()
     
         not_none_sec = []
         if len(selected_sec) > 0:
@@ -930,7 +1026,8 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     Series
     
     """
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 9), sharex=True)
+    n_subplots = 3
+    fig, (ax1, ax2, ax3) = plt.subplots(n_subplots, 1, figsize=(16, 4.5 * n_subplots), sharex=True)
     idx_dt = portfolio_cum_ret.index
     idx = np.arange(len(idx_dt))
     
@@ -952,6 +1049,14 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
             )
     ax2.grid(axis='y')
     ax2.xaxis.set_major_formatter(MyFormatter(idx_dt, '%y-%m-%d'))  # 17-09-31
+    
+    ax3.plot(idx, (portfolio_cum_ret + 1.0) / (benchmark_cum_ret + 1.0), label='Ratio of NAV', color='#C37051')
+    ax3.legend(loc='upper left')
+    ax3.set(title="NaV of Portfolio / NaV of Benchmark", ylabel=y_label_ret
+           #xlabel="Date",
+           )
+    ax3.grid(axis='y')
+    ax3.xaxis.set_major_formatter(MyFormatter(idx_dt, '%y-%m-%d'))  # 17-09-31
     
     fig.tight_layout()  
     return fig
@@ -1058,6 +1163,7 @@ def plot_trades(df, symbol="", output_folder='.', marker_size_adjust_ratio=0.1):
     
     fig.tight_layout()
     fig.savefig(output_folder + '/' + "{}.png".format(symbol), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+    plt.close(fig)
 
     mpl.rcParams.update(old_mpl_rcparams)
 
