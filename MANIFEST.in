@@ -1,1 +1,2 @@
+include requirements.txt
 recursive-include jaqs/trade/analyze/static *.js *.html *.css
