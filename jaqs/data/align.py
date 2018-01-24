@@ -7,6 +7,7 @@ according to their available time, which is stored in another DataFrame.
 from __future__ import print_function
 import numpy as np
 import pandas as pd
+from jaqs.util import is_numeric
 
 
 def _get_neareast(df_ann, df_value, date):
@@ -32,7 +33,8 @@ def _get_neareast(df_ann, df_value, date):
     df_ann.fillna(99999999, inplace=True)  # IMPORTANT: At cells where no quarterly data is available,
                                            # we know nothing, thus it will be filled nan in the next step
     """
-    df_value = df_value.astype(float)
+    if is_numeric(df_value):
+        df_value = df_value.astype(float)
     mask = date[0] >= df_ann
     # res = np.where(mask, df_value, np.nan)
     n = df_value.shape[1]
