@@ -1105,7 +1105,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             return np.array([], dtype=int)
     
         trade_dates_arr = df_raw['trade_date'].values.astype(np.integer)
-        return trade_dates_arr.tolist()
+        return trade_dates_arr
 
     def query_last_trade_date(self, date):
         """
@@ -1125,7 +1125,6 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         date_old = jutil.convert_datetime_to_int(dt_old)
     
         dates = self.query_trade_dates(date_old, date)
-        dates = np.array(dates)
         mask = dates < date
         res = dates[mask][-1]
     
@@ -1167,7 +1166,6 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         date_new = jutil.convert_datetime_to_int(dt_new)
     
         dates = self.query_trade_dates(date, date_new)
-        dates = np.array(dates)
         mask = dates > date
         res = dates[mask][n-1]
     
