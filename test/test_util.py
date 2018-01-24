@@ -140,6 +140,27 @@ def test_base64():
     res = jutil.fig2base64(fig, 'pdf')
 
 
+def test_is_numeric():
+    from jaqs.util import is_numeric
+    
+    NUMERIC = [True, 1, -1, 1.0, 1+1j]
+    NOT_NUMERIC = [object(), 'string', u'unicode', None]
+    
+    def test_is_numeric(self):
+        for x in self.NUMERIC:
+            for y in (x, [x], [x] * 2):
+                for z in (y, np.array(y)):
+                    self.assertTrue(is_numeric(z))
+        for x in self.NOT_NUMERIC:
+            for y in (x, [x], [x] * 2):
+                for z in (y, np.array(y)):
+                    self.assertFalse(is_numeric(z))
+        for kind, dtypes in np.sctypes.items():
+            if kind != 'others':
+                for dtype in dtypes:
+                    self.assertTrue(is_numeric(np.array([0], dtype=dtype)))
+
+
 if __name__ == "__main__":
     import time
     t_start = time.time()
