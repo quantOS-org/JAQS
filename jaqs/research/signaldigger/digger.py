@@ -464,7 +464,7 @@ class SignalDigger(object):
         res.update(self.fig_data)
         return res
 
-    def create_single_signal_report(self, signal, price, periods, n_quantiles, mask=None, buy_condition=None):
+    def create_single_signal_report(self, signal, price, periods, n_quantiles, mask=None, trade_condition=None):
         """
         
         Parameters
@@ -476,9 +476,9 @@ class SignalDigger(object):
         mask : pd.Series or None, optional
         index is integer date, values are bool
         periods : list of int
-        buy_condition : dict , optional
-            {'cond_name1': {'col_name': str, 'hold': int, 'filter': func},
-             'cond_name2': {'col_name': str, 'hold': int, 'filter': func},
+        trade_condition : dict , optional
+            {'cond_name1': {'col_name': str, 'hold': int, 'filter': func, 'direction': 1},
+             'cond_name2': {'col_name': str, 'hold': int, 'filter': func, 'direction': -1},
             }
         
         Returns
@@ -529,18 +529,19 @@ class SignalDigger(object):
         ics = calc_various_ic(res, ret_cols=df_ret.columns)
         
         # backtest
-        if buy_condition is not None:
+        if trade_condition is not None:
             def sim_backtest(df, dic_of_cond):
                 dic_cum_ret = dict()
                 for key, dic in dic_of_cond.items():
                     col_name = dic['column']
                     func = dic['filter']
                     n_hold = dic['hold']
+                    direction = dic['direction']
                     mask = df[col_name].apply(func).astype(int)
-                    dic_cum_ret[key] = (df[n_hold] * mask).cumsum()
+                    dic_cum_ret[key] = (df[n_hold] * mask).cumsum() * direction
                 df_cumret = pd.concat(dic_cum_ret, axis=1)
                 return df_cumret
-            df_backtest = sim_backtest(res, buy_condition)
+            df_backtest = sim_backtest(res, trade_condition)
             
         # plot
         gf = plotting.GridFigure(rows=3, cols=1, height_ratio=1.2)
@@ -550,7 +551,7 @@ class SignalDigger(object):
         
         plotting.plot_quantile_return_mean_std(dic_stats, ax=gf.next_row())
         
-        if buy_condition is not None:
+        if trade_condition is not None:
             plotting.plot_batch_backtest(df_backtest, ax=gf.next_row())
         
         self.show_fig(gf.fig, 'single_inst.pdf')
