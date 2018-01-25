@@ -323,6 +323,8 @@ class Parser(object):
             'Rank': self.rank,
             'GroupRank': self.group_rank,
             'ConditionRank': self.cond_rank,
+            'ConditionPercentile': self.cond_percentile,
+            'ConditionQuantile': self.cond_quantile,
             'Standardize': self.standardize,
             'Cutoff': self.cutoff,
             # 'GroupApply': self.group_apply,
@@ -689,12 +691,31 @@ class Parser(object):
 
     # -----------------------------------------------------
     # Cross Section functions
-    def cond_rank(self, x, group):
-        x, group = self._align_bivariate(x, group)
-        group = group.fillna(0.0).astype(bool)
-        g_rank = x[group]
-        return g_rank.rank(axis=1).div(group.sum(axis=1), axis=0)
+    def cond_rank(self, df, cond):
+        cond = cond.fillna(0.0).astype(bool)
+        df, cond = self._align_bivariate(df, cond)
+        df = self._mask_non_index_member(df)
 
+        rank = rank_with_mask(df, mask=cond, axis=1, normalize=False)
+        return rank
+
+    def cond_percentile(self, df, cond):
+        cond = cond.fillna(0.0).astype(bool)
+        df, cond = self._align_bivariate(df, cond)
+        df = self._mask_non_index_member(df)
+    
+        rank = rank_with_mask(df, mask=cond, axis=1, normalize=True)
+        return rank
+
+    def cond_quantile(self, df, cond, n_quantiles):
+        cond = cond.fillna(0.0).astype(bool)
+        df, cond = self._align_bivariate(df, cond)
+        df = self._mask_non_index_member(df)
+        
+        res_arr = numeric.quantilize_without_nan(df[cond].values, n_quantiles=n_quantiles, axis=1)
+        res = pd.DataFrame(index=df.index, columns=df.columns, data=res_arr)
+        return res
+    
     # -----------------------------------------------------
     # cross section functions
     def _mask_non_index_member(self, df):
