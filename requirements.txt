@@ -1,7 +1,7 @@
 future
 enum34
 Jinja2
-msgpack_python
+msgpack-python
 pandas >= 0.20.0
 pyzmq
 python-snappy
