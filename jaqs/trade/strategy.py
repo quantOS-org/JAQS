@@ -407,6 +407,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.use_pc_method(name='factor_value_weight', func=self.factor_value_weight, options=None)
         self.use_pc_method(name='index_weight', func=self.index_weight, options=None)
         self.use_pc_method(name='market_value_weight', func=self.market_value_weight, options=None)
+        self.use_pc_method(name='market_value_sqrt_weight', func=self.market_value_weight, options={'sqrt': True})
         
         self._validate_parameters()
         print("AlphaStrategy Initialized.")
@@ -418,7 +419,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         elif self.pc_method in ['factor_value_weight']:
             if self.signal_model is None:
                 raise ValueError("signal_model must be provided when pc_method = 'factor_value_weight'")
-        elif self.pc_method in ['equal_weight', 'index_weight', 'market_value_weight']:
+        elif self.pc_method in ['equal_weight',
+                                'index_weight',
+                                'market_value_weight',
+                                'market_value_sqrt_weight']:
             pass
         else:
             raise NotImplementedError("pc_method = {:s}".format(self.pc_method))
@@ -517,7 +521,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         weights = {k: 1.0 for k in self.ctx.snapshot_sub.index.values}
         return weights, ''
 
-    def market_value_weight(self):
+    def market_value_weight(self, sqrt=False):
         snap = self.ctx.snapshot_sub
         # TODO: pass options, instead of hard-code 'total_mv', 'float_mv'
         if 'total_mv' in snap.columns:
@@ -528,6 +532,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             raise ValueError("market_value_weight is chosen,"
                              "while no [float_mv] or [total_mv] field found in dataview.")
         mv = mv.fillna(0.0)
+        if sqrt:
+            print('sqrt')
+            mv = np.sqrt(mv)
         weights = mv.to_dict()
         return weights, ""
 
