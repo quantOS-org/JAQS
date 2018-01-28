@@ -700,7 +700,7 @@ class EventBacktestInstance(BacktestInstance):
         if self.ctx.dataview is not None:
             df_quotes = self.ctx.dataview.get(symbol=symbols,
                                               start_date=date, end_date=date,
-                                              fields='open,high,low,close,volume,oi,trade_date,time',
+                                              fields='open,high,low,close,volume,oi,trade_date,date,time',
                                               data_format='long')
         elif self.ctx.data_api is not None:
             df_quotes, _ = self.ctx.data_api.bar(symbol=symbols,
@@ -733,13 +733,12 @@ class EventBacktestInstance(BacktestInstance):
             return dict()
     
         # create nested dict
-        df_quotes = df_quotes.sort_values(['trade_date', 'time', 'symbol'])
+        df_quotes = df_quotes.sort_values(['date', 'time', 'symbol'])
         res = []
-        for (date, time), df in df_quotes.groupby(by=['trade_date', 'time']):
+        for time, df in df_quotes.groupby(by=['time'], sort=False):
             quotes_list = Bar.create_from_df(df)
             dic = {quote.symbol: quote for quote in quotes_list}
-            res.append((date, time, dic))
-        
+            res.append((time, dic))
         return res
     
     def _run_bar(self):
@@ -752,7 +751,7 @@ class EventBacktestInstance(BacktestInstance):
             self.on_new_day(trade_date)
             
             list_of_quotes_tuples = self._create_time_symbol_bars(trade_date)
-            for _, time, quotes_dic in list_of_quotes_tuples:
+            for time, quotes_dic in list_of_quotes_tuples:
                 self._process_quote_bar(quotes_dic)
             
             self.on_after_market_close()
