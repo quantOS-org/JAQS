@@ -49,7 +49,27 @@ def group_df_to_dict(df, by):
     return res
 
 
-def rank_with_mask(df, axis=1, mask=None, normalize=False):
+def rank_with_mask(df, axis=1, mask=None, normalize=False, method='min'):
+    """
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+    axis : {0, 1}
+    mask : pd.DataFrame
+    normalize : bool
+    method : {'min', 'average', 'max', 'dense'}
+
+    Returns
+    -------
+    pd.DataFrame
+    
+    Notes
+    -----
+    If calculate rank, use 'min' method by default;
+    If normalize, result will range in [0.0, 1.0]
+
+    """
     not_nan_mask = (~df.isnull())
     
     if mask is None:
@@ -57,9 +77,12 @@ def rank_with_mask(df, axis=1, mask=None, normalize=False):
     else:
         mask = np.logical_and(not_nan_mask, mask)
     
-    rank = df[mask].rank(axis=axis, na_option='keep')
+    rank = df[mask].rank(axis=axis, na_option='keep', method=method)
     
     if normalize:
-        rank = rank.div(mask.sum(axis=axis), axis=(1 - axis))
+        dividend = rank.max(axis=axis)
+        SUB = 1
+        # for dividend = 1, do not subtract 1, otherwise there will be NaN
+        dividend.loc[dividend > SUB] = dividend.loc[dividend > SUB] - SUB
+        rank = rank.sub(SUB).div(dividend, axis=(1 - axis))
     return rank
-
