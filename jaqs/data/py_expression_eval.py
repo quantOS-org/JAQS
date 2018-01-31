@@ -322,6 +322,7 @@ class Parser(object):
             'GroupQuantile': self.group_quantile,
             'Rank': self.rank,
             'GroupRank': self.group_rank,
+            'Mask': self.mask,
             'ConditionRank': self.cond_rank,
             'ConditionPercentile': self.cond_percentile,
             'ConditionQuantile': self.cond_quantile,
@@ -691,6 +692,12 @@ class Parser(object):
 
     # -----------------------------------------------------
     # Cross Section functions
+    
+    @staticmethod
+    def mask(df, mask):
+        df[mask] = np.nan
+        return df
+        
     def cond_rank(self, df, cond):
         cond = cond.fillna(0.0).astype(bool)
         df, cond = self._align_bivariate(df, cond)
