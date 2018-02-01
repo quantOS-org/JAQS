@@ -905,11 +905,11 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         """
         if type_ == 'SW':
-            src = '申万研究所'
+            src = 'sw'
             if level not in [1, 2, 3, 4]:
                 raise ValueError("For [SW], level must be one of {1, 2, 3, 4}")
         elif type_ == 'ZZ':
-            src = '中证指数有限公司'
+            src = 'zz'
             if level not in [1, 2, 3, 4]:
                 raise ValueError("For [ZZ], level must be one of {1, 2}")
         else:
@@ -920,7 +920,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         fields_list = ['symbol', 'industry{:d}_code'.format(level), 'industry{:d}_name'.format(level)]
     
         df_raw, err_msg = self.query("lb.secIndustry", fields=','.join(fields_list),
-                                 filter=filter_argument, orderby="symbol")
+                                     filter=filter_argument, orderby="symbol")
         self._raise_error_if_msg(err_msg)
         
         df_raw = df_raw.astype(dtype={'in_date': np.integer,
