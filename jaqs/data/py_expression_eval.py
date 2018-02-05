@@ -362,6 +362,7 @@ class Parser(object):
             # inplace
             'Pow': np.power,
             'SignedPower': self.signed_power,
+            'IsNan': self.is_nan,
             # others
             'If': self.ifFunction,
             # test
@@ -689,6 +690,10 @@ class Parser(object):
     def signed_power(self, x, e):
         signs = np.sign(x)
         return signs * np.power(np.abs(x), e)
+    
+    @staticmethod
+    def is_nan(df):
+        return df.isnull()
 
     # -----------------------------------------------------
     # Cross Section functions
