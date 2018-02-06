@@ -196,7 +196,7 @@ def test_remote_data_service_dividend():
     
     df, msg = ds.query_dividend(symbol_arr, start_date=20160101, end_date=20170101)
     df2 = df.pivot(index='exdiv_date', columns='symbol', values='share_ratio')
-    assert abs(df.loc[(df['exdiv_date'] == 20160504) & (df['symbol'] == '002085.SZ'), 'share_ratio'] - 2.0).iat[0] < 1e-2
+    assert abs(df.loc[(df['exdiv_date'] == 20160504) & (df['symbol'] == '002085.SZ'), 'share_ratio'] - 0.20).iat[0] < 1e-2
 
 
 def test_remote_data_service_inst_info():
