@@ -1536,7 +1536,7 @@ class EventDataView(object):
         # initialize parameters
         self.start_date = props['start_date']
         self.extended_start_date_d = jutil.shift(self.start_date, n_weeks=-8)  # query more data
-        self.extended_start_date_q = jutil.shift(self.start_date, n_weeks=-80)
+        self.extended_start_date_q = jutil.shift(self.start_date, n_weeks=-130)
         self.end_date = props['end_date']
         self.all_price = props.get('all_price', True)
         self.freq = props.get('freq', 1)
