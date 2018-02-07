@@ -9,12 +9,12 @@
 #### 引入模块
 
 ```python
-from jaqs.data.dataapi import DataApi
+from jaqs.data import DataApi
 ```
 #### 登录数据服务器
 ```python
-api = DataApi(addr='tcp://data.tushare.org:8910')
-api.login("phone", "token") 
+api = DataApi(addr='tcp://data.quantos.org:8910')
+api.login(phone, token) 
 ```
 
 ### 调用数据接口
@@ -24,7 +24,5 @@ api.login("phone", "token")
 - **市场数据**，目前可使用的数据包括日线，分钟线，实时行情等。
 - **参考数据**，包括财务数据、公司行为数据、指数成份数据等。
 
-数据API使用方法参考[DataApi快速入门](https://github.com/quantOS-org/DataCore/blob/master/doc/api_ref.md)
-
-
+数据API使用方法参考下面的数据API说明。
 
