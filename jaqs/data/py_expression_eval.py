@@ -340,8 +340,8 @@ class Parser(object):
             'Ts_Quantile': self.ts_quantile,
             'Ewma': self.ewma,
             'Sma':self.sma,
-            'Sum': self.sum,
-            'Product': self.product,  # rolling product
+            'Ts_Sum': self.ts_sum,
+            'Ts_Product': self.ts_product,  # rolling product
             'CountNans': self.count_nans,  # rolling count Nans
             'StdDev': self.std_dev,
             'Covariance': self.cov,
@@ -429,6 +429,10 @@ class Parser(object):
     
     def pow(self, a, b):
         return np.power(a, b)
+
+    def signed_power(self, x, e):
+        signs = np.sign(x)
+        return signs * np.power(np.abs(x), e)
     
     def concat(self, a, b, *args):
         result = u'{0}{1}'.format(a, b)
@@ -573,18 +577,10 @@ class Parser(object):
         r = df.ewm(com=a, axis=0)
         return r.mean()
     
-    def corr(self, x, y, n):
-        (x, y) = self._align_bivariate(x, y)
-        return pd.rolling_corr(x, y, n)
-    
-    def cov(self, x, y, n):
-        (x, y) = self._align_bivariate(x, y)
-        return pd.rolling_cov(x, y, n)
-    
     def std_dev(self, x, n):
         return pd.rolling_std(x, n)
     
-    def sum(self, x, n):
+    def ts_sum(self, x, n):
         return pd.rolling_sum(x, n)
     
     def count_nans(self, x, n):
@@ -620,21 +616,9 @@ class Parser(object):
     def ts_skew(self, x, n):
         return pd.rolling_skew(x, n)
     
-    def product(self, x, n):
+    def ts_product(self, x, n):
         return pd.rolling_apply(x, n, np.product)
     
-    @staticmethod
-    def calc_ttm(df):
-        return calc_ttm(cum_to_single_quarter(df, df.index))
-    
-    @staticmethod
-    def calc_ttm_jli(df):
-        return calc_ttm(df)
-
-    @staticmethod
-    def cum_to_single(df):
-        return cum_to_single_quarter(df, df.index)
-
     @staticmethod
     def ts_rank(df, window):
         """Return a DataFrame with values ranging from 0.0 to 1.0"""
@@ -660,7 +644,30 @@ class Parser(object):
     
         res = roll.apply(_rank_arr, kwargs={'norm': window})
         return res
+
+    # Time Series Two Parameters
+    def corr(self, x, y, n):
+        (x, y) = self._align_bivariate(x, y)
+        return pd.rolling_corr(x, y, n)
+
+    def cov(self, x, y, n):
+        (x, y) = self._align_bivariate(x, y)
+        return pd.rolling_cov(x, y, n)
+
+    # financial statement data
+    @staticmethod
+    def calc_ttm(df):
+        return calc_ttm(cum_to_single_quarter(df, df.index))
     
+    @staticmethod
+    def calc_ttm_jli(df):
+        return calc_ttm(df)
+
+    @staticmethod
+    def cum_to_single(df):
+        return cum_to_single_quarter(df, df.index)
+
+    # no use
     def step(self, x, n):
         st = x.copy()
         n = n + 1
@@ -686,10 +693,6 @@ class Parser(object):
     
     def decay_exp(self, x, f, n):
         return pd.rolling_apply(x, n, self.decay_exp_array, args=[f])
-    
-    def signed_power(self, x, e):
-        signs = np.sign(x)
-        return signs * np.power(np.abs(x), e)
     
     @staticmethod
     def is_nan(df):
