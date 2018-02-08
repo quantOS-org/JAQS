@@ -627,8 +627,8 @@ class EventBacktestInstance(BacktestInstance):
         if self.ctx.data_api is not None:
             symbol_str = ','.join(self.ctx.universe)
             df, msg = self.ctx.data_api.query_dividend(symbol_str, start_date=self.start_date, end_date=self.end_date)
-            df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) / 10.0
-            df.loc[:, 'cash_tax'] = df['cash_tax'] / 10.0
+            df.loc[:, 'shares'] = (df['share_ratio'] + df['share_trans_ratio']) # / 10.0
+            df.loc[:, 'cash_tax'] = df['cash_tax'] # / 10.0
             self.df_dividend = df
         else:
             # TODO
