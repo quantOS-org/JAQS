@@ -1,7 +1,7 @@
 # JAQS安装步骤
 
 ## Windows下一键安装脚本
-如果没有安装Python包的经验，或者极度不擅长相关操作，可以使用我们的一键安装脚本。该脚本仅适用于Windows系统，使用步骤为：
+如果没有安装Python包的经验，或者不熟悉相关操作，可以使用我们的一键安装脚本。该脚本仅适用于Windows系统，使用步骤为：
 1. 先按照下方**如何安装Anaconda**操作，在系统中安装Anaconda；
 2. 下载[一键安装脚本](http://www.quantos.org/downloads/install_scripts/onekey_install_jaqs.zip)，解压后运行`onekey_install_jaqs.bat`，看到"Successfully installed jaqs"字样，说明安装成功。
 
