@@ -379,6 +379,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.days_delay = 0
         self.cash = 0
         self.position_ratio = 0.98
+        self.single_symbol_weight_limit = 1.0
         
         self.risk_model = risk_model
         self.signal_model = signal_model
@@ -399,6 +400,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.days_delay = props.get('days_delay', 0)
         self.n_periods = props.get('n_periods', 1)
         self.position_ratio = props.get('position_ratio', 0.98)
+        self.single_symbol_weight_limit = props.get('single_symbol_weight_limit', 1.0)
 
         self.use_pc_method(name='equal_weight', func=self.equal_weight, options=None)
         self.use_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_signal,
@@ -513,6 +515,11 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         w_sum = np.sum(np.abs(list(weights_all_universe.values())))
         if w_sum > 1e-8:  # else all zeros weights
             weights_all_universe = {k: v / w_sum for k, v in weights_all_universe.items()}
+        
+        # single symbol weight limit process
+        if self.single_symbol_weight_limit < 1:
+            weights_all_universe = {k: v if v < self.single_symbol_weight_limit else self.single_symbol_weight_limit
+                                    for k, v in weights_all_universe.items()}
 
         self.weights = weights_all_universe
 
