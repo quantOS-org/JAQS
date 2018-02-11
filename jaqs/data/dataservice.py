@@ -910,8 +910,12 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                 raise ValueError("For [SW], level must be one of {1, 2, 3, 4}")
         elif type_ == 'ZZ':
             src = 'zz'
-            if level not in [1, 2, 3, 4]:
+            if level not in [1, 2]:
                 raise ValueError("For [ZZ], level must be one of {1, 2}")
+        elif type_ == 'ZJH':
+            src = 'zjh'
+            if level not in [1, 2]:
+                raise ValueError("For [ZJH], level must be one of {1, 2}")
         else:
             raise ValueError("type_ must be one of SW of ZZ")
         
