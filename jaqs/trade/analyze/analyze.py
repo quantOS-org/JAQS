@@ -1054,7 +1054,7 @@ def plot_portfolio_bench_pnl(portfolio_cum_ret, benchmark_cum_ret, excess_cum_re
     ax2.grid(axis='y')
     ax2.xaxis.set_major_formatter(MyFormatter(idx_dt, '%y-%m-%d'))  # 17-09-31
     
-    ax3.plot(idx, (portfolio_cum_ret + 1.0) / (benchmark_cum_ret + 1.0), label='Ratio of NAV', color='#C37051')
+    ax3.plot(idx, (portfolio_cum_ret ) / (benchmark_cum_ret ), label='Ratio of NAV', color='#C37051')
     ax3.legend(loc='upper left')
     ax3.set(title="NaV of Portfolio / NaV of Benchmark", ylabel=y_label_ret
            #xlabel="Date",
