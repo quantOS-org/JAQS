@@ -581,8 +581,12 @@ class BaseAnalyzer(object):
         max_dd_start = np.argmax(active_cum[:max_dd_end])  # start of period
         max_dd = dd_to_cum_peak[max_dd_end]
     
-        self.performance_metrics['Annual Return (%)'] =\
-            100 * (np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1)
+        if compound_return:
+            self.performance_metrics['Annual Return (%)'] = \
+                100 * (np.power(df_returns.loc[:, 'active_cum'].values[-1], 1. / years) - 1)
+        else:
+            self.performance_metrics['Annual Return (%)'] = \
+                100 * (df_returns.loc[:, 'active_cum'].values[-1] - 1.0) / years
         self.performance_metrics['Annual Volatility (%)'] =\
             100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
         self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
