@@ -514,7 +514,7 @@ class BaseAnalyzer(object):
         self.daily = daily_dic
     '''
 
-    def get_returns(self, compound_return=True, consider_commission=True):
+    def get_returns(self, compound_return=False, consider_commission=True):
         """
         Calculate strategy daily return and various metrics indicating strategy's performance.
         
@@ -527,6 +527,7 @@ class BaseAnalyzer(object):
             Note: commission is stored in a column in self.trades.
 
         """
+        # only get columns that we need
         cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit']
         '''
         dic_symbol = {sec: self.inst_map[sec]['multiplier'] * df_daily.loc[:, cols]
@@ -542,9 +543,9 @@ class BaseAnalyzer(object):
         daily = self.daily.loc[:, cols]
         daily = daily.stack().unstack('symbol')
         
+        # calculate daily PnL DataFrame
         df_pnl = daily.sum(axis=1)
         df_pnl = df_pnl.unstack(level=1)
-
         self.df_pnl = df_pnl
     
         # TODO temperary solution
@@ -553,18 +554,21 @@ class BaseAnalyzer(object):
         else:
             strategy_value = df_pnl['total_pnl'].cumsum() + self.init_balance
     
+        # get strategy & benchmark NAV (Net Asset Value)
         market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
         market_values.columns = ['strat', 'bench']
     
+        # get strategy & benchmark daily return, cumulative return
         df_returns = market_values.pct_change(periods=1).fillna(0.0)
-    
-        df_returns = df_returns.join((df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod(), rsuffix='_cum')
+        df_cum_returns = (df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod()
+        df_returns = df_returns.join(df_cum_returns, rsuffix='_cum')
+        
         if compound_return:
             df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
             df_returns.loc[:, 'active'] = df_returns['active_cum'].pct_change(1).fillna(0.0)
         else:
             df_returns.loc[:, 'active'] = df_returns['strat'] - df_returns['bench']
-            df_returns.loc[:, 'active_cum'] = df_returns['active'].add(1.0).cumprod(axis=0)
+            df_returns.loc[:, 'active_cum'] = df_returns['active'].cumsum() + 1.0
     
         start = pd.to_datetime(self.start_date, format="%Y%m%d")
         end = pd.to_datetime(self.end_date, format="%Y%m%d")
