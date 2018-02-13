@@ -91,6 +91,8 @@ class DoubleMaStrategy(EventDrivenStrategy):
         # 下单量乘数
         self.buy_size_unit = 1
         self.output = True
+        
+        self.df_signal = None
     
     def init_from_config(self, props):
         """
