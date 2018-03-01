@@ -1144,7 +1144,17 @@ class DataView(object):
         df_ann.columns = df_ann.columns.droplevel(level='field')
     
         return df_ann
-    
+
+    def get_symbol(self, symbol, start_date=0, end_date=0, fields=""):
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=fields)
+        if res is None:
+            raise ValueError("No data. for "
+                             "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
+                                                                                      fields, symbol))
+
+        res.columns = res.columns.droplevel(level='symbol')
+        return res
+
     def get_ts_quarter(self, field, symbol="", start_date=0, end_date=0):
         # TODO
         sep = ','
@@ -2253,7 +2263,7 @@ class EventDataView(object):
         if res is None:
             raise ValueError("No data. for "
                              "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
-                                                                                      field, symbol))
+                                                                                      fields, symbol))
 
         res.columns = res.columns.droplevel(level='symbol')
         return res
