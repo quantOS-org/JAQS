@@ -1095,7 +1095,6 @@ class DataView(object):
             end_date = self.end_date
     
         res = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
-    
         return res
     
     def get_snapshot(self, snapshot_date, symbol="", fields=""):
@@ -1117,6 +1116,19 @@ class DataView(object):
             symbol as index, field as columns
 
         """
+
+        # df = self.data_d.T.unstack()
+        # df = df[snapshot_date].copy()
+        if snapshot_date not in self._snapshot:
+            return
+
+        df = self._snapshot[snapshot_date]
+        if fields:
+            return df[fields.split(',')]
+        else:
+            return df
+
+
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
         if res is None:
             print("No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol))
@@ -1239,7 +1251,29 @@ class DataView(object):
         self._data_benchmark = dic.get('/data_benchmark', None)
         self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
-        
+
+        a = self.get_ts('adjust_factor')
+        b = (a / a.shift(1)).fillna(1.0)
+        self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
+
+        dates = self.dates
+        mask = dates < self.start_date
+        before_first_day = dates[mask][-1]
+
+        open = self.get_ts('open')
+        preclose = self.get_ts('close', start_date=before_first_day).shift(1)
+        limit = np.abs((open - preclose)/preclose)
+        self.append_df(limit, "_limit", is_quarterly=False)
+
+        dates = self.data_d.index.values
+        df = self.data_d.T.unstack()
+        self._snapshot = {}
+        for date in dates:
+            tmp = df[date].copy()
+            del tmp.index.name
+            del tmp.columns.name
+            self._snapshot[date] = tmp
+
         print("Dataview loaded successfully.")
 
     def save_dataview(self, folder_path):

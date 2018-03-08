@@ -113,3 +113,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# output
+example/alpha/out/
+example/alpha/out2

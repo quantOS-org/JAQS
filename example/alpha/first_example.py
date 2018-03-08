@@ -43,17 +43,17 @@ def save_data():
     Then we can use local data to do back-test.
 
     """
-    dataview_props = {# Start and end date of back-test
-                      'start_date': 20170101, 'end_date': 20171030,
-                      # Investment universe and performance benchmark
-                      'universe': UNIVERSE, 'benchmark': '000300.SH',
-                      # Data fields that we need
-                      'fields': 'total_mv,turnover',
-                      # freq = 1 means we use daily data. Please do not change this.
-                      'freq': 1}
+    dataview_props = {'start_date': 20170101,  # Start and end date of back-test
+                      'end_date': 20171030,
+                      'universe': UNIVERSE,    # Investment universe and performance benchmark
+                      'benchmark': '000300.SH',
+                      'fields': 'total_mv,turnover', # Data fields that we need
+                      'freq': 1   # freq = 1 means we use daily data. Please do not change this.
+                      }
 
     # RemoteDataService communicates with a remote server to fetch data
     ds = RemoteDataService()
+
     # Use username and password in data_config to login
     ds.init_from_config(data_config)
     
@@ -69,32 +69,24 @@ def do_backtest():
     dv = DataView()
     dv.load_dataview(folder_path=dataview_store_folder)
     
-    backtest_props = {# start and end date of back-test
-                      "start_date": dv.start_date,
-                      "end_date": dv.end_date,
-                      # re-balance period length
-                      "period": "month",
-                      # benchmark and universe
-                      "benchmark": dv.benchmark,
-                      "universe": dv.universe,
-                      # Amount of money at the start of back-test
-                      "init_balance": 1e8,
-                      # Amount of money at the start of back-test
-                      "position_ratio": 1.0,
+    backtest_props = {"start_date"      : dv.start_date, # start and end date of back-test
+                      "end_date"        : dv.end_date,
+                      "period"          : "month",           # re-balance period length
+                      "benchmark"       : dv.benchmark,   # benchmark and universe
+                      "universe"        : dv.universe,
+                      "init_balance"    : 1e8,         # Amount of money at the start of back-test
+                      "position_ratio"  : 1.0,       # Amount of money at the start of back-test
                       }
     backtest_props.update(data_config)
     backtest_props.update(trade_config)
 
-    # We use trade_api to send orders
-    trade_api = AlphaTradeApi()
-    # This is our strategy
-    strategy = AlphaStrategy(pc_method='market_value_weight')
-    # PortfolioManager helps us to manage tasks, orders and calculate positions
-    pm = PortfolioManager()
-    # BacktestInstance is in charge of running the back-test
-    bt = AlphaBacktestInstance()
+    # Create model context using AlphaTradeApi, AlphaStrategy, PortfolioManager and AlphaBacktestInstance.
+    # We can store anything, e.g., public variables in context.
 
-    # Public variables are stored in context. We can also store anything in it
+    trade_api = AlphaTradeApi()
+    strategy = AlphaStrategy(pc_method='market_value_weight')
+    pm = PortfolioManager()
+    bt = AlphaBacktestInstance()
     context = model.Context(dataview=dv, instance=bt, strategy=strategy, trade_api=trade_api, pm=pm)
 
     bt.init_from_config(backtest_props)

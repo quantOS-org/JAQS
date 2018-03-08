@@ -11,6 +11,8 @@ from jaqs.data.basic import *
 from jaqs.data.basic import OrderStatusInd, Trade, TaskInd, Task
 from jaqs.trade.tradeapi import TradeApi
 from jaqs.util.sequence import SequenceGenerator
+import jaqs.util as jutil
+
 
 '''
 class TradeCallback(with_metaclass(abc.ABCMeta)):
@@ -714,8 +716,8 @@ class AlphaTradeApi(BaseTradeApi):
     def goal_portfolio(self, positions, algo="", algo_param={}, userdata=""):
         # Generate Orders
         task_id = self._get_next_task_id()
-        
-        orders = []
+
+        orders = {}
         for goal in positions:
             sec, goal_size = goal['symbol'], goal['size']
             if sec in self.ctx.pm.holding_securities:
@@ -735,23 +737,24 @@ class AlphaTradeApi(BaseTradeApi):
                     raise NotImplementedError("goal_portfolio algo = {}".format(algo))
 
                 order.task_id = task_id
-                orders.append(order)
+                order.entrust_no = self._simulator.add_order(order)
+                orders[order.entrust_no] = order
 
         # Generate Task
         task = Task(task_id,
                     algo=algo, algo_param=algo_param, data=orders,
                     function_name='goal_portfolio', trade_date=self.ctx.trade_date)
 
+
         self.ctx.pm.add_task(task)
 
         # Send Orders to Exchange
-        for order in orders:
-            entrust_no = self._simulator.add_order(order)
-            # task.data.entrust_no = entrust_no
+        for entrust_no, order in orders.items():
             self.entrust_no_task_id_map[entrust_no] = task.task_id
-            
+
             order_status_ind = OrderStatusInd(order)
             order_status_ind.order_status = common.ORDER_STATUS.ACCEPTED
+
             self._order_status_callback(order_status_ind)
     
     def goal_portfolio_by_batch_order(self, goals):
@@ -806,22 +809,23 @@ class AlphaTradeApi(BaseTradeApi):
         
     def match_and_callback(self, price_dict):
         results = self._simulator.match(price_dict, date=self.ctx.trade_date, time=self.MATCH_TIME)
-    
+
         for trade_ind, order_status_ind in results:
             self._add_commission(trade_ind)
         
             task_id = self.entrust_no_task_id_map[trade_ind.entrust_no]
             self._add_task_id(trade_ind)
             self._add_task_id(order_status_ind)
-        
+
             self._order_status_callback(order_status_ind)
             self._trade_callback(trade_ind)
-        
+
             task = self.ctx.pm.get_task(task_id)
             if task.is_finished:
                 task_ind = TaskInd(task_id, task_status=task.task_status,
                                    task_algo='', task_msg="")
                 self._task_status_callback(task_ind)
+
         return results
 
 
