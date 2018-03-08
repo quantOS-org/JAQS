@@ -410,7 +410,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.use_pc_method(name='index_weight', func=self.index_weight, options=None)
         self.use_pc_method(name='market_value_weight', func=self.market_value_weight, options=None)
         self.use_pc_method(name='market_value_sqrt_weight', func=self.market_value_weight, options={'sqrt': True})
-        
+        self.use_pc_method(name='equal_index_weight', func=self.equal_index_weight, options=None)
+
         self._validate_parameters()
         print("AlphaStrategy Initialized.")
     
@@ -423,6 +424,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                 raise ValueError("signal_model must be provided when pc_method = 'factor_value_weight'")
         elif self.pc_method in ['equal_weight',
                                 'index_weight',
+                                'equal_index_weight',
                                 'market_value_weight',
                                 'market_value_sqrt_weight']:
             pass
@@ -554,7 +556,18 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         ser_index_weight.fillna(0.0, inplace=True)
         weights = ser_index_weight.to_dict()
         return weights, ""
-    
+
+    def equal_index_weight(self):
+        snap = self.ctx.snapshot_sub
+        snap.fillna(0.0, inplace=True)
+
+        wt_equal = snap['index_member'] / sum(snap['index_member'])
+        wt_index = snap['index_weight'] / sum(snap['index_weight'])
+
+        wt_final = (wt_equal + wt_index) / 2
+
+        return wt_final.to_dict(), ""
+
     def factor_value_weight(self):
         def long_only_weight_adjust(w):
             """
@@ -648,7 +661,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = weights
     
     def on_after_rebalance(self, total):
-        print("Before {} re-balance: available cash all = {:9.4e}".format(self.ctx.trade_date, total))  # DEBUG
+        #print("Before {} re-balance: available cash all = {:9.4e}".format(self.ctx.trade_date, total))  # DEBUG
         pass
     
     def send_bullets(self):
