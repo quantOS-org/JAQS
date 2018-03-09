@@ -580,6 +580,10 @@ class BaseAnalyzer(object):
         max_dd_end = np.argmax(dd_to_cum_peak)  # end of the period
         max_dd_start = np.argmax(active_cum[:max_dd_end])  # start of period
         max_dd = dd_to_cum_peak[max_dd_end]
+        
+        win_count = len(df_pnl[df_pnl.total_pnl > 0].index)
+        total_count = len(df_pnl.index)
+        win_rate = win_count * 1.0 / total_count
     
         if compound_return:
             self.performance_metrics['Annual Return (%)'] = \
@@ -591,6 +595,10 @@ class BaseAnalyzer(object):
             100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
         self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
                                                     / self.performance_metrics['Annual Volatility (%)'])
+        self.performance_metrics['Trade Number'] = len(self.trades.index)        
+        self.performance_metrics['Total PNL'] = df_pnl.loc[:,'total_pnl'].sum()
+        self.performance_metrics['Win Rate(%)'] = "%.2f"%(win_rate*100)
+        self.performance_metrics['Commission'] = df_pnl.loc[:,'commission'].sum()
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
         self.risk_metrics['Maximum Drawdown (%)'] = max_dd * TO_PCT
