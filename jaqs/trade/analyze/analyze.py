@@ -604,7 +604,10 @@ class BaseAnalyzer(object):
         self.risk_metrics['Maximum Drawdown (%)'] = max_dd * TO_PCT
         self.risk_metrics['Maximum Drawdown start'] = df_returns.index[max_dd_start]
         self.risk_metrics['Maximum Drawdown end'] = df_returns.index[max_dd_end]
-    
+
+        self.performance_metrics_report = sorted([(k,v) for (k,v) in self.performance_metrics.items()])
+        self.risk_metrics_report = sorted([(k, v) for (k, v) in self.risk_metrics.items()])
+
         # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
         # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
@@ -664,8 +667,8 @@ class BaseAnalyzer(object):
         dic['selected_securities'] = selected
         # we do not want to show username / password in report
         dic['props'] = {k: v for k, v in self.configs.items() if ('username' not in k and 'password' not in k)}
-        dic['performance_metrics'] = self.performance_metrics
-        dic['risk_metrics'] = self.risk_metrics
+        dic['performance_metrics_report'] = self.performance_metrics_report
+        dic['risk_metrics_report'] = self.risk_metrics_report
         dic['position_change'] = self.position_change
         dic['account'] = self.account
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')

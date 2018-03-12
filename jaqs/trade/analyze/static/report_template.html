@@ -96,7 +96,7 @@
                     <th scope="col">Value</th>
                 </tr>
                 </thead>
-                {% for key, value in performance_metrics.items() %}
+                {% for key, value in performance_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
                     <td>{{value | round_if_float(1) }}</td>
@@ -113,7 +113,7 @@
                     <th scope="col">Value</th>
                 </tr>
                 </thead>
-                {% for key, value in risk_metrics.items() %}
+                {% for key, value in risk_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
                     <td>{{value | round_if_float(3) }}</td>
