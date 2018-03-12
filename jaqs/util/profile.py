@@ -78,7 +78,7 @@ def prof_print():
                              'avg': total_time / len(data)
                              })
 
-    print_data = sorted(print_data, lambda x,y: cmp(y['total'], x['total']))
+    print_data = sorted(print_data, key=lambda x : -x['total'])
 
     for d in print_data:
         print ("prof: {:<30} count {:8d} total {:8.4f}s, min {:8.4f}s, max {:8.4f}s, avg {:8.4f}"
