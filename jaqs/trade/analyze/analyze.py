@@ -608,45 +608,50 @@ class BaseAnalyzer(object):
             100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
         self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
                                                     / self.performance_metrics['Annual Volatility (%)'])
-        self.performance_metrics['Number of Trades'] = len(self.trades.index)        
-        self.performance_metrics['Total PNL'] = df_pnl.loc[:,'total_pnl'].sum()
-        self.performance_metrics['Daily Win Rate(%)'] = "%.2f"%(win_rate*100)
-        self.performance_metrics['Daily Lost Rate(%)'] = "%.2f"%(lost_rate*100)
-        self.performance_metrics['Commission'] = df_pnl.loc[:,'commission'].sum()
+        self.performance_metrics['Number of Trades']   = len(self.trades.index)
+        self.performance_metrics['Total PNL']          = df_pnl.loc[:,'total_pnl'].sum()
+        self.performance_metrics['Daily Win Rate(%)']  = win_rate*100
+        self.performance_metrics['Daily Lost Rate(%)'] = lost_rate*100
+        self.performance_metrics['Commission']         = df_pnl.loc[:,'commission'].sum()
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
-        self.risk_metrics['Maximum Drawdown (%)'] = max_dd * TO_PCT
+        self.risk_metrics['Maximum Drawdown (%)']   = max_dd * TO_PCT
         self.risk_metrics['Maximum Drawdown start'] = df_returns.index[max_dd_start]
-        self.risk_metrics['Maximum Drawdown end'] = df_returns.index[max_dd_end]
+        self.risk_metrics['Maximum Drawdown end']   = df_returns.index[max_dd_end]
 
         #self.performance_metrics_report = sorted([(k,v) for (k,v) in self.performance_metrics.items()])
         self.performance_metrics_report = []
-        self.performance_metrics_report.append(('Total PNL', self.performance_metrics['Total PNL']))
-        self.performance_metrics_report.append(('Commission', self.performance_metrics['Commission']))
-        self.performance_metrics_report.append(('Annual Return (%)', self.performance_metrics['Annual Return (%)']))
-        self.performance_metrics_report.append(('Annual Volatility (%)', self.performance_metrics['Annual Volatility (%)']))
-        self.performance_metrics_report.append(('Sharpe Ratio', self.performance_metrics['Sharpe Ratio']))
-        self.performance_metrics_report.append(('Number of Trades', self.performance_metrics['Number of Trades']))
-        self.performance_metrics_report.append(('Daily Win Rate(%)', self.performance_metrics['Daily Win Rate(%)']))
-        self.performance_metrics_report.append(('Daily Lost Rate(%)', self.performance_metrics['Daily Lost Rate(%)']))
+        self.performance_metrics_report.append(('Annual Return (%)',        "{:,.2f}".format( self.performance_metrics['Annual Return (%)']))     )
+        self.performance_metrics_report.append(('Annual Volatility (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility (%)'])) )
+        self.performance_metrics_report.append(('Sharpe Ratio',             "{:,.2f}".format( self.performance_metrics['Sharpe Ratio']))          )
+        self.performance_metrics_report.append(('Total PNL',                "{:,.2f}".format( self.performance_metrics['Total PNL']))             )
+        self.performance_metrics_report.append(('Commission',               "{:,.2f}".format( self.performance_metrics['Commission']))            )
+        self.performance_metrics_report.append(('Number of Trades',         self.performance_metrics['Number of Trades']))
+        self.performance_metrics_report.append(('Daily Win Rate(%)',        "{:,.2f}".format( self.performance_metrics['Daily Win Rate(%)']))     )
+        self.performance_metrics_report.append(('Daily Lost Rate(%)',       "{:,.2f}".format( self.performance_metrics['Daily Lost Rate(%)']))    )
         
         self.dailypnl_metrics_report = []
         self.dailypnl_metrics_report.append(('Daily PNL Max Time', max_pnl.index[0]))
-        self.dailypnl_metrics_report.append(('Daily PNL Max',max_pnl.values[0]))
+        self.dailypnl_metrics_report.append(('Daily PNL Max',      "{:,.2f}".format(max_pnl.values[0])))
         self.dailypnl_metrics_report.append(('Daily PNL Min Time', min_pnl.index[0]))
-        self.dailypnl_metrics_report.append(('Daily PNL Min',min_pnl.values[0]))
-        self.dailypnl_metrics_report.append(('Daily PNL Up  5%', up5pct))
-        self.dailypnl_metrics_report.append(('Daily PNL Low 5%', low5pct))
+        self.dailypnl_metrics_report.append(('Daily PNL Min',      "{:,.2f}".format(min_pnl.values[0])))
+        self.dailypnl_metrics_report.append(('Daily PNL Up  5%',   "{:,.2f}".format(up5pct)))
+        self.dailypnl_metrics_report.append(('Daily PNL Low 5%',   "{:,.2f}".format(low5pct)))
         
         self.dailypnl_tail5_metrics_report = []
         for k,v in tail5_pnl.iteritems():
-            self.dailypnl_tail5_metrics_report.append((k,v))
+            self.dailypnl_tail5_metrics_report.append((k, "{:,.2f}".format(v)))
             
-        self.dailypnl_top5_metrics_report = []    
+        self.dailypnl_top5_metrics_report = []
         for k,v in top5_pnl.iteritems():
-            self.dailypnl_top5_metrics_report.append((k,v))           
+            self.dailypnl_top5_metrics_report.append((k,"{:,.2f}".format(v)))
                                                
-        self.risk_metrics_report = sorted([(k, v) for (k, v) in self.risk_metrics.items()])
+        #self.risk_metrics_report = sorted([(k, v) for (k, v) in self.risk_metrics.items()])
+        self.risk_metrics_report = []
+        self.risk_metrics_report.append(("Beta",                   "{:,.3f}".format( self.risk_metrics["Beta"])) )
+        self.risk_metrics_report.append(("Maximum Drawdown (%)",   "{:,.2f}".format( self.risk_metrics["Maximum Drawdown (%)"])) )
+        self.risk_metrics_report.append(("Maximum Drawdown start", self.risk_metrics["Maximum Drawdown start"]))
+        self.risk_metrics_report.append(("Maximum Drawdown end",   self.risk_metrics["Maximum Drawdown end"]))
 
         # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
         # df_returns = df_returns.join(bt_strat_mv, how='right')

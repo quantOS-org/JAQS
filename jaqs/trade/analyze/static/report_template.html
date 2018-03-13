@@ -99,7 +99,7 @@
                 {% for key, value in performance_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
-                    <td>{{value | round_if_float(1) }}</td>
+                    <td align="right">{{value | round_if_float(1) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -116,7 +116,7 @@
                 {% for key, value in risk_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
-                    <td>{{value | round_if_float(3) }}</td>
+                    <td align="right">{{value | round_if_float(3) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -133,13 +133,14 @@
                 {% for key, value in dailypnl_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
-                    <td>{{value | round_if_float(3) }}</td>
+                    <td align="right">{{value | round_if_float(3) }}</td>
                 </tr>
                 {% endfor %}
             </table>
 
+            <h3>Tail 5 Daily PnL</h3>
             <table class="table table-striped">
-                <caption><h3>Tail 5 Daily Pnl</h3><br>This data is stored in <code>Analyzer.dailypnl_tail5_metrics</code></caption>
+                <caption>This data is stored in <code>Analyzer.dailypnl_tail5_metrics</code></caption>
                 <thead class="thead-light">
                 <tr>
                     <th scope="col">Term</th>
@@ -149,13 +150,14 @@
                 {% for key, value in dailypnl_tail5_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
-                    <td>{{value | round_if_float(3) }}</td>
+                    <td align="right">{{value | round_if_float(3) }}</td>
                 </tr>
                 {% endfor %}
             </table>
 
+            <h3>Top 5 Daily PnL</h3>
             <table class="table table-striped">
-                <caption><h3>Top 5 Daily Pnl</h3><br>This data is stored in <code>Analyzer.dailypnl_top5_metrics</code></caption>
+                <caption>This data is stored in <code>Analyzer.dailypnl_top5_metrics</code></caption>
                 <thead class="thead-light">
                 <tr>
                     <th scope="col">Term</th>
@@ -165,7 +167,7 @@
                 {% for key, value in dailypnl_top5_metrics_report %}
                 <tr>
                     <td>{{key}}</td>
-                    <td>{{value | round_if_float(3) }}</td>
+                    <td align="right">{{value | round_if_float(3) }}</td>
                 </tr>
                 {% endfor %}
             </table>
