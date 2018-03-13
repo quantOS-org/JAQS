@@ -300,8 +300,8 @@ class BaseAnalyzer(object):
         self.start_date = self.configs['start_date']
         self.end_date = self.configs['end_date']
         
-    @staticmethod
-    def _process_trades(df):
+    #@staticmethod
+    def _process_trades(self,df):
         """
         Add various statistics to trades DataFrame.
         
@@ -320,12 +320,14 @@ class BaseAnalyzer(object):
         cols_to_drop = ['task_id', 'entrust_no', 'fill_no']
         df = df.drop(cols_to_drop, axis=1)
         
-        def _apply(gp_df):
+        def _apply(gp_df,inst_map):
             # calculation of non-cumulative fields
             direction = gp_df['entrust_action'].apply(lambda s: 1 if common.ORDER_ACTION.is_positive(s) else -1)
             fill_size, fill_price = gp_df['fill_size'], gp_df['fill_price']
-            turnover = fill_size * fill_price
-
+            symbol = gp_df.index.levels[0][0]
+            mult = self.inst_map.get(symbol).get("multiplier")
+            turnover = fill_size * fill_price * mult
+            gp_df.loc[:, 'commission'] = gp_df.loc[:, 'commission'] * mult
             gp_df.loc[:, 'BuyVolume'] = (direction + 1) / 2 * fill_size
             gp_df.loc[:, 'SellVolume'] = (direction - 1) / -2 * fill_size
             
@@ -338,10 +340,10 @@ class BaseAnalyzer(object):
     
             gp_df.loc[:, 'AvgPosPrice'] = calc_avg_pos_price(gp_df.loc[:, 'position'].values, fill_price.values)
     
-            gp_df.loc[:, 'CumProfit'] = (gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * fill_price)
+            gp_df.loc[:, 'CumProfit'] = (gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * fill_price * mult)
             return gp_df
         gp = df.groupby(by='symbol')
-        res = gp.apply(_apply)
+        res = gp.apply(_apply,self.inst_map)
         
         return res
     
@@ -427,7 +429,7 @@ class BaseAnalyzer(object):
         
             daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
             daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
-            gp_df['trading_pnl'] = (daily_net_turnover + gp_df['close'] * daily_position_change)
+            gp_df['trading_pnl'] = (daily_net_turnover + gp_df['close'] * daily_position_change )
             gp_df['holding_pnl'] = (gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
             gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
         
@@ -472,7 +474,9 @@ class BaseAnalyzer(object):
         close.index.names = ['symbol', 'trade_date']
         merge = pd.concat([close, trade], axis=1, join='outer')
         
-        def _apply(gp_df):
+        def _apply(gp_df,inst_map):
+            symbol = gp_df.index.levels[0][0]
+            mult = self.inst_map.get(symbol).get("multiplier")
             cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
             cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
             # merge: pd.DataFrame
@@ -484,19 +488,19 @@ class BaseAnalyzer(object):
             mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
             gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
     
-            gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
+            gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + mult * gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
             gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
     
             daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
             daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
-            gp_df['trading_pnl'] = (daily_net_turnover + gp_df['close'] * daily_position_change)
-            gp_df['holding_pnl'] = (gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
+            gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change) 
+            gp_df['holding_pnl'] = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
             gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
             
             return gp_df
 
         gp = merge.groupby(by='symbol')
-        res = gp.apply(_apply)
+        res = gp.apply(_apply,self.inst_map)
         
         self.daily = res
 
@@ -581,9 +585,18 @@ class BaseAnalyzer(object):
         max_dd_start = np.argmax(active_cum[:max_dd_end])  # start of period
         max_dd = dd_to_cum_peak[max_dd_end]
         
-        win_count = len(df_pnl[df_pnl.total_pnl > 0].index)
+        win_count = len(df_pnl[df_pnl.total_pnl > 0.0].index)
+        lost_count = len(df_pnl[df_pnl.total_pnl < 0.0].index)
         total_count = len(df_pnl.index)
         win_rate = win_count * 1.0 / total_count
+        lost_rate = lost_count * 1.0 / total_count 
+        
+        max_pnl   = df_pnl.loc[:,'total_pnl'].nlargest(1)
+        min_pnl   = df_pnl.loc[:,'total_pnl'].nsmallest(1)
+        up5pct    = df_pnl.loc[:,'total_pnl'].quantile(0.95)
+        low5pct   = df_pnl.loc[:,'total_pnl'].quantile(0.05)
+        top5_pnl  = df_pnl.loc[:,'total_pnl'].nlargest(5)
+        tail5_pnl = df_pnl.loc[:,'total_pnl'].nsmallest(5)
     
         if compound_return:
             self.performance_metrics['Annual Return (%)'] = \
@@ -595,9 +608,10 @@ class BaseAnalyzer(object):
             100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
         self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
                                                     / self.performance_metrics['Annual Volatility (%)'])
-        self.performance_metrics['Trade Number'] = len(self.trades.index)        
+        self.performance_metrics['Number of Trades'] = len(self.trades.index)        
         self.performance_metrics['Total PNL'] = df_pnl.loc[:,'total_pnl'].sum()
-        self.performance_metrics['Win Rate(%)'] = "%.2f"%(win_rate*100)
+        self.performance_metrics['Daily Win Rate(%)'] = "%.2f"%(win_rate*100)
+        self.performance_metrics['Daily Lost Rate(%)'] = "%.2f"%(lost_rate*100)
         self.performance_metrics['Commission'] = df_pnl.loc[:,'commission'].sum()
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
@@ -605,7 +619,33 @@ class BaseAnalyzer(object):
         self.risk_metrics['Maximum Drawdown start'] = df_returns.index[max_dd_start]
         self.risk_metrics['Maximum Drawdown end'] = df_returns.index[max_dd_end]
 
-        self.performance_metrics_report = sorted([(k,v) for (k,v) in self.performance_metrics.items()])
+        #self.performance_metrics_report = sorted([(k,v) for (k,v) in self.performance_metrics.items()])
+        self.performance_metrics_report = []
+        self.performance_metrics_report.append(('Total PNL', self.performance_metrics['Total PNL']))
+        self.performance_metrics_report.append(('Commission', self.performance_metrics['Commission']))
+        self.performance_metrics_report.append(('Annual Return (%)', self.performance_metrics['Annual Return (%)']))
+        self.performance_metrics_report.append(('Annual Volatility (%)', self.performance_metrics['Annual Volatility (%)']))
+        self.performance_metrics_report.append(('Sharpe Ratio', self.performance_metrics['Sharpe Ratio']))
+        self.performance_metrics_report.append(('Number of Trades', self.performance_metrics['Number of Trades']))
+        self.performance_metrics_report.append(('Daily Win Rate(%)', self.performance_metrics['Daily Win Rate(%)']))
+        self.performance_metrics_report.append(('Daily Lost Rate(%)', self.performance_metrics['Daily Lost Rate(%)']))
+        
+        self.dailypnl_metrics_report = []
+        self.dailypnl_metrics_report.append(('Daily PNL Max Time', max_pnl.index[0]))
+        self.dailypnl_metrics_report.append(('Daily PNL Max',max_pnl.values[0]))
+        self.dailypnl_metrics_report.append(('Daily PNL Min Time', min_pnl.index[0]))
+        self.dailypnl_metrics_report.append(('Daily PNL Min',min_pnl.values[0]))
+        self.dailypnl_metrics_report.append(('Daily PNL Up  5%', up5pct))
+        self.dailypnl_metrics_report.append(('Daily PNL Low 5%', low5pct))
+        
+        self.dailypnl_tail5_metrics_report = []
+        for k,v in tail5_pnl.iteritems():
+            self.dailypnl_tail5_metrics_report.append((k,v))
+            
+        self.dailypnl_top5_metrics_report = []    
+        for k,v in top5_pnl.iteritems():
+            self.dailypnl_top5_metrics_report.append((k,v))           
+                                               
         self.risk_metrics_report = sorted([(k, v) for (k, v) in self.risk_metrics.items()])
 
         # bt_strat_mv = pd.read_csv('bt_strat_mv.csv').set_index('trade_date')
@@ -674,6 +714,9 @@ class BaseAnalyzer(object):
         dic['df_daily'] = jutil.group_df_to_dict(self.daily, by='symbol')
         dic['daily_position'] = None # self.daily_position
         dic['rebalance_positions'] = self.rebalance_positions
+        dic['dailypnl_metrics_report'] = self.dailypnl_metrics_report
+        dic['dailypnl_top5_metrics_report'] = self.dailypnl_top5_metrics_report
+        dic['dailypnl_tail5_metrics_report'] = self.dailypnl_tail5_metrics_report
         
         self.report_dic.update(dic)
         
