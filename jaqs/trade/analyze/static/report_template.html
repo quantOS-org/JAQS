@@ -121,6 +121,55 @@
                 {% endfor %}
             </table>
 
+            <h3 id="dpnlmetric"> Daily PnL Metrics </h3>
+            <table class="table table-striped">
+                <caption>This data is stored in <code>Analyzer.dailypnl_metrics</code></caption>
+                <thead class="thead-light">
+                <tr>
+                    <th scope="col">Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                {% for key, value in dailypnl_metrics_report %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | round_if_float(3) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+
+            <table class="table table-striped">
+                <caption><h3>Tail 5 Daily Pnl</h3><br>This data is stored in <code>Analyzer.dailypnl_tail5_metrics</code></caption>
+                <thead class="thead-light">
+                <tr>
+                    <th scope="col">Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                {% for key, value in dailypnl_tail5_metrics_report %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | round_if_float(3) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+
+            <table class="table table-striped">
+                <caption><h3>Top 5 Daily Pnl</h3><br>This data is stored in <code>Analyzer.dailypnl_top5_metrics</code></caption>
+                <thead class="thead-light">
+                <tr>
+                    <th scope="col">Term</th>
+                    <th scope="col">Value</th>
+                </tr>
+                </thead>
+                {% for key, value in dailypnl_top5_metrics_report %}
+                <tr>
+                    <td>{{key}}</td>
+                    <td>{{value | round_if_float(3) }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+
             <!-- Trading & Holding PnL -->
             <h2 id="trading_holding">Daily Trading & Holding PnL</h2>
             <p>
