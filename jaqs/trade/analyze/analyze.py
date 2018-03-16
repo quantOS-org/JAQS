@@ -730,7 +730,7 @@ class BaseAnalyzer(object):
         r.generate_html()
         r.output_html('report.html')
 
-    def do_analyze(self, result_dir, selected_sec=None):
+    def do_analyze(self, result_dir, selected_sec=None, compound_rtn = False):
         """
         Convenient function to do a series of analysis.
         The reason why define these separate steps and put them in one function is
@@ -756,7 +756,7 @@ class BaseAnalyzer(object):
         print("get daily stats...")
         self.get_daily()
         print("calc strategy return...")
-        self.get_returns(consider_commission=True)
+        self.get_returns(compound_return = compound_rtn, consider_commission=True)
 
         if len(selected_sec) > 0:
             print("Plot single securities PnL")
@@ -996,7 +996,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         '''
         print
         
-    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None):
+    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None, compound_rtn = False):
         if selected_sec is None:
             selected_sec = []
     
@@ -1005,7 +1005,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         print("get daily stats...")
         self.get_daily()
         print("calc strategy return...")
-        self.get_returns(consider_commission=True)
+        self.get_returns(compound_return = compound_rtn, consider_commission=True)
         print("calc re-balance position")
         self.get_rebalance_position()
         print("Get stats")
