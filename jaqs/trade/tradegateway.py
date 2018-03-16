@@ -1272,12 +1272,18 @@ class BacktestTradeApi(BaseTradeApi):
         task = self.ctx.pm.get_task(task_id)
         if task.function_name == 'place_order':
             order = task.data
-            entrust_no = order.entrust_no
-            order_status_ind = self._orderbook.cancel_order(entrust_no)
-            task_id = self.entrust_no_task_id_map[entrust_no]
-            order_status_ind.task_id = task_id
-            # order_status_ind.task_no = task_id
-            self._order_status_callback(order_status_ind)
+            if order.order_status in [common.ORDER_STATUS.NEW, common.ORDER_STATUS.ACCEPTED]:
+                entrust_no = order.entrust_no
+                order_status_ind = self._orderbook.cancel_order(entrust_no)
+                task_id = self.entrust_no_task_id_map[entrust_no]
+                order_status_ind.task_id = task_id
+                # order_status_ind.task_no = task_id
+                self._order_status_callback(order_status_ind)
+            else:
+                order_status_ind = OrderStatusInd(order)
+                order_status_ind.task_id = task_id
+                self._order_status_callback(order_status_ind)
+
         else:
             raise NotImplementedError("cancel task with function_name = {}".format(task.function_name))
     
