@@ -55,11 +55,13 @@ class DataView(object):
         self.fields = []
         self.freq = 1
         self.all_price = True
+        self._snapshot = None
 
         self.meta_data_list = ['start_date', 'end_date',
                                'extended_start_date_d', 'extended_start_date_q',
                                'freq', 'fields', 'symbol', 'universe', 'benchmark',
                                'custom_daily_fields', 'custom_quarterly_fields']
+
         self.adjust_mode = 'post'
         
         self.data_d = None
@@ -515,7 +517,9 @@ class DataView(object):
         if group_fields:
             print("Query groups (industry)...")
             self._prepare_group(group_fields)
-    
+
+        self._process_data()
+
         print("Data has been successfully prepared.")
 
     @staticmethod
@@ -1117,16 +1121,15 @@ class DataView(object):
 
         """
 
-        # df = self.data_d.T.unstack()
-        # df = df[snapshot_date].copy()
-        if snapshot_date not in self._snapshot:
-            return
+        if self._snapshot is not None:
+            if snapshot_date not in self._snapshot:
+                return
 
-        df = self._snapshot[snapshot_date]
-        if fields:
-            return df[fields.split(',')]
-        else:
-            return df
+            df = self._snapshot[snapshot_date]
+            if fields:
+                return df[fields.split(',')]
+            else:
+                return df
 
 
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
@@ -1238,8 +1241,43 @@ class DataView(object):
         h5.close()
         
         return res
-        
-    def load_dataview(self, folder_path='.'):
+
+    def _process_data(self, large_memory=False):
+        """
+        Process data for improving performance
+        """
+        t = self.get_ts('_daily_adjust_factor')
+        if t is None or len(t.columns) == 0:
+            a = self.get_ts('adjust_factor')
+            b = (a / a.shift(1)).fillna(1.0)
+            self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
+
+
+        t = self.get_ts("_limit")
+        if t is None or len(t.columns) == 0:
+            dates = self.dates
+            mask = dates < self.start_date
+            before_first_day = dates[mask][-1]
+
+            open = self.get_ts('open')
+            preclose = self.get_ts('close', start_date=before_first_day).shift(1)
+            limit = np.abs((open - preclose)/preclose)
+            self.append_df(limit, "_limit", is_quarterly=False)
+
+        # Snapshot dict may use large memory.
+
+        if large_memory:
+            dates = self.data_d.index.values
+            df = self.data_d.T.unstack()
+            self._snapshot = {}
+            for date in dates:
+                tmp = df[date].copy()
+                del tmp.index.name
+                del tmp.columns.name
+                self._snapshot[date] = tmp
+
+
+    def load_dataview(self, folder_path='.', large_memory=True):
         """
         Load data from local file.
         
@@ -1262,27 +1300,7 @@ class DataView(object):
         self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
 
-        a = self.get_ts('adjust_factor')
-        b = (a / a.shift(1)).fillna(1.0)
-        self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
-
-        dates = self.dates
-        mask = dates < self.start_date
-        before_first_day = dates[mask][-1]
-
-        open = self.get_ts('open')
-        preclose = self.get_ts('close', start_date=before_first_day).shift(1)
-        limit = np.abs((open - preclose)/preclose)
-        self.append_df(limit, "_limit", is_quarterly=False)
-
-        dates = self.data_d.index.values
-        df = self.data_d.T.unstack()
-        self._snapshot = {}
-        for date in dates:
-            tmp = df[date].copy()
-            del tmp.index.name
-            del tmp.columns.name
-            self._snapshot[date] = tmp
+        self._process_data(large_memory)
 
         print("Dataview loaded successfully.")
 

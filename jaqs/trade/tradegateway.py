@@ -1027,7 +1027,8 @@ class OrderBook(object):
             quote = quote_dic[order.symbol]
             low = quote.low
             high = quote.high
-            quote_date = quote.trade_date
+            #quote_date = quote.trade_date
+            quote_date = quote.date
             quote_time = quote.time
             volume = quote.volume
             
