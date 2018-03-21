@@ -27,13 +27,13 @@ def generate_cash_trade_ind(symbol, amount, date, time=200000):
     trade_ind.symbol = symbol
     trade_ind.task_id = 0
     trade_ind.entrust_no = "0"
-    trade_ind.set_fill_info(price=0.0, size=abs(amount), date=date, time=time, no="0")
+    trade_ind.set_fill_info(price=0.0, size=abs(amount), date=date, time=time, no="0", trade_date=date)
 
     trade_ind2 = Trade()
     trade_ind2.symbol = symbol
     trade_ind2.task_id = 0
     trade_ind2.entrust_no = "0"
-    trade_ind2.set_fill_info(price=1.0, size=abs(amount), date=date, time=time, no="0")
+    trade_ind2.set_fill_info(price=1.0, size=abs(amount), date=date, time=time, no="0",trade_date=date)
 
     if amount > 0:
         trade_ind.entrust_action = common.ORDER_ACTION.BUY
@@ -296,7 +296,10 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.task_id = self.POSITION_ADJUST_NO
                 trade_ind.entrust_no = self.POSITION_ADJUST_NO
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
-                trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=200000, no=self.POSITION_ADJUST_NO)
+                trade_ind.set_fill_info(price=0.0, size=pos_diff,
+                                        date=date, time=200000,
+                                        no=self.POSITION_ADJUST_NO,
+                                        trade_date=date)
                 
                 self.ctx.strategy.on_trade(trade_ind)
 
@@ -327,7 +330,9 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.entrust_no = self.DELIST_ADJUST_NO
             trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
             trade_ind.set_fill_info(price=last_close_price, size=pos,
-                                    date=last_trade_date, time=150000, no=self.DELIST_ADJUST_NO)
+                                    date=last_trade_date, time=150000,
+                                    no=self.DELIST_ADJUST_NO,
+                                    trade_date=last_trade_date)
 
             self.ctx.strategy.cash += trade_ind.fill_price * trade_ind.fill_size
             #self.ctx.pm.cash += trade_ind.fill_price * trade_ind.fill_size
@@ -694,7 +699,10 @@ class EventBacktestInstance(BacktestInstance):
                         trade_ind.entrust_action = common.ORDER_ACTION.BUY
                     else:
                         trade_ind.entrust_action = common.ORDER_ACTION.SELL
-                    trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=60000, no=self.POSITION_ADJUST_NO)
+                    trade_ind.set_fill_info(price=0.0, size=pos_diff,
+                                            date=date, time=60000,
+                                            no=self.POSITION_ADJUST_NO,
+                                            trade_date=date)
                     
                     self.ctx.strategy.on_trade(trade_ind)
             
@@ -834,6 +842,7 @@ class EventBacktestInstance(BacktestInstance):
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
         df_daily = self._get_df_daily(symbol=symbols_str, start_date=start_date, end_date=end_date)
+        df_daily['date'] = df_daily['trade_date']
         if df_daily is None or df_daily.empty:
             return dict()
 
@@ -908,7 +917,8 @@ class EventBacktestInstance(BacktestInstance):
                     'fill_date': np.integer,
                     'fill_time': np.integer,
                     'fill_no': str,
-                    'commission': float}
+                    'commission': float,
+                    'trade_date': np.integer}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
         for key in type_map.keys():

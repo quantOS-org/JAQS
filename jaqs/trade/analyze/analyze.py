@@ -192,7 +192,9 @@ class BaseAnalyzer(object):
                     'fill_date': np.integer,
                     'fill_time': np.integer,
                     'fill_no': str,
-                    'commission': float}
+                    'commission': float,
+                    'trade_date': np.integer}
+
         abs_path_list = [os.path.abspath(folder) for folder in file_folder]
         self.file_folder = abs_path_list
         trades_list = [pd.read_csv(os.path.join(folder, 'trades.csv'), ',', dtype=type_map)
@@ -381,7 +383,8 @@ class BaseAnalyzer(object):
 
     def get_minute(self):
         freq = 'fill_time'
-        td = 20180118  # self.trades['fill_date'].iat[0]
+        #td = 20180118  #
+        td = self.trades['fill_date'].iat[0]
         df, msg = self.data_api.bar(symbol=','.join(self.universe), fields='trade_date,symbol,close',
                                     trade_date=td)
         df_close = df.pivot(index='time', columns='symbol', values='close')

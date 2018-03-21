@@ -956,7 +956,8 @@ class DailyStockSimulator(object):
             trade_ind = Trade(order)
             trade_ind.set_fill_info(fill_price, fill_size,
                                     date, time,
-                                    self._next_fill_no())
+                                    self._next_fill_no(),
+                                    trade_date=date)
             
             # update order status
             order.fill_price = (order.fill_price * order.fill_size
@@ -1132,7 +1133,8 @@ class OrderBook(object):
             trade_ind = Trade(order)
             trade_ind.set_fill_info(order.entrust_price, order.entrust_size,
                                     quote_date, quote_time,
-                                    self._next_fill_no())
+                                    self._next_fill_no(),
+                                    trade_date=quote.trade_date)
             
             order.fill_price = ((order.fill_price * order.fill_size + fill_size * fill_price)
                                 / (order.fill_size + fill_size))

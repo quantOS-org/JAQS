@@ -60,13 +60,14 @@ class Trade(object):
         self.symbol = order.symbol
         self.entrust_action = order.entrust_action
     
-    def set_fill_info(self, price, size, date, time, no):
+    def set_fill_info(self, price, size, date, time, no, trade_date=0):
         """Update filling information."""
         self.fill_price = price
         self.fill_size = size
         self.fill_date = date
         self.fill_time = time
         self.fill_no = no
+        self.trade_date = trade_date if trade_date else date
         
     @classmethod
     def create_from_dict(cls, dic):
