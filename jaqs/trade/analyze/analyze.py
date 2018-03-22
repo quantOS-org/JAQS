@@ -204,7 +204,7 @@ class BaseAnalyzer(object):
         
         # combine trades
         trades = pd.concat(trades_list, axis=0)
-        trades = trades.sort_values(['fill_date', 'fill_time'])
+        trades = trades.sort_values(['trade_date', 'fill_time'])
         
         self._init_universe(trades.loc[:, 'symbol'].values)
         self._init_configs(self.file_folder)
@@ -240,7 +240,7 @@ class BaseAnalyzer(object):
         """
         self._raw_trades = df.copy()
         
-        df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'fill_date'], df.loc[:, 'fill_time'])
+        df.loc[:, 'fill_dt'] = jutil.combine_date_time(df.loc[:, 'trade_date'], df.loc[:, 'fill_time'])
         
         df = df.set_index(['symbol', 'fill_dt']).sort_index(axis=0)
         
@@ -361,7 +361,7 @@ class BaseAnalyzer(object):
 
         """
         trades = pd.concat(self.trades.values(), axis=0)
-        gp = trades.groupby(by=['fill_date'], as_index=False)
+        gp = trades.groupby(by=['trade_date'], as_index=False)
         res = OrderedDict()
         account = OrderedDict()
         
@@ -384,7 +384,7 @@ class BaseAnalyzer(object):
     def get_minute(self):
         freq = 'fill_time'
         #td = 20180118  #
-        td = self.trades['fill_date'].iat[0]
+        td = self.trades['trade_date'].iat[0]
         df, msg = self.data_api.bar(symbol=','.join(self.universe), fields='trade_date,symbol,close',
                                     trade_date=td)
         df_close = df.pivot(index='time', columns='symbol', values='close')
@@ -456,10 +456,10 @@ class BaseAnalyzer(object):
         trade = self.trades
         
         # pro-process
-        trade_cols = ['fill_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+        trade_cols = ['trade_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
     
         trade = trade.loc[:, trade_cols]
-        gp = trade.reset_index().groupby(by=['symbol', 'fill_date'])
+        gp = trade.reset_index().groupby(by=['symbol', 'trade_date'])
         func_last = lambda ser: ser.iat[-1]
         trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
                         'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
@@ -496,7 +496,7 @@ class BaseAnalyzer(object):
     
             daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
             daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
-            gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change) 
+            gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change - gp_df['commission'])            
             gp_df['holding_pnl'] = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
             gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
             
@@ -556,11 +556,9 @@ class BaseAnalyzer(object):
         self.df_pnl = df_pnl
     
         # TODO temperary solution
-        if consider_commission:
-            strategy_value = (df_pnl['total_pnl'] - df_pnl['commission']).cumsum() + self.init_balance
-        else:
-            strategy_value = df_pnl['total_pnl'].cumsum() + self.init_balance
-    
+       
+        strategy_value = df_pnl['total_pnl'].cumsum() + self.init_balance
+            
         # get strategy & benchmark NAV (Net Asset Value)
         market_values = pd.concat([strategy_value, self.data_benchmark], axis=1).fillna(method='ffill')
         market_values.columns = ['strat', 'bench']
@@ -954,7 +952,7 @@ class AlphaAnalyzer(BaseAnalyzer):
     def get_rebalance_position(self):
         mask = (self._raw_trades['fill_no'] != '101010') & (self._raw_trades['fill_no'] != '202020')
         trades_rebalance = self._raw_trades.loc[mask]
-        rebalance_dates = trades_rebalance['fill_date'].unique()
+        rebalance_dates = trades_rebalance['trade_date'].unique()
         
         daily_pos_name = self.daily_position.T.copy()
         daily_pos_name.loc[:, 0] = u'               '
