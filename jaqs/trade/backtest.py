@@ -600,7 +600,8 @@ class AlphaBacktestInstance(BacktestInstance):
                     'fill_date': np.integer,
                     'fill_time': np.integer,
                     'fill_no': str,
-                    'commission': float}
+                    'commission': float,
+                    'trade_date': np.integer}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
         for key in type_map.keys():
