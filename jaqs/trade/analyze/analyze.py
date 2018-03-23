@@ -587,10 +587,10 @@ class BaseAnalyzer(object):
         max_dd = dd_to_cum_peak[max_dd_end]
         
         win_count = len(df_pnl[df_pnl.total_pnl > 0.0].index)
-        lost_count = len(df_pnl[df_pnl.total_pnl < 0.0].index)
+        lose_count = len(df_pnl[df_pnl.total_pnl < 0.0].index)
         total_count = len(df_pnl.index)
         win_rate = win_count * 1.0 / total_count
-        lost_rate = lost_count * 1.0 / total_count 
+        lose_rate = lose_count * 1.0 / total_count
         
         max_pnl   = df_pnl.loc[:,'total_pnl'].nlargest(1)
         min_pnl   = df_pnl.loc[:,'total_pnl'].nsmallest(1)
@@ -612,7 +612,7 @@ class BaseAnalyzer(object):
         self.performance_metrics['Number of Trades']   = len(self.trades.index)
         self.performance_metrics['Total PNL']          = df_pnl.loc[:,'total_pnl'].sum()
         self.performance_metrics['Daily Win Rate(%)']  = win_rate*100
-        self.performance_metrics['Daily Lost Rate(%)'] = lost_rate*100
+        self.performance_metrics['Daily Lose Rate(%)'] = lose_rate*100
         self.performance_metrics['Commission']         = df_pnl.loc[:,'commission'].sum()
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
@@ -629,7 +629,7 @@ class BaseAnalyzer(object):
         self.performance_metrics_report.append(('Commission',               "{:,.2f}".format( self.performance_metrics['Commission']))            )
         self.performance_metrics_report.append(('Number of Trades',         self.performance_metrics['Number of Trades']))
         self.performance_metrics_report.append(('Daily Win Rate(%)',        "{:,.2f}".format( self.performance_metrics['Daily Win Rate(%)']))     )
-        self.performance_metrics_report.append(('Daily Lost Rate(%)',       "{:,.2f}".format( self.performance_metrics['Daily Lost Rate(%)']))    )
+        self.performance_metrics_report.append(('Daily Lose Rate(%)',       "{:,.2f}".format( self.performance_metrics['Daily Lose Rate(%)']))    )
         
         self.dailypnl_metrics_report = []
         self.dailypnl_metrics_report.append(('Daily PNL Max Time', max_pnl.index[0]))
