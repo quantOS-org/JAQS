@@ -1131,7 +1131,7 @@ class OrderBook(object):
                 continue
                 
             trade_ind = Trade(order)
-            trade_ind.set_fill_info(order.entrust_price, order.entrust_size,
+            trade_ind.set_fill_info(fill_price, order.entrust_size,
                                     quote_date, quote_time,
                                     self._next_fill_no(),
                                     trade_date=quote.trade_date)
