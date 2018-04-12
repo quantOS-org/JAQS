@@ -1215,8 +1215,9 @@ class DataView(object):
                                                                                         end_date, field, symbol))
             raise ValueError
             return
-    
-        res.columns = res.columns.droplevel(level='field')
+
+        if len(res.columns):
+            res.columns = res.columns.droplevel(level='field')
     
         return res
     
@@ -1267,15 +1268,18 @@ class DataView(object):
         # Snapshot dict may use large memory.
 
         if large_memory:
-            dates = self.data_d.index.values
-            df = self.data_d.T.unstack()
-            self._snapshot = {}
-            for date in dates:
-                tmp = df[date].copy()
-                del tmp.index.name
-                del tmp.columns.name
-                self._snapshot[date] = tmp
+            self.update_snapshot()
 
+
+    def update_snapshot(self):
+        dates = self.data_d.index.values
+        df = self.data_d.T.unstack()
+        self._snapshot = {}
+        for date in dates:
+            tmp = df[date].copy()
+            del tmp.index.name
+            del tmp.columns.name
+            self._snapshot[date] = tmp
 
     def load_dataview(self, folder_path='.', large_memory=True):
         """
