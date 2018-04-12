@@ -371,7 +371,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     # TODO register context
     def __init__(self, signal_model=None, stock_selector=None,
                  cost_model=None, risk_model=None,
-                 pc_method="equal_weight"):
+                 pc_method="equal_weight",
+                 match_method="vwap"
+                 ):
         super(AlphaStrategy, self).__init__()
         
         self.period = ""
@@ -391,6 +393,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.pc_method = pc_method
         
         self.goal_positions = None
+        self.match_method = match_method
 
     def init_from_config(self, props):
         Strategy.init_from_config(self, props)
@@ -666,7 +669,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     
     def send_bullets(self):
         # self.ctx.trade_api.goal_portfolio_by_batch_order(self.goal_positions)
-        self.ctx.trade_api.goal_portfolio(self.goal_positions, algo='vwap')
+        self.ctx.trade_api.goal_portfolio(self.goal_positions, algo=self.match_method)
     
     def generate_weights_order(self, weights_dic, turnover, prices, suspensions=None):
         """

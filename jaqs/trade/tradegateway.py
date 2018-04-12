@@ -731,6 +731,8 @@ class AlphaTradeApi(BaseTradeApi):
                 order = FixedPriceTypeOrder.new_order(sec, action, 0.0, abs(diff_size), self.ctx.trade_date, 0)
                 if algo == 'vwap':
                     order.price_target = 'vwap'  # TODO
+                elif algo.startswith('limit:'):
+                    order.price_target = algo.split(':')[1].strip()
                 elif algo == '':
                     order.price_target = 'vwap'
                 else:

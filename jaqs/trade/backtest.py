@@ -581,7 +581,8 @@ class AlphaBacktestInstance(BacktestInstance):
             self.univ_price_dic = self.tmp_univ_price_dic_map[date]
         else:
             # self.univ_price_dic = self.ctx.snapshot.to_dict(orient='index')
-            self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
+            #self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
+            self.univ_price_dic = self.ctx.snapshot.to_dict(orient='index')
             self.tmp_univ_price_dic_map[date] = self.univ_price_dic
 
     def save_results(self, folder_path='.'):
