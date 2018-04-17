@@ -29,7 +29,9 @@ from matplotlib.ticker import Formatter
 from jaqs.trade.analyze.report import Report
 from jaqs.data import RemoteDataService
 from jaqs.data.basic.instrument import InstManager
+from jaqs.data.py_expression_eval import Parser
 from jaqs.trade import common
+
 import jaqs.util as jutil
 
 STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
@@ -52,6 +54,164 @@ MPL_RCPARAMS = {'figure.facecolor': '#F6F6F6',
                 'legend.fontsize': 'small',
                 'lines.linewidth': 2.5,
                 }
+
+class AnalyzeView(object):
+    def __init__(self, data):
+        self._data = data
+
+    @property
+    def data(self):
+        return self._data
+
+    def get_ts(self, field, symbol="", start_date=0, end_date=0):
+        """
+        Get time series data of single field.
+
+        Parameters
+        ----------
+        field : str or unicode
+            Single field.
+        symbol : str, optional
+            Separated by ',' default "" (all securities).
+        start_date : int, optional
+            Default 0 (self.start_date).
+        end_date : int, optional
+            Default 0 (self.start_date).
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Index is int date, column is symbol.
+
+        """
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=field)
+        if res is None:
+            print("No data. for start_date={}, end_date={}, field={}, symbol={}".format(start_date,
+                                                                                        end_date, field, symbol))
+            raise ValueError
+            return
+
+        res.columns = res.columns.droplevel(level='field')
+
+        return res
+
+    def get_snapshot(self, snapshot_date, symbol="", fields=""):
+        """
+        Get snapshot of given fields and symbol at snapshot_date.
+
+        Parameters
+        ----------
+        snapshot_date : int
+            Date of snapshot.
+        symbol : str, optional
+            Separated by ',' default "" (all securities).
+        fields : str, optional
+            Separated by ',' default "" (all fields).
+
+        Returns
+        -------
+        res : pd.DataFrame
+            symbol as index, field as columns
+
+        """
+
+        # if self._snapshot is not None:
+        #     if snapshot_date not in self._snapshot:
+        #         return
+        #
+        #     df = self._snapshot[snapshot_date]
+        #     if fields:
+        #         return df[fields.split(',')]
+        #     else:
+        #         return df
+
+        res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
+        if res is None:
+            print("No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol))
+            return
+
+        res = res.stack(level='symbol', dropna=False)
+        res.index = res.index.droplevel(level='trade_date')
+
+        return res
+
+    def get(self, symbol="", start_date=0, end_date=0, fields=""):
+        """
+        Basic API to get arbitrary data. If nothing fetched, return None.
+
+        Parameters
+        ----------
+        symbol : str, optional
+            Separated by ',' default "" (all securities).
+        start_date : int, optional
+            Default 0 (self.start_date).
+        end_date : int, optional
+            Default 0 (self.start_date).
+        fields : str, optional
+            Separated by ',' default "" (all fields).
+
+        Returns
+        -------
+        res : pd.DataFrame or None
+            index is datetimeindex, columns are (symbol, fields) MultiIndex
+
+        """
+        sep = ','
+
+        if self._data is None:
+            return None
+
+        if len(self._data.index) == 0:
+            return None
+
+        if not fields:
+            fields = slice(None)  # self.fields
+        else:
+            fields = fields.split(sep)
+
+        if not symbol:
+            symbol = slice(None)  # this is 3X faster than symbol = self.symbol
+        else:
+            symbol = symbol.split(sep)
+
+        if not start_date:
+            start_date = self._data.index[0]
+        if not end_date:
+            end_date = self._data.index[-1]
+
+        res = self._data.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
+        return res
+
+    def add_formula(self, field_name, formula, overwrite=True,
+                    formula_func_name_style='camel'):
+
+        parser = Parser()
+        parser.set_capital(formula_func_name_style)
+
+        expr = parser.parse(formula)
+
+        var_df_dic = dict()
+        var_list = expr.variables()
+
+        for var in var_list:
+            df_var = self.get_ts(var)
+            var_df_dic[var] = df_var
+
+        df_eval = parser.evaluate(var_df_dic)
+        self.add_field(df_eval, field_name)
+
+    def add_field(self, df, field_names):
+        """
+        Add fields to self._data.
+        :param df:
+        :param field_names: format:   'open', or 'open,close,high'
+        :return:
+        """
+        df = df.copy()
+        exist_symbols = self._data.columns.levels[0]
+        multi_idx = pd.MultiIndex.from_product([exist_symbols, field_names.split(',')])
+        df.columns = multi_idx
+        self._data = pd.concat([self._data, df], axis=1).sort_index(axis=1)
 
 
 class TradeRecordEmptyError(Exception):
@@ -127,7 +287,7 @@ class BaseAnalyzer(object):
         self.account = None
         self.daily = None
         self.df_pnl = None
-        
+
         self.adjust_mode = None
         
         self.inst_map = dict()
@@ -136,6 +296,11 @@ class BaseAnalyzer(object):
         self.risk_metrics = dict()
         
         self.report_dic = dict()
+
+        self._holding_data   = None
+        self._portfolio_data = None
+        # self._order_data   = None
+        # self._trade_data   = None
         
     @property
     def trades(self):
@@ -161,6 +326,15 @@ class BaseAnalyzer(object):
     def closes_adj(self):
         """Read-only attribute, close prices of securities in the universe"""
         return self._closes_adj
+
+    @property
+    def holding_data(self):
+        """Read-only attribute, holding data of securities in each day"""
+        return self._holding_data
+
+    @property
+    def portfolio_data(self):
+        return self._portfolio_data
 
     def initialize(self, data_api=None, dataview=None, file_folder='.'):
         """
@@ -442,6 +616,16 @@ class BaseAnalyzer(object):
         res = gp.apply(_apply)
     
         self.daily = res
+
+    @staticmethod
+    def _pivot_and_sort(df):
+        data = df.unstack(level=0)
+        data.columns = data.columns.swaplevel()
+        col_names = ['symbol', 'field']
+        data.columns.names = col_names
+        data = data.sort_index(axis=1, level=col_names)
+        data.sortlevel(axis = 1, inplace=True)
+        return data
         
     def get_daily(self):
         """
@@ -473,9 +657,12 @@ class BaseAnalyzer(object):
         
         # calculate statistics
         close = pd.DataFrame(close.T.stack())
-        close.columns = ['close']
-        close.index.names = ['symbol', 'trade_date']
-        merge = pd.concat([close, trade], axis=1, join='outer')
+        close.columns = ['close']     
+        close.index.names = ['symbol', 'trade_date']   
+        adj_close = pd.DataFrame(self.closes_adj.T.stack())
+        adj_close.columns = ['close_adj']
+        adj_close.index.names = ['symbol', 'trade_date']         
+        merge = pd.concat([close, adj_close, trade], axis=1, join='outer')
         
         def _apply(gp_df,inst_map):
             symbol = gp_df.index.levels[0][0]
@@ -499,27 +686,98 @@ class BaseAnalyzer(object):
             gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change - gp_df['commission'])            
             gp_df['holding_pnl'] = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
             gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
+            gp_df['trade_shares'] = daily_position_change
             
             return gp_df
 
         gp = merge.groupby(by='symbol')
-        res = gp.apply(_apply,self.inst_map)
-        
+        res = gp.apply(_apply,self.inst_map)        
         self.daily = res
+        self._build_holding_data()
+        self._build_portfolio_data()
 
-    '''
-    def get_daily(self):
-        """Add various statistics to daily DataFrame."""
-        self.daily = self._get_daily(self.closes, self.trades)
-        daily_dic = dict()
-        for sec, df_trade in self.trades.items():
-            df_close = self.closes[sec].rename('close')
+        self.save_data()
+
+        print(" finished! ")
+
+    def save_data(self):
+        file_path = self.file_folder[0] + "/analyze_data.h5"
+        self.portfolio_data.to_hdf(file_path, "portfolio_data")
+        self.holding_data._data.to_hdf(file_path, "holding_data")
+
+    def load_data(self):
+
+        file_path = self.file_folder[0] + "/analyze_data.h5"
+        self._portfolio_data = pd.read_hdf(file_path, "portfolio_data")
+        self._holding_data = AnalyzeView(pd.read_hdf(file_path, "holding_data"))
+
+    def _build_holding_data(self):
+        cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'close','close_adj','position','trade_shares','AvgPosPrice']
+        daily = self.daily.loc[:, cols]
+        daily = daily.rename ( columns={'position': 'holding_shares'})
+
+        tmp = BaseAnalyzer._pivot_and_sort(daily)
+        if len(tmp.index) == 0:
+            return
+
+        holding_data = AnalyzeView(tmp)
+        self._holding_data = holding_data
+
+        start_date = holding_data._data.index[0]
+        end_date   = holding_data._data.index[-1]
+
+        #df_pos = self.get_ts("position")
+        #df_pos_chg = df_pos.diff(1).fillna(0.0)
+        #self.add_analyze_field(df_pos_chg, "trade_shares")
+
+        # Copy base data from dataview, such as OHLC, vwap, volumn.
+        base_fields = "open,high,low,vwap,turnover,index_weight"
+        tmp = self.dataview.get_ts(base_fields)
+        tmp = tmp.rename (columns={ 'turnover' : 'total_turnover'})
+        holding_data.add_field(tmp, base_fields.replace("turnover", "total_turnover"))
+
+        df_close_adj = holding_data.get_ts("close_adj")
+
+        df_rtn = (df_close_adj.diff(1) / df_close_adj).fillna(0.0)
+
+        s_bench_return = (self.data_benchmark.diff(1) / self.data_benchmark).fillna(0.0)
+        s_bench_return = s_bench_return.rename ( columns={'close' : 'benchmark_return'} )
+
+        df_active_return = df_rtn.sub( s_bench_return['benchmark_return'], axis=0 )
+
+        df_bench_return = df_active_return - df_active_return
+        df_bench_return = df_bench_return.add(s_bench_return['benchmark_return'], axis=0 )
+
+        holding_data.add_field (df_rtn,           "holding_return")
+        holding_data.add_field (df_active_return, "active_holding_return")
+        holding_data.add_field (df_bench_return,  "benchmark_return")
+
+        df_fillprice   = holding_data.get_ts("AvgPosPrice")
+        df_tradeshares = holding_data.get_ts("trade_shares")
+        df_turnover    =  df_fillprice * df_tradeshares
+        holding_data.add_field(df_turnover, "turnover")
         
-            res = self._get_daily(df_close, df_trade)
-            daily_dic[sec] = res
-    
-        self.daily = daily_dic
-    '''
+        df_mktvalue = holding_data.get_ts("holding_shares") * holding_data.get_ts("close")
+        df_mktvalue = df_mktvalue.abs()
+        total_mktvalue = df_mktvalue.apply(lambda x: x.sum(), axis=1)
+        df_weight = df_mktvalue.div(total_mktvalue, axis=0)
+        holding_data.add_field(df_weight, "weight")
+
+        holding_data._data = holding_data._data.drop(
+            ['AvgPosPrice', 'BuyVolume', 'CumNetTurnOver', 'CumProfit', 'CumProfitComm', 'SellVolume'], axis=1, level=1)
+
+    def _build_portfolio_data(self):
+        assert self._holding_data != None, "Should build holding data firstly"
+
+        df_weight = self._holding_data.get_ts("weight").shift()
+        df = pd.DataFrame()
+
+        df['holding_return']          = (self._holding_data.get_ts("holding_return")        * df_weight).apply(lambda x: x.sum(), axis=1)
+        df['active_holding_return']   = (self._holding_data.get_ts("active_holding_return") * df_weight).apply(lambda x: x.sum(), axis=1)
+        df['holding_pnl']             = (self._holding_data.get_ts("holding_pnl") ).apply(lambda x: x.sum(), axis=1)
+        df['trading_pnl']             = (self._holding_data.get_ts("trading_pnl") ).apply(lambda x: x.sum(), axis=1)
+
+        self._portfolio_data = df
 
     def get_returns(self, compound_return=False, consider_commission=True):
         """
