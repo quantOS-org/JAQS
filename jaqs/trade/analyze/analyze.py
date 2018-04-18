@@ -733,8 +733,8 @@ class BaseAnalyzer(object):
         # Copy base data from dataview, such as OHLC, vwap, volumn.
         base_fields = "open,high,low,vwap,turnover,index_weight"
         tmp = self.dataview.get_ts(base_fields)
-        tmp = tmp.rename (columns={ 'turnover' : 'total_turnover'})
-        holding_data.add_field(tmp, base_fields.replace("turnover", "total_turnover"))
+        tmp = tmp.rename (columns={ 'turnover' : 'market_turnover'})
+        holding_data.add_field(tmp, base_fields.replace("turnover", "market_turnover"))
 
         df_close_adj = holding_data.get_ts("close_adj")
 
@@ -755,7 +755,7 @@ class BaseAnalyzer(object):
         df_fillprice   = holding_data.get_ts("AvgPosPrice")
         df_tradeshares = holding_data.get_ts("trade_shares")
         df_turnover    =  df_fillprice * df_tradeshares
-        holding_data.add_field(df_turnover, "turnover")
+        holding_data.add_field(df_turnover, "strategy_turnover")
         
         df_mktvalue = holding_data.get_ts("holding_shares") * holding_data.get_ts("close")
         df_mktvalue = df_mktvalue.abs()
