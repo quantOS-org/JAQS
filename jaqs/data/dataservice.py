@@ -333,7 +333,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
     @property
     def data_api_loginned(self):
-        return (self.data_api is not None) and (self.data_api._loggined)
+        return (self.data_api is not None) and (self.data_api._loggined) and (self.data_api._connected)
     
     def _raise_error_if_no_data_api(self):
         if not self.data_api_loginned:

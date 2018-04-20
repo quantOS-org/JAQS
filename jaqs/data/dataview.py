@@ -55,11 +55,13 @@ class DataView(object):
         self.fields = []
         self.freq = 1
         self.all_price = True
+        self._snapshot = None
 
         self.meta_data_list = ['start_date', 'end_date',
                                'extended_start_date_d', 'extended_start_date_q',
                                'freq', 'fields', 'symbol', 'universe', 'benchmark',
                                'custom_daily_fields', 'custom_quarterly_fields']
+
         self.adjust_mode = 'post'
         
         self.data_d = None
@@ -515,7 +517,9 @@ class DataView(object):
         if group_fields:
             print("Query groups (industry)...")
             self._prepare_group(group_fields)
-    
+
+        self._process_data()
+
         print("Data has been successfully prepared.")
 
     @staticmethod
@@ -1095,7 +1099,6 @@ class DataView(object):
             end_date = self.end_date
     
         res = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbol, fields]]
-    
         return res
     
     def get_snapshot(self, snapshot_date, symbol="", fields=""):
@@ -1117,6 +1120,18 @@ class DataView(object):
             symbol as index, field as columns
 
         """
+
+        if self._snapshot is not None:
+            if snapshot_date not in self._snapshot:
+                return
+
+            df = self._snapshot[snapshot_date]
+            if fields:
+                return df[fields.split(',')]
+            else:
+                return df
+
+
         res = self.get(symbol=symbol, start_date=snapshot_date, end_date=snapshot_date, fields=fields)
         if res is None:
             print("No data. for date={}, fields={}, symbol={}".format(snapshot_date, fields, symbol))
@@ -1144,7 +1159,17 @@ class DataView(object):
         df_ann.columns = df_ann.columns.droplevel(level='field')
     
         return df_ann
-    
+
+    def get_symbol(self, symbol, start_date=0, end_date=0, fields=""):
+        res = self.get(symbol, start_date=start_date, end_date=end_date, fields=fields)
+        if res is None:
+            raise ValueError("No data. for "
+                             "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
+                                                                                      fields, symbol))
+
+        res.columns = res.columns.droplevel(level='symbol')
+        return res
+
     def get_ts_quarter(self, field, symbol="", start_date=0, end_date=0):
         # TODO
         sep = ','
@@ -1190,8 +1215,9 @@ class DataView(object):
                                                                                         end_date, field, symbol))
             raise ValueError
             return
-    
-        res.columns = res.columns.droplevel(level='field')
+
+        if len(res.columns):
+            res.columns = res.columns.droplevel(level='field')
     
         return res
     
@@ -1216,8 +1242,46 @@ class DataView(object):
         h5.close()
         
         return res
-        
-    def load_dataview(self, folder_path='.'):
+
+    def _process_data(self, large_memory=False):
+        """
+        Process data for improving performance
+        """
+        t = self.get_ts('_daily_adjust_factor')
+        if t is None or len(t.columns) == 0:
+            a = self.get_ts('adjust_factor')
+            b = (a / a.shift(1)).fillna(1.0)
+            self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
+
+
+        t = self.get_ts("_limit")
+        if t is None or len(t.columns) == 0:
+            dates = self.dates
+            mask = dates < self.start_date
+            before_first_day = dates[mask][-1]
+
+            open = self.get_ts('open')
+            preclose = self.get_ts('close', start_date=before_first_day).shift(1)
+            limit = np.abs((open - preclose)/preclose)
+            self.append_df(limit, "_limit", is_quarterly=False)
+
+        # Snapshot dict may use large memory.
+
+        if large_memory:
+            self.update_snapshot()
+
+
+    def update_snapshot(self):
+        dates = self.data_d.index.values
+        df = self.data_d.T.unstack()
+        self._snapshot = {}
+        for date in dates:
+            tmp = df[date].copy()
+            del tmp.index.name
+            del tmp.columns.name
+            self._snapshot[date] = tmp
+
+    def load_dataview(self, folder_path='.', large_memory=True):
         """
         Load data from local file.
         
@@ -1239,7 +1303,9 @@ class DataView(object):
         self._data_benchmark = dic.get('/data_benchmark', None)
         self._data_inst = dic.get('/data_inst', None)
         self.__dict__.update(meta_data)
-        
+
+        self._process_data(large_memory)
+
         print("Dataview loaded successfully.")
 
     def save_dataview(self, folder_path):
@@ -2253,7 +2319,7 @@ class EventDataView(object):
         if res is None:
             raise ValueError("No data. for "
                              "start_date={}, end_date={}, field={}, symbol={}".format(start_date, end_date,
-                                                                                      field, symbol))
+                                                                                      fields, symbol))
 
         res.columns = res.columns.droplevel(level='symbol')
         return res

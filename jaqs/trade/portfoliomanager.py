@@ -14,7 +14,7 @@ import copy
 import jaqs.trade
 from jaqs.data.basic import OrderStatusInd, Trade, Task, Order, Position, TradeStat
 from jaqs.trade import common
-
+import jaqs.util as jutil
 
 class PortfolioManager(object):
     """
@@ -208,8 +208,8 @@ class PortfolioManager(object):
         
         elif task.function_name == 'goal_portfolio':
             # self._update_trade_stat_from_goal_positions(goal_positions)
-            orders = task.data
-            for order in orders:
+            #orders = task.data
+            for entrust_no, order in task.data.items():
                 self._update_trade_stat_from_order(order)
     
     '''
@@ -360,11 +360,23 @@ class PortfolioManager(object):
                 task.task_status = common.TASK_STATUS.DONE
         elif task.function_name == 'place_batch_order':
             orders = task.data
-            if all([o.is_finished for o in orders]):
+            #if all([o.is_finished for o in orders]):
+            has_unfinished = False
+            for o in orders:
+                if not o.is_finished:
+                    has_unfinished = True
+                    break
+            if not has_unfinished:
                 task.task_status = common.TASK_STATUS.DONE
         elif task.function_name == 'goal_portfolio':
             orders = task.data
-            if all([o.is_finished for o in orders]):
+            #if all([o.is_finished for o in orders]):
+            has_unfinished = False
+            for entrust_no, o in orders.items():
+                if not o.is_finished:
+                    has_unfinished = True
+                    break
+            if not has_unfinished:
                 task.task_status = common.TASK_STATUS.DONE
             '''
             goals = task.data
@@ -398,8 +410,9 @@ class PortfolioManager(object):
         order = self.orders.get(ind.entrust_no, None)
         if order is None:
             order = Order()
+            self.orders[ind.entrust_no] = order
         order.copy(ind)
-        self.orders[ind.entrust_no] = order
+
         
         task = self.get_task(ind.task_id)
         if task.function_name == 'place_order':
@@ -410,13 +423,15 @@ class PortfolioManager(object):
                 if order.entrust_no == ind.entrust_no:
                     order.copy(ind)
         elif task.function_name == 'goal_portfolio':
-            for order in task.data:
-                if order.entrust_no == ind.entrust_no:
-                    order.copy(ind)
-        
+            #for order in task.data:
+            #    if order.entrust_no == ind.entrust_no:
+            if ind.entrust_no in task.data:
+                order = task.data[ind.entrust_no]
+                order.copy(ind)
+
         # order status other than CANCELLED/REJECTED will be dealt with self.on_trade
         if (ind.order_status == common.ORDER_STATUS.CANCELLED) or (ind.order_status == common.ORDER_STATUS.REJECTED):
-            
+
             # update TradeStat
             trade_stat = self._get_trade_stat(ind.symbol)
             
@@ -447,6 +462,7 @@ class PortfolioManager(object):
             else:
                 raise ValueError("order {} does not exist".format(entrust_no))
             """
+
         self.original_on_order_status(ind)
     
     '''

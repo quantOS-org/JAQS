@@ -13,6 +13,7 @@ import abc
 from collections import defaultdict
 import numpy as np
 import pandas as pd
+import datetime as dt
 
 from jaqs.trade import common
 from jaqs.data.basic import Bar
@@ -26,13 +27,13 @@ def generate_cash_trade_ind(symbol, amount, date, time=200000):
     trade_ind.symbol = symbol
     trade_ind.task_id = 0
     trade_ind.entrust_no = "0"
-    trade_ind.set_fill_info(price=0.0, size=abs(amount), date=date, time=time, no="0")
+    trade_ind.set_fill_info(price=0.0, size=abs(amount), date=date, time=time, no="0", trade_date=date)
 
     trade_ind2 = Trade()
     trade_ind2.symbol = symbol
     trade_ind2.task_id = 0
     trade_ind2.entrust_no = "0"
-    trade_ind2.set_fill_info(price=1.0, size=abs(amount), date=date, time=time, no="0")
+    trade_ind2.set_fill_info(price=1.0, size=abs(amount), date=date, time=time, no="0",trade_date=date)
 
     if amount > 0:
         trade_ind.entrust_action = common.ORDER_ACTION.BUY
@@ -247,9 +248,10 @@ class AlphaBacktestInstance(BacktestInstance):
         self.last_date = 0
         self.last_rebalance_date = 0
         self.current_rebalance_date = 0
-        
+
         self.univ_price_dic = {}
-    
+        self.tmp_univ_price_dic_map = {}
+
     def init_from_config(self, props):
         super(AlphaBacktestInstance, self).init_from_config(props)
 
@@ -263,14 +265,22 @@ class AlphaBacktestInstance(BacktestInstance):
         """
         start = self.last_rebalance_date  # start will be one day later
         end = self.current_rebalance_date  # end is the same to ensure position adjusted for dividend on rebalance day
-        df_adj = self.ctx.dataview.get_ts('adjust_factor',
-                                          start_date=start, end_date=end)
+        df_adj = self.ctx.dataview.get_ts('_daily_adjust_factor', start_date=start, end_date=end)
+
+        # FIXME: the first day should have been balanced before?
+        df_adj = df_adj[1:]
+
         pm = self.ctx.pm
-        for symbol in pm.holding_securities:
+
+        # Find symbols which has adj_factor not equaling 1
+        tmp = df_adj[df_adj!=1].fillna(0.0).sum()
+        adj_symbols = set(tmp[tmp!=0].index).intersection(pm.holding_securities)
+
+        #for symbol in pm.holding_securities:
+
+        for symbol in adj_symbols:
             ser = df_adj.loc[:, symbol]
-            ser_div = ser.div(ser.shift(1)).fillna(1.0)
-            mask_diff = ser_div != 1
-            ser_adj = ser_div.loc[mask_diff]
+            ser_adj = ser.dropna()
             for date, ratio in ser_adj.iteritems():
                 pos_old = pm.get_position(symbol).current_size
                 # TODO pos will become float, original: int
@@ -286,7 +296,10 @@ class AlphaBacktestInstance(BacktestInstance):
                 trade_ind.task_id = self.POSITION_ADJUST_NO
                 trade_ind.entrust_no = self.POSITION_ADJUST_NO
                 trade_ind.entrust_action = common.ORDER_ACTION.BUY  # for now only BUY
-                trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=200000, no=self.POSITION_ADJUST_NO)
+                trade_ind.set_fill_info(price=0.0, size=pos_diff,
+                                        date=date, time=200000,
+                                        no=self.POSITION_ADJUST_NO,
+                                        trade_date=date)
                 
                 self.ctx.strategy.on_trade(trade_ind)
 
@@ -317,7 +330,9 @@ class AlphaBacktestInstance(BacktestInstance):
             trade_ind.entrust_no = self.DELIST_ADJUST_NO
             trade_ind.entrust_action = common.ORDER_ACTION.SELL  # for now only BUY
             trade_ind.set_fill_info(price=last_close_price, size=pos,
-                                    date=last_trade_date, time=150000, no=self.DELIST_ADJUST_NO)
+                                    date=last_trade_date, time=150000,
+                                    no=self.DELIST_ADJUST_NO,
+                                    trade_date=last_trade_date)
 
             self.ctx.strategy.cash += trade_ind.fill_price * trade_ind.fill_size
             #self.ctx.pm.cash += trade_ind.fill_price * trade_ind.fill_size
@@ -363,11 +378,12 @@ class AlphaBacktestInstance(BacktestInstance):
 
         """
         prices = {k: v['close'] for k, v in self.univ_price_dic.items()}
+
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
         limit_reaches = self.get_limit_reaches()
         all_list = reduce(lambda s1, s2: s1.union(s2), [set(suspensions), set(limit_reaches)])
-    
+
         # step1. weights of those suspended and limit will be remove, and weights of others will be re-normalized
         self.ctx.strategy.re_weight_suspension(all_list)
     
@@ -396,13 +412,16 @@ class AlphaBacktestInstance(BacktestInstance):
         self.ctx.record('total_cash', total)
 
     def run_alpha(self):
+        print("Run alpha backtest from {0} to {1}".format(self.start_date, self.end_date))
+        begin_time = dt.datetime.now()
+
         tapi = self.ctx.trade_api
         
         self.ctx.trade_date = self._get_next_trade_date(self.start_date)
         self.last_date = self._get_last_trade_date(self.ctx.trade_date)
         self.current_rebalance_date = self.ctx.trade_date
         while True:
-            print("\n=======new day {}".format(self.ctx.trade_date))
+            print("=======new day {}".format(self.ctx.trade_date))
 
             # match uncome orders or re-balance
             if tapi.match_finished:
@@ -414,19 +433,25 @@ class AlphaBacktestInstance(BacktestInstance):
 
                 # Step2.
                 # plan re-balance before market open of the re-balance day:
-                self.on_new_day(self.last_date)  # use last trade date because strategy can only access data of last day
+
+                # use last trade date because strategy can only access data of last day
+                self.on_new_day(self.last_date)
+
                 # get index memebers, get signals, generate weights
                 self.re_balance_plan_before_open()
 
                 # Step3.
                 # do re-balance on the re-balance day
                 self.on_new_day(self.ctx.trade_date)
+
                 # get suspensions, get up/down limits, generate goal positions and send orders.
                 self.re_balance_plan_after_open()
+
                 self.ctx.strategy.send_bullets()
+
             else:
                 self.on_new_day(self.ctx.trade_date)
-            
+
             # Deal with trade indications
             # results = gateway.match(self.univ_price_dic)
             results = tapi.match_and_callback(self.univ_price_dic)
@@ -435,14 +460,17 @@ class AlphaBacktestInstance(BacktestInstance):
                 #self.ctx.pm.cash -= trade_ind.commission
                 
             self.on_after_market_close()
-            
+
             # switch trade date
             backtest_finish = self.go_next_rebalance_day()
             if backtest_finish:
                 break
-        
-        print("Backtest done. {:d} days, {:.2e} trades in total.".format(len(self.ctx.dataview.dates),
-                                                                         len(self.ctx.pm.trades)))
+
+        used_time = (dt.datetime.now() - begin_time).total_seconds()
+        print("Backtest done. {0:d} days, {1:.2e} trades in total. used time: {2}s".
+              format(len(self.ctx.dataview.dates), len(self.ctx.pm.trades), used_time))
+
+        jutil.prof_print()
     
     def on_after_market_close(self):
         self.ctx.trade_api.on_after_market_close()
@@ -538,19 +566,25 @@ class AlphaBacktestInstance(BacktestInstance):
 
     def get_limit_reaches(self):
         # TODO: 10% is not the absolute value to check limit reach
-        df_open = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='open')
-        df_close = self.ctx.dataview.get_snapshot(self.last_date, fields='close')
-        merge = pd.concat([df_close, df_open], axis=1)
-        merge.loc[:, 'limit'] = np.abs((merge['open'] - merge['close']) / merge['close']) > 9.5E-2
-        return list(merge.loc[merge.loc[:, 'limit'], :].index.values)
+        df = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields="_limit")
+        df = df[df > 9.5E-2].dropna()
+        return df.index.values
     
     def on_new_day(self, date):
         # self.ctx.strategy.on_new_day(date)
         self.ctx.trade_api.on_new_day(date)
-        
         self.ctx.snapshot = self.ctx.dataview.get_snapshot(date)
-        self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
-    
+
+        # temporary fix, tzxu
+        # Can univ_price_dic has DataFrame format?
+        if date in self.tmp_univ_price_dic_map:
+            self.univ_price_dic = self.tmp_univ_price_dic_map[date]
+        else:
+            # self.univ_price_dic = self.ctx.snapshot.to_dict(orient='index')
+            #self.univ_price_dic = self.ctx.snapshot.loc[:, ['close', 'vwap', 'open', 'high', 'low']].to_dict(orient='index')
+            self.univ_price_dic = self.ctx.snapshot.to_dict(orient='index')
+            self.tmp_univ_price_dic_map[date] = self.univ_price_dic
+
     def save_results(self, folder_path='.'):
         import os
         import pandas as pd
@@ -567,7 +601,8 @@ class AlphaBacktestInstance(BacktestInstance):
                     'fill_date': np.integer,
                     'fill_time': np.integer,
                     'fill_no': str,
-                    'commission': float}
+                    'commission': float,
+                    'trade_date': np.integer}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
         for key in type_map.keys():
@@ -666,7 +701,10 @@ class EventBacktestInstance(BacktestInstance):
                         trade_ind.entrust_action = common.ORDER_ACTION.BUY
                     else:
                         trade_ind.entrust_action = common.ORDER_ACTION.SELL
-                    trade_ind.set_fill_info(price=0.0, size=pos_diff, date=date, time=60000, no=self.POSITION_ADJUST_NO)
+                    trade_ind.set_fill_info(price=0.0, size=pos_diff,
+                                            date=date, time=60000,
+                                            no=self.POSITION_ADJUST_NO,
+                                            trade_date=date)
                     
                     self.ctx.strategy.on_trade(trade_ind)
             
@@ -806,6 +844,7 @@ class EventBacktestInstance(BacktestInstance):
         # query quotes data
         symbols_str = ','.join(self.ctx.universe)
         df_daily = self._get_df_daily(symbol=symbols_str, start_date=start_date, end_date=end_date)
+        df_daily['date'] = df_daily['trade_date']
         if df_daily is None or df_daily.empty:
             return dict()
 
@@ -880,7 +919,8 @@ class EventBacktestInstance(BacktestInstance):
                     'fill_date': np.integer,
                     'fill_time': np.integer,
                     'fill_no': str,
-                    'commission': float}
+                    'commission': float,
+                    'trade_date': np.integer}
         # keys = trades[0].__dict__.keys()
         ser_list = dict()
         for key in type_map.keys():
