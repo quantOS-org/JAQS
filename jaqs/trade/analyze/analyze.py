@@ -731,7 +731,9 @@ class BaseAnalyzer(object):
         #self.add_analyze_field(df_pos_chg, "trade_shares")
 
         # Copy base data from dataview, such as OHLC, vwap, volumn.
-        base_fields = "open,high,low,vwap,turnover,index_weight"
+        #base_fields = "open,high,low,vwap,turnover,index_weight"
+        # FIXME: tzxu 20180419 no turnover in dataview!
+        base_fields = "open,high,low,vwap,index_weight"
         tmp = self.dataview.get_ts(base_fields)
         tmp = tmp.rename (columns={ 'turnover' : 'market_turnover'})
         holding_data.add_field(tmp, base_fields.replace("turnover", "market_turnover"))
