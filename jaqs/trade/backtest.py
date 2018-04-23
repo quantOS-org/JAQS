@@ -105,7 +105,7 @@ class BacktestInstance(six.with_metaclass(abc.ABCMeta)):
             self.ctx.init_universe(self.ctx.dataview.symbol)
         else:
             raise ValueError("No dataview, no symbol either.")
-        
+
         if 'init_balance' not in props:
             raise ValueError("No [init_balance] provided. Please specify it in props.")
 
@@ -254,6 +254,14 @@ class AlphaBacktestInstance(BacktestInstance):
 
     def init_from_config(self, props):
         super(AlphaBacktestInstance, self).init_from_config(props)
+        strategy = self.ctx.strategy
+
+        # universe = props.get('universe', "")
+        # symbol = props.get('symbol', "")
+        # if symbol and universe or len(universe.split('.')) > 1:
+        #     if strategy.pc_method in['index_weight', 'equal_index_weight']:
+        #         raise ValueError("{} shouldn't be used if there are both symbol and universe in props", strategy.pc_method)
+
 
     def position_adjust(self):
         """
@@ -351,18 +359,16 @@ class AlphaBacktestInstance(BacktestInstance):
         # only filter index members when universe is defined
         universe_list = self.ctx.universe
         if self.ctx.dataview.universe:
-            col = 'index_member'
-            df_is_member = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields=col)
+            df_is_member = self.ctx.dataview.get_snapshot(self.ctx.trade_date, fields='index_member')
             df_is_member = df_is_member.fillna(0).astype(bool)
-            dic_index_member = df_is_member.loc[:, col].to_dict()
-            universe_list = [symbol for symbol, value in dic_index_member.items() if value]
+            universe_list = df_is_member[df_is_member['index_member']].index.values
 
         # Step.2 filter out those not listed or already de-listed
         df_inst = self.ctx.dataview.data_inst
         mask = np.logical_and(self.ctx.trade_date > df_inst['list_date'],
                               self.ctx.trade_date < df_inst['delist_date'])
         listing_symbols = df_inst.loc[mask, :].index.values
-        universe_list = [s for s in universe_list if s in listing_symbols]
+        universe_list = np.intersect1d(universe_list, listing_symbols)
         
         # step.3 construct portfolio using models
         self.ctx.strategy.portfolio_construction(universe_list)

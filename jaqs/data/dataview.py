@@ -433,19 +433,26 @@ class DataView(object):
         universe = props.get('universe', "")
         symbol = props.get('symbol', "")
         benchmark = props.get('benchmark', '')
-        if symbol and universe:
-            raise ValueError("Please use either [symbol] or [universe].")
-        if not (symbol or universe):
-            raise ValueError("One of [symbol] or [universe] must be provided.")
+        # if symbol and universe:
+        #     raise ValueError("Please use either [symbol] or [universe].")
+        # if not (symbol or universe):
+        #     raise ValueError("One of [symbol] or [universe] must be provided.")
         if universe:
             univ_list = universe.split(',')
             self.universe = univ_list
             symbols_list = []
             for univ in univ_list:
                 symbols_list.extend(data_api.query_index_member(univ, self.extended_start_date_d, self.end_date))
+
             self.symbol = sorted(list(set(symbols_list)))
-        else:
-            self.symbol = sorted(symbol.split(sep))
+        #else:
+        #    self.symbol = sorted(symbol.split(sep))
+
+        # Merge universe and symbol
+        if symbol:
+            tmp = self.symbol + symbol.split(sep)
+            self.symbol = sorted(list(set(tmp)))
+
         if benchmark:
             self.benchmark = benchmark
         else:
@@ -758,6 +765,12 @@ class DataView(object):
             res[univ] = df
         df_res = pd.concat(res, axis=0)
         df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+
+        # Always include additional symbols
+        for code in self.symbol:
+            if code not in df.columns:
+                df[code] = 1.0
+
         self.append_df(df, 'index_member', is_quarterly=False)
     
         # use weights of the first universe

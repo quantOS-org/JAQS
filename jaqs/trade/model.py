@@ -147,7 +147,7 @@ class Context(object):
             value.register_context(self)
         self._dataview = value
         
-    def init_universe(self, univ):
+    def init_universe(self, symbols):
         """
         univ could be single symbol or securities separated by ,
         
@@ -156,14 +156,14 @@ class Context(object):
         univ : str or list
         
         """
-        if isinstance(univ, list):
-            self.universe = univ
-        elif isinstance(univ, basestring):
-            l = univ.split(',')
+        if isinstance(symbols, list):
+            self.universe = symbols
+        elif isinstance(symbols, basestring):
+            l = symbols.split(',')
             l = [x for x in l if x]
             self.universe = l
         else:
-            raise NotImplementedError("type of univ is {}".format(type(univ)))
+            raise NotImplementedError("type of univ is {}".format(type(symbols)))
 
 
 class AlphaContext(Context):
