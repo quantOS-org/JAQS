@@ -63,7 +63,7 @@ class AnalyzeView(object):
     def data(self):
         return self._data
 
-    def get_ts(self, field, symbol="", start_date=0, end_date=0):
+    def get_ts(self, field, symbol="", start_date=0, end_date=0, keep_level=False):
         """
         Get time series data of single field.
 
@@ -91,7 +91,8 @@ class AnalyzeView(object):
             raise ValueError
             return
 
-        res.columns = res.columns.droplevel(level='field')
+        if not keep_level and len(res.columns) and len(field.split(',')) == 1:
+            res.columns = res.columns.droplevel(level='field')
 
         return res
 
@@ -200,19 +201,23 @@ class AnalyzeView(object):
         df_eval = parser.evaluate(var_df_dic)
         self.add_field(df_eval, field_name)
 
-    def add_field(self, df, field_names):
+    def add_field(self, df, field_name=None):
         """
         Add fields to self._data.
         :param df:
         :param field_names: format:   'open', or 'open,close,high'
         :return:
         """
-        df = df.copy()
-        exist_symbols = self._data.columns.levels[0]
-        multi_idx = pd.MultiIndex.from_product([exist_symbols, field_names.split(',')])
-        df.columns = multi_idx
-        self._data = pd.concat([self._data, df], axis=1).sort_index(axis=1)
+        if not isinstance(df.columns, pd.core.indexes.multi.MultiIndex):
+            if not field_name:
+                raise ValueError("no field_name provided.")
 
+            df = df.copy()
+            #exist_symbols = self._data.columns.levels[0]
+            exist_symbols = df.columns
+            df.columns = pd.MultiIndex.from_product([exist_symbols, [field_name]])
+
+        self._data = pd.concat([self._data, df], axis=1).sort_index(axis=1)
 
 class TradeRecordEmptyError(Exception):
     def __init__(self, *args):
@@ -734,10 +739,10 @@ class BaseAnalyzer(object):
         # Copy base data from dataview, such as OHLC, vwap, volumn.
         #base_fields = "open,high,low,vwap,turnover,index_weight"
         # FIXME: tzxu 20180419 no turnover in dataview!
-        base_fields = "open,high,low,vwap,index_weight"
-        tmp = self.dataview.get_ts(base_fields)
+        base_fields = "open,high,low,vwap,index_weight,turnover2"
+        tmp = self.dataview.get_ts(base_fields, keep_level=True)
         tmp = tmp.rename (columns={ 'turnover' : 'market_turnover'})
-        holding_data.add_field(tmp, base_fields.replace("turnover", "market_turnover"))
+        holding_data.add_field(tmp)#, base_fields.replace("turnover", "market_turnover"))
 
         df_close_adj = holding_data.get_ts("close_adj")
 

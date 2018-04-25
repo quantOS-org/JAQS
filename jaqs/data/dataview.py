@@ -1201,7 +1201,7 @@ class DataView(object):
     
         return df_ref_quarterly
     
-    def get_ts(self, field, symbol="", start_date=0, end_date=0):
+    def get_ts(self, field, symbol="", start_date=0, end_date=0, keep_level=False):
         """
         Get time series data of single field.
         
@@ -1229,9 +1229,9 @@ class DataView(object):
             raise ValueError
             return
 
-        if len(res.columns):
+        if not keep_level and len(res.columns) and len(field.split(','))==1:
             res.columns = res.columns.droplevel(level='field')
-    
+
         return res
     
     # --------------------------------------------------------------------------------------------------------
