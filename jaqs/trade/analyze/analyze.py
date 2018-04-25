@@ -1045,6 +1045,7 @@ class BaseAnalyzer(object):
                         out_folder=result_dir,
                         selected=selected_sec)
 
+        return self.performance_metrics_report
 
 class EventAnalyzer(BaseAnalyzer):
     def __init__(self):
