@@ -1370,6 +1370,64 @@ class DataView(object):
             h5[key] = value
         h5.close()
 
+    def dup(self, symbols=None, remove_fields=None, start_date=None, end_date=None, fields=None):
+        """
+        Duplicate this dataview with less symbols, dates between start_date and end_date and less fields.
+
+        Parameters
+        ----------
+        symbols:       only copy data of symbols in this parameter.
+        remove_fields: only copy fields not in this parameter.
+        start_date:    only copy data starting with this date.
+        end_date:      only copy data ending with this date.
+        fields:        only copy fields in this parameter.
+        """
+        if not start_date:
+            start_date = self.start_date
+        if not end_date:
+            end_date = self.end_date
+
+        if remove_fields and fields:
+            raise ValueError("Shouldn't use both fields and remove_fields")
+
+        if remove_fields:
+            if isinstance(remove_fields, basestring):
+                remove_fields = remove_fields.split(',')
+            exist_fields = self.fields
+            fields = [x for x in exist_fields if x not in remove_fields]
+        elif fields:
+            if isinstance(fields, basestring):
+                fields = fields.split(',')
+        else:
+            fields = slice(None)
+
+        if not symbols:
+            symbols = slice(None)
+        elif isinstance(symbols, basestring):
+            symbols = symbols.split(',')
+        elif isinstance(symbols, (list, tuple)):
+            pass
+
+        if not fields:
+            fields = slice(None)
+        elif isinstance(fields, basestring):
+            fields = fields.split(',')
+        elif isinstance(fields, (list, tuple)):
+            pass
+
+        dv2 = DataView()
+        dv2.data_benchmark = self.data_benchmark[start_date: end_date]
+        dv2.data_d = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbols, fields]]
+        dv2.data_q = self.data_q.copy()
+        dv2._data_inst = self.data_inst.copy()
+
+        meta_data = {key: self.__dict__[key] for key in self.meta_data_list}
+        meta_data['start_date'] = start_date
+        meta_data['end_date'] = end_date
+        if meta_data['symbol']:
+            meta_data['symbol'] = sorted(set(meta_data['symbol']) & set(symbols))
+        dv2.__dict__.update(meta_data)
+        return dv2
 
 class EventDataView(object):
     """
