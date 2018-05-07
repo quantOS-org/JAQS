@@ -668,7 +668,7 @@ class DataView(object):
         return daily_list, quarterly_list
 
     @staticmethod
-    def _merge_data(dfs, index_name='trade_date'):
+    def _merge_data(dfs, index_name='trade_date', join = 'outer', keep_input = True):
         """
         Merge data from different APIs into one DataFrame.
         
@@ -687,9 +687,46 @@ class DataView(object):
         
         """
         # dfs = [df for df in dfs if df is not None]
+        new_dfs = []
+        # column level swap: [symbol, field] => [field, symbol]
+        for df in dfs:
+            if keep_input:
+                df_new = df.copy()
+            else :
+                df_new = df            
+            df_new.columns = df_new.columns.swaplevel()
+            df_new = df_new.sort_index(axis=1)
+            new_dfs.append(df_new)        
+
+        index_set = None
+        for df in new_dfs:
+            if index_set is None:
+                index_set = set(df.index)
+            else:
+                if join == 'inner':
+                    index_set = index_set & set(df.index)
+                else :
+                    index_set = index_set | set(df.index)
+        index_list = list(index_set)
+        index_list.sort()
+            
+        cols = None
+        for df in new_dfs:            
+            if cols is None:
+                cols = df.columns
+            else:
+                cols = cols.append(df.columns)
+        
+        merge = pd.DataFrame(data=np.nan, index = index_list, columns = cols)        
+        
+        for df in new_dfs:
+            for col in df.columns.levels[0]:
+                merge[col] = df[col]
+        
+        merge.columns = merge.columns.swaplevel()
+        merge = merge.sort_index(axis=1)     
     
-        merge = pd.concat(dfs, axis=1, join='outer')
-    
+        #merge1 = pd.concat(dfs, axis=1, join='outer')    
         # drop duplicated columns. ONE LINE EFFICIENT version
         mask_duplicated = merge.columns.duplicated()
         if np.any(mask_duplicated):
@@ -713,12 +750,21 @@ class DataView(object):
         fields = df.columns.levels[1]
     
         if len(fields) * len(self.symbol) != len(df.columns) or len(index) != len(df.index):
-            cols_multi = pd.MultiIndex.from_product([symbols, fields], names=['symbol', 'field'])
+            cols_multi = pd.MultiIndex.from_product([ fields, symbols], names=['field', 'symbol'])
             cols_multi = cols_multi.sort_values()
+            
             df_final = pd.DataFrame(index=index, columns=cols_multi, data=np.nan)
             df_final.index.name = df.index.name
-        
-            df_final.update(df)
+            
+            df.columns = df.columns.swaplevel()
+            df = df.sort_index(axis=1)
+            
+            for col in df.columns.levels[0]:
+                df_final[col] = df[col]
+            
+            df_final.columns = df_final.columns.swaplevel()
+            df_final = df_final.sort_index(axis=1)
+            #df_final.update(df)
         
             # idx_diff = sorted(set(df_final.index) - set(df.index))
             col_diff = sorted(set(df_final.columns.levels[0].values) - set(df.columns.levels[0].values))
@@ -1001,17 +1047,28 @@ class DataView(object):
         exist_symbols = the_data.columns.levels[0]
         if len(df.columns) < len(exist_symbols):
             df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
-            df2.update(df)
+            for col in df.columns:
+                df2.loc[:,col] = df.loc[:,col]
+            #df2.update(df)
             df = df2
         elif len(df.columns) > len(exist_symbols):
             df = df.loc[:, exist_symbols]
-        multi_idx = pd.MultiIndex.from_product([exist_symbols, [field_name]])
+        multi_idx = pd.MultiIndex.from_product([[field_name], exist_symbols])
         df.columns = multi_idx
-
+        df = df.sort_index(axis=1)
+        
+        the_data.columns = the_data.columns.swaplevel()
+        the_data = the_data.sort_index(axis=1)
+        
+        new_cols = the_data.columns.append(df.columns)
+        the_data = the_data.reindex(columns = new_cols)
+        the_data[field_name] = df[field_name]
+        the_data.columns = the_data.columns.swaplevel()
+        the_data = the_data.sort_index(axis=1)
         #the_data = apply_in_subprocess(pd.merge, args=(the_data, df),
         #                            kwargs={'left_index': True, 'right_index': True, 'how': 'left'})  # runs in *only* one process
-        the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
-        the_data = the_data.sort_index(axis=1)
+        #the_data = pd.merge(the_data, df, left_index=True, right_index=True, how='left')
+        #the_data = the_data.sort_index(axis=1)
         #merge = the_data.join(df, how='left')  # left: keep index of existing data unchanged
         #sort_columns(the_data)
     
