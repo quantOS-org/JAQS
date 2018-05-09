@@ -1417,8 +1417,11 @@ class DataView(object):
 
         dv2 = DataView()
         dv2.data_benchmark = self.data_benchmark[start_date: end_date]
-        dv2.data_d = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbols, fields]]
-        dv2.data_q = self.data_q.copy()
+        if self.data_d is not None:
+            dv2.data_d = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbols, fields]]
+        if self.data_q is not None:
+            dv2.data_q = self.data_q.copy()
+
         dv2._data_inst = self.data_inst.copy()
 
         meta_data = {key: self.__dict__[key] for key in self.meta_data_list}
