@@ -141,8 +141,8 @@ class SignalDigger(object):
         mask_price_return = residual_ret.isnull()
         mask_signal = signal.isnull()
 
-        mask = np.logical_or(mask_signal, mask_price_return)
-        # mask = np.logical_or(mask, mask_signal)
+        mask_tmp = np.logical_or(mask_signal, mask_price_return)
+        mask_all = np.logical_or(mask, mask_tmp)
 
         # if price is not None:
         #     mask_forward = np.logical_or(mask, mask.shift(self.period).fillna(True))
@@ -151,7 +151,7 @@ class SignalDigger(object):
         # ----------------------------------------------------------------------
         # calculate quantile
         signal_masked = signal.copy()
-        signal_masked = signal_masked[~mask]
+        signal_masked = signal_masked[~mask_all]
         if n_quantiles == 1:
             df_quantile = signal_masked.copy()
             df_quantile.loc[:, :] = 1.0
@@ -165,8 +165,8 @@ class SignalDigger(object):
             df.index.names = ['trade_date', 'symbol']
             df.sort_index(axis=0, level=['trade_date', 'symbol'], inplace=True)
             return df
-        
-        mask = stack_td_symbol(mask)
+
+        mask_all = stack_td_symbol(mask_all)
         df_quantile = stack_td_symbol(df_quantile)
         residual_ret = stack_td_symbol(residual_ret)
 
@@ -176,7 +176,7 @@ class SignalDigger(object):
         res.columns = ['signal']
         res['return'] = residual_ret
         res['quantile'] = df_quantile
-        res = res.loc[~(mask.iloc[:, 0]), :]
+        res = res.loc[~(mask_all.iloc[:, 0]), :]
         
         print("Nan Data Count (should be zero) : {:d};  " \
               "Percentage of effective data: {:.0f}%".format(res.isnull().sum(axis=0).sum(),
