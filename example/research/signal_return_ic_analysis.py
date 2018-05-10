@@ -47,7 +47,7 @@ def analyze_signal(dv, signal_name, output_format='pdf'):
     mask_limit_reached = dv.get_ts('limit_reached')
     mask_all = np.logical_or(mask_sus, np.logical_or(mask_index_member, mask_limit_reached))
 
-    signal = dv.get_ts(signal_name).shift(1, axis=0)  # avoid look-ahead bias
+    signal = dv.get_ts(signal_name)  # avoid look-ahead bias
     price = dv.get_ts('close_adj')
     price_bench = dv.data_benchmark
 
