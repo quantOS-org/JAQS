@@ -20,10 +20,11 @@ from jaqs.data.py_expression_eval import Parser
 
 
 class FactorDef:
-    def __init__(self, name, args, body):
+    def __init__(self, name, args, body, is_quarterly=False):
         self.name = name
         self.body = body
         self.args = args
+        self.is_quarterly = is_quarterly
 
 
 class FactorFunc:
@@ -35,7 +36,7 @@ class FactorFunc:
 
         parser = self._dv._create_parser()
 
-        #print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
+        # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
         expr = parser.parse(self._factor.body)
 
         var_df_dic = dict()
@@ -46,7 +47,7 @@ class FactorFunc:
                 i = self._factor.args.index(var)
                 var_df_dic[var] = args[i]
             elif var in parser.functions:
-                if var in self._dv._import_factors and not self._dv._import_factors[var].args :
+                if var in self._dv._import_factors and not self._dv._import_factors[var].args:
                     var_df_dic[var] = self._dv._get_var(var)
             else:
                 var_df_dic[var] = self._dv._get_var(var)
@@ -508,11 +509,11 @@ class DataView(object):
         # "labels"        : "vwap=vwap; mom_1_2=mom_m_n(1,);..."
         # "load_labels"   : "vwap, mom_m_n,..."
 
-        #self._props = props
-        self.factors = props['factors'].split(';')
-        self.load_factors = props['load_factors'].split(',')
-        self.labels = props['labels'].split(';')
-        self.load_labels = props['load_labels'].split(',')
+        # self._props = props
+        self.factors = props['factors'].split(';') if 'factors' in props else []
+        self.load_factors = props['load_factors'].split(',') if 'load_factors' in props else []
+        self.labels = props['labels'].split(';') if 'labels' in props else []
+        self.load_labels = props['load_labels'].split(',') if 'load_labels' in props else []
 
         # append all factors from db
         factor_df, msg = data_api.query(view='jz.factorDef')
@@ -523,10 +524,15 @@ class DataView(object):
         for index, row in self._factor_df.iterrows():
             factor_id = row['factor_id']
             factor_body = row['factor_def']
-            factor_args = row['factor_args'].split(',')
-            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body)
+            factor_args = list(filter(None, row['factor_args'].split(',')))
+            if 'factor_quarterly' in row:
+                factor_quarterly = row['factor_quarterly']
+            else:
+                factor_quarterly = False
 
-        factor_label_ids = list(filter(None,list(
+            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body, factor_quarterly)
+
+        factor_label_ids = list(filter(None, list(
                                 (set([item.split('(')[0] for item in self.load_factors]))
                                 .union(set([item.split('(')[0] for item in self.load_labels]))
                                 .union(set([item1.split('(')[0] for item1 in [item.split('=')[-1] for item in self.factors]]))
@@ -540,7 +546,7 @@ class DataView(object):
             for dep in tmp:
                 for d in dep.split(','):
                     d = d.strip()
-                    if not d : continue
+                    if not d: continue
                     if d in self._import_factors:
                         factor_label_ids.append(d)
                     else:
@@ -800,7 +806,7 @@ class DataView(object):
         return daily_list, quarterly_list
 
     @staticmethod
-    def _merge_data(dfs, index_name='trade_date', join = 'outer', keep_input = True):
+    def _merge_data(dfs, index_name='trade_date', join='outer', keep_input=True):
         """
         Merge data from different APIs into one DataFrame.
 
@@ -824,11 +830,11 @@ class DataView(object):
         for df in dfs:
             if keep_input:
                 df_new = df.copy()
-            else :
-                df_new = df            
+            else:
+                df_new = df
             df_new.columns = df_new.columns.swaplevel()
             df_new = df_new.sort_index(axis=1)
-            new_dfs.append(df_new)        
+            new_dfs.append(df_new)
 
         index_set = None
         for df in new_dfs:
@@ -837,28 +843,28 @@ class DataView(object):
             else:
                 if join == 'inner':
                     index_set = index_set & set(df.index)
-                else :
+                else:
                     index_set = index_set | set(df.index)
         index_list = list(index_set)
         index_list.sort()
             
         cols = None
-        for df in new_dfs:            
+        for df in new_dfs:
             if cols is None:
                 cols = df.columns
             else:
                 cols = cols.append(df.columns)
         
-        merge = pd.DataFrame(data=np.nan, index = index_list, columns = cols)        
+        merge = pd.DataFrame(data=np.nan, index=index_list, columns=cols)
         
         for df in new_dfs:
             for col in df.columns.levels[0]:
                 merge[col] = df[col]
         
         merge.columns = merge.columns.swaplevel()
-        merge = merge.sort_index(axis=1)     
+        merge = merge.sort_index(axis=1)
     
-        #merge1 = pd.concat(dfs, axis=1, join='outer')    
+        # merge1 = pd.concat(dfs, axis=1, join='outer')
         # drop duplicated columns. ONE LINE EFFICIENT version
         mask_duplicated = merge.columns.duplicated()
         if np.any(mask_duplicated):
@@ -882,7 +888,7 @@ class DataView(object):
         fields = df.columns.levels[1]
 
         if len(fields) * len(self.symbol) != len(df.columns) or len(index) != len(df.index):
-            cols_multi = pd.MultiIndex.from_product([ fields, symbols], names=['field', 'symbol'])
+            cols_multi = pd.MultiIndex.from_product([fields, symbols], names=['field', 'symbol'])
             cols_multi = cols_multi.sort_values()
 
             df_final = pd.DataFrame(index=index, columns=cols_multi, data=np.nan)
@@ -896,11 +902,11 @@ class DataView(object):
             
             df_final.columns = df_final.columns.swaplevel()
             df_final = df_final.sort_index(axis=1)
-            #df_final.update(df)
+            # df_final.update(df)
         
             # idx_diff = sorted(set(df_final.index) - set(df.index))
             col_diff = sorted(set(df_final.columns.levels[0].values) - set(df.columns.levels[0].values))
-            print ("WARNING: some data is unavailable: "
+            print("WARNING: some data is unavailable: "
                    # + "\n    At index " + ', '.join(idx_diff)
                    + "\n    At fields " + ', '.join(col_diff))
             return df_final
@@ -1000,6 +1006,9 @@ class DataView(object):
     # --------------------------------------------------------------------------------------------------------
     # Add/Remove Fields&Formulas
     def _add_field(self, field_name, is_quarterly=None):
+        if field_name in self.fields:
+            return
+
         self.fields.append(field_name)
         if not self._is_predefined_field(field_name):
             if is_quarterly is None:
@@ -1080,11 +1089,15 @@ class DataView(object):
         #     self.prepare_data()
         # else:
         if var in self._import_factors:
-            if var in self.fields:
+            #df_var = None
+            if self._is_quarter_field(var):
+                df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
+            elif var in self.fields:
                 df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
             else:
-                df_var = FactorFunc(self, self._import_factors[var])()
-                self.append_df(df_var, var, is_quarterly=False)
+                factor_def = self._import_factors[var]
+                df_var = FactorFunc(self, factor_def)()
+                self.append_df(df_var, var, is_quarterly=factor_def.is_quarterly)
 
             return df_var
 
@@ -1098,11 +1111,14 @@ class DataView(object):
             # must use extended date. Default is start_date
             return self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
 
-    def add_factor(self, factor, name=None):  # within_index=True):
+    def add_factor(self, factor, name=None, is_quarterly=False):  # within_index=True):
         if not name:
             name = factor.split('(')[0]
 
         self.add_formula(field_name=name, formula=factor, is_quarterly=False)
+
+    def add_label(self, factor, name=None, is_quarterly=False):  # within_index=True):
+        self.add_factor(factor, name, is_quarterly)
 
     def add_formula(self, field_name, formula, is_quarterly, overwrite=True,
                     formula_func_name_style='camel', data_api=None,
@@ -1519,9 +1535,19 @@ class DataView(object):
             else:
                 factor_expr = factor
 
-            t = self.get_ts(factor_name)
-            if t is None or len(t.columns) == 0:
-                self.add_factor(factor_expr, factor_name)
+            factor_id = factor_expr.split('(')[0].strip()
+            if factor_id not in self._import_factors:
+                print("Can't find factor definitions: " + factor_id)
+                continue
+            if self._import_factors[factor_id].is_quarterly:
+                t = self.get_ts_quarter(factor_name)
+                if t is None or len(t.columns) == 0:
+                    self.add_factor(factor_expr, factor_name, is_quarterly=True)
+            else:
+                t = self.get_ts(factor_name)
+                if t is None or len(t.columns) == 0:
+                    self.add_factor(factor_expr, factor_name, is_quarterly=False)
+
 
         t = self.get_ts('_daily_adjust_factor')
         if t is None or len(t.columns) == 0:
