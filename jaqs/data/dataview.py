@@ -36,7 +36,7 @@ class FactorFunc:
 
         parser = self._dv._create_parser()
 
-        # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
+        print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
         expr = parser.parse(self._factor.body)
 
         var_df_dic = dict()
@@ -287,6 +287,55 @@ class DataView(object):
              "qfa_cgrop",
              "qfa_yoyprofit", "qfa_cgrprofit", "qfa_yoynetprofit", "qfa_cgrnetprofit", "yoy_equity", "rd_expense",
              "waa_roe"}
+
+        self.risk_model_fields = { "expo_value", 
+                            "expo_leverage",
+                            "expo_growth",
+                            "expo_size",
+                            "expo_liquidity",
+                            "expo_shortterm_momentum",
+                            "expo_mediumterm_momentum",
+                            "expo_volatility",
+                            "expo_exchange_rate_sensitivity",
+                            "expo_bshare_market",
+                            "expo_coal_consumable_fuels",
+                            "expo_energy_ex_coal",
+                            "expo_steel",
+                            "expo_chemicals",
+                            "expo_construction_materials",
+                            "expo_metals_mining_ex_steel",
+                            "expo_paper_forest_products",
+                            "expo_commercial_professional_services",
+                            "expo_electrical_equipment",
+                            "expo_construction_engineering",
+                            "expo_transportation_noninfrastructure",
+                            "expo_machinery",
+                            "expo_trading_companies_distributors_conglomerates",
+                            "expo_transportation_infrastructure",
+                            "expo_media",
+                            "expo_retailing",
+                            "expo_textiles_apparel_luxury_goods",
+                            "expo_automobiles",
+                            "expo_household_durables",
+                            "expo_autocomponents",
+                            "expo_consumer_services",
+                            "expo_food_products",
+                            "expo_beverages_tobacco",
+                            "expo_healthcare",
+                            "expo_realestate",
+                            "expo_financials",
+                            "expo_software_services",
+                            "expo_computers_peripherals",
+                            "expo_communications_equipment",
+                            "expo_semiconductors_electronics",
+                            "expo_telecommunication_services",
+                            "expo_utilities"
+                        }
+
+
+        self.lgt_data = {"lgt_hold_stocks","lgt_calculate_ratio", "lgt_holding", "lgt_holding_ratio"}
+
+
         self.custom_daily_fields = []
         self.custom_quarterly_fields = []
 
@@ -379,7 +428,9 @@ class DataView(object):
         flag = (field_name in self.market_daily_fields
                 or field_name in self.reference_daily_fields
                 or field_name in self.custom_daily_fields
-                or field_name in self.group_fields)
+                or field_name in self.group_fields
+                or field_name in self.risk_model_fields
+                or field_name in self.lgt_data)
         return flag
 
     def _is_predefined_field(self, field_name):
@@ -420,10 +471,14 @@ class DataView(object):
                     'balance_sheet': self.fin_stat_balance_sheet,
                     'cash_flow': self.fin_stat_cash_flow,
                     'fin_indicator': self.fin_indicator,
-                    'group': self.group_fields}
+                    'group': self.group_fields,
+                    'risk_model':self.risk_model_fields,
+                    'lgt_data' : self.lgt_data
+                    }
         pool_map['daily'] = set.union(pool_map['market_daily'],
                                       pool_map['ref_daily'],
                                       pool_map['group'],
+                                      pool_map['risk_model'],
                                       self.custom_daily_fields)
         pool_map['quarterly'] = set.union(pool_map['income'],
                                           pool_map['balance_sheet'],
@@ -448,7 +503,7 @@ class DataView(object):
 
         if append:
             s.add('symbol')
-            if field_type == 'market_daily' or field_type == 'ref_daily':
+            if field_type == 'market_daily' or field_type == 'ref_daily' or field_type == "risk_model":
                 s.add('trade_date')
                 if field_type == 'market_daily':
                     s.add(self.TRADE_STATUS_FIELD_NAME)
@@ -707,7 +762,68 @@ class DataView(object):
             multi_quarterly = self._fill_missing_idx_col(multi_quarterly, index=None, symbols=self.symbol)
             print("Query data - quarterly fields prepared.")
 
+        # FIXME: patch for lgt_data
+        fields_lgt_ind = self._get_fields('lgt_data', fields, append=True)
+        if fields_lgt_ind:
+            multi_daily = self.query_lgt_data(fields_lgt_ind, multi_daily)
+
         return multi_daily, multi_quarterly
+
+    def query_lgt_data(self, fields_lgt_ind, daily_df):
+        filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
+            ','.join(self.symbol),
+            self.extended_start_date_q,
+            self.end_date)
+
+        df, msg = self.data_api.query(view="jz.secMoneyFlowNorth",filter=filter_str, fields=','.join(fields_lgt_ind))
+        if df is None:
+            raise ValueError('query secMoneyFlowNorth error: ' + msg)
+
+        df['trade_date'] = df['trade_date'].astype(np.int32)
+        # 持仓数据
+        holding_dv = df.pivot_table(index='trade_date', columns='symbol', values='hold_stocks')
+
+        # 持仓比例数据
+        holding_ratio = df.pivot_table(index='trade_date', columns='symbol', values='calculate_ratio')
+
+        # 获取除权除息日信�?
+        df_dividend, msg = self.data_api.query_dividend(','.join(self.symbol), self.extended_start_date_d, self.end_date)
+        if df_dividend is None:
+            raise ValueError("query_dividend error: " + msg)
+
+        df_dividend = df_dividend[['symbol', 'record_date', 'exdiv_date']]
+        df_dividend['values'] = 1
+        df_dividend = df_dividend.sort_values(['symbol', 'record_date', 'exdiv_date'])
+        df_dividend = df_dividend.dropna()
+        df_regdt = df_dividend.pivot_table(index='record_date', columns='symbol', values='values').replace(np.nan, 0)
+        df_regdt = df_regdt.replace(np.nan, 0)
+
+        data_d_orig = self.data_d
+        self.data_d = daily_df
+
+        # 将除权除息日信息加入DataView
+        self.append_df(df_regdt, '_regdt', is_quarterly=False)
+        regdt = self.get_ts('_regdt').replace(np.nan, 0.0)
+        not_regdt = ~(regdt.astype(bool))
+
+        # 根据股票除权登记日和除权除息日调整lgt_holding
+        self.append_df(holding_dv, 'lgt_holding_origin', is_quarterly=False)
+        lgt_holding = self.get_ts('lgt_holding_origin')
+        adj_lgt_holding = lgt_holding[not_regdt]
+        lgt_holding = adj_lgt_holding.fillna(method='ffill')
+        self.append_df(lgt_holding, 'lgt_holding', is_quarterly=False)
+
+        # # 根据股票除权登记日和除权除息日调整lgt_holding_ratio
+        self.append_df(holding_ratio, 'lgt_holding_ratio_origin', is_quarterly=False)
+        lgt_holding_ratio = self.get_ts('lgt_holding_ratio_origin')
+        adj_lgt_holding_ratio = lgt_holding_ratio[not_regdt]
+        lgt_holding_ratio = adj_lgt_holding_ratio.fillna(method='ffill')
+        self.append_df(lgt_holding_ratio, 'lgt_holding_ratio', is_quarterly=False)
+
+        self.remove_field('_regdt,lgt_holding_origin,lgt_holding_ratio_origin')
+        daily_df = self.data_d
+        self.data_d = data_d_orig
+        return daily_df
 
     def _query_data(self, symbol, fields):
         """
@@ -799,6 +915,13 @@ class DataView(object):
                                                                    sep.join(fields_fin_ind), drop_dup_cols=['symbol',
                                                                                                             self.REPORT_DATE_FIELD_NAME])
                 quarterly_list.append(df_fin_ind.loc[:, fields_fin_ind])
+
+            fields_risk_model = self._get_fields('risk_model', fields, append=True)    
+            if fields_risk_model:
+                df_risk_model, msg5 = self.data_api.query_risk_model( symbol_str,
+                                                                   self.extended_start_date_q, self.end_date,
+                                                                   sep.join(fields_risk_model))
+                daily_list.append(df_risk_model.loc[:, fields_risk_model])                  
 
         else:
             raise NotImplementedError("freq = {}".format(self.freq))
@@ -1213,6 +1336,10 @@ class DataView(object):
         else:
             df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self.dates)
 
+        # FIXME: When field_name is factor's id, the factor may be added before!
+        if field_name in self.fields:
+            self.remove_field(field_name)
+
         self.append_df(df_eval, field_name, is_quarterly=is_quarterly)
 
         if is_quarterly:
@@ -1257,12 +1384,14 @@ class DataView(object):
                 df2.loc[:,col] = df.loc[:,col]
             #df2.update(df)
             df = df2
-        elif len(df.columns) > len(exist_symbols):
+        #elif len(df.columns) > len(exist_symbols):
+        else:
             df = df.loc[:, exist_symbols]
         multi_idx = pd.MultiIndex.from_product([[field_name], exist_symbols])
         df.columns = multi_idx
         df = df.sort_index(axis=1)
         
+
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
         
@@ -1533,6 +1662,7 @@ class DataView(object):
                 factor_name = tmp[0]
                 factor_expr = tmp[1]
             else:
+                factor_name = factor
                 factor_expr = factor
 
             factor_id = factor_expr.split('(')[0].strip()
@@ -1607,11 +1737,21 @@ class DataView(object):
         self._factor_df = dic.get('/factor_df', None)
         self.__dict__.update(meta_data)
 
+        # for index, row in self._factor_df.iterrows():
+        #     factor_id = row['factor_id']
+        #     factor_body = row['factor_def']
+        #     factor_args = row['factor_args'].split(',')
+        #     self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body)
         for index, row in self._factor_df.iterrows():
             factor_id = row['factor_id']
             factor_body = row['factor_def']
-            factor_args = row['factor_args'].split(',')
-            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body)
+            factor_args = list(filter(None, row['factor_args'].split(',')))
+            if 'factor_quarterly' in row:
+                factor_quarterly = row['factor_quarterly']
+            else:
+                factor_quarterly = False
+
+            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body, factor_quarterly)
 
         self._process_data(large_memory)
 
