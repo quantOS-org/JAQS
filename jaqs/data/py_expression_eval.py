@@ -223,7 +223,7 @@ class Expression(object):
             item = self.tokens[i]
             if item.type_ == TVAR and \
                     not item.index_ in vars and \
-                    item.index_ not in self.functions:
+                    True : #item.index_ not in self.functions:
                 vars.append(item.index_)
         return vars
 
@@ -581,7 +581,7 @@ class Parser(object):
         return pd.rolling_std(x, n)
     
     def ts_sum(self, x, n):
-        return pd.rolling_sum(x, n)
+        return x.rolling(n).sum()
     
     def count_nans(self, x, n):
         return n - pd.rolling_count(x, n)
@@ -1214,6 +1214,7 @@ class Parser(object):
                 n1 = nstack.pop()
                 f = nstack.pop()
                 if callable(f):
+                    # FIXME: Should set value for factor if it is in list.
                     if type(n1) is list:
                         nstack.append(f(*n1))
                     else:
