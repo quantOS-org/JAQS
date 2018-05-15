@@ -259,14 +259,11 @@ def calc_return_diff_mean_std(q1, q2):
         Difference of mean return and corresponding std.
         
     """
-    assert np.all(q1.index == q2.index)
-    assert np.all(q1.columns == q2.columns)
-    
-    res = pd.DataFrame(index=q1.index, columns=['mean_diff', 'std'])
-    res.loc[:, 'mean_diff'] = q1['mean'] - q2['mean']
-    res.loc[:, 'std'] = np.sqrt(q1['std']**2 + q2['std']**2)
+    res_raw = pd.merge(q1, q2, how='outer', suffixes=('_1','_2'), left_index=True, right_index=True).fillna(0)
+    res_raw['mean_diff'] = res_raw['mean_1'] - res_raw['mean_2']
+    res_raw['std'] = np.sqrt(res_raw['mean_1'] **2 + res_raw['mean_2']**2)
+    res = res_raw[['mean_diff','std']]
     return res
-
 
 '''
 def period2daily(ser, period, do_roll_mean=False):

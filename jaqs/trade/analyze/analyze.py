@@ -63,7 +63,7 @@ class AnalyzeView(object):
     def data(self):
         return self._data
 
-    def get_ts(self, field, symbol="", start_date=0, end_date=0):
+    def get_ts(self, field, symbol="", start_date=0, end_date=0, keep_level=False):
         """
         Get time series data of single field.
 
@@ -91,7 +91,8 @@ class AnalyzeView(object):
             raise ValueError
             return
 
-        res.columns = res.columns.droplevel(level='field')
+        if not keep_level and len(res.columns) and len(field.split(',')) == 1:
+            res.columns = res.columns.droplevel(level='field')
 
         return res
 
@@ -200,19 +201,23 @@ class AnalyzeView(object):
         df_eval = parser.evaluate(var_df_dic)
         self.add_field(df_eval, field_name)
 
-    def add_field(self, df, field_names):
+    def add_field(self, df, field_name=None):
         """
         Add fields to self._data.
         :param df:
         :param field_names: format:   'open', or 'open,close,high'
         :return:
         """
-        df = df.copy()
-        exist_symbols = self._data.columns.levels[0]
-        multi_idx = pd.MultiIndex.from_product([exist_symbols, field_names.split(',')])
-        df.columns = multi_idx
-        self._data = pd.concat([self._data, df], axis=1).sort_index(axis=1)
+        if not isinstance(df.columns, pd.core.indexes.multi.MultiIndex):
+            if not field_name:
+                raise ValueError("no field_name provided.")
 
+            df = df.copy()
+            #exist_symbols = self._data.columns.levels[0]
+            exist_symbols = df.columns
+            df.columns = pd.MultiIndex.from_product([exist_symbols, [field_name]])
+
+        self._data = pd.concat([self._data, df], axis=1).sort_index(axis=1)
 
 class TradeRecordEmptyError(Exception):
     def __init__(self, *args):
@@ -508,6 +513,7 @@ class BaseAnalyzer(object):
             gp_df.loc[:, 'SellVolume'] = (direction - 1) / -2 * fill_size
             
             # Calculation of cumulative fields
+            gp_df.loc[:, 'TurnOver'] = turnover
             gp_df.loc[:, 'CumVolume'] = fill_size.cumsum()
             gp_df.loc[:, 'CumTurnOver'] = turnover.cumsum()
             gp_df.loc[:, 'CumNetTurnOver'] = (turnover * -direction).cumsum()
@@ -640,12 +646,12 @@ class BaseAnalyzer(object):
         trade = self.trades
         
         # pro-process
-        trade_cols = ['trade_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+        trade_cols = ['trade_date', 'BuyVolume', 'SellVolume', 'commission', 'position', 'AvgPosPrice', 'CumNetTurnOver','TurnOver']
     
         trade = trade.loc[:, trade_cols]
         gp = trade.reset_index().groupby(by=['symbol', 'trade_date'])
         func_last = lambda ser: ser.iat[-1]
-        trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum,
+        trade = gp.agg({'BuyVolume': np.sum, 'SellVolume': np.sum, 'commission': np.sum, 'TurnOver': np.sum,
                         'position': func_last, 'AvgPosPrice': func_last, 'CumNetTurnOver': func_last})
         trade.index.names = ['symbol', 'trade_date']
 
@@ -733,10 +739,10 @@ class BaseAnalyzer(object):
         # Copy base data from dataview, such as OHLC, vwap, volumn.
         #base_fields = "open,high,low,vwap,turnover,index_weight"
         # FIXME: tzxu 20180419 no turnover in dataview!
-        base_fields = "open,high,low,vwap,index_weight"
-        tmp = self.dataview.get_ts(base_fields)
+        base_fields = "open,high,low,vwap,index_weight,turnover2"
+        tmp = self.dataview.get_ts(base_fields, keep_level=True)
         tmp = tmp.rename (columns={ 'turnover' : 'market_turnover'})
-        holding_data.add_field(tmp, base_fields.replace("turnover", "market_turnover"))
+        holding_data.add_field(tmp)#, base_fields.replace("turnover", "market_turnover"))
 
         df_close_adj = holding_data.get_ts("close_adj")
 
@@ -781,7 +787,7 @@ class BaseAnalyzer(object):
 
         self._portfolio_data = df
 
-    def get_returns(self, compound_return=False, consider_commission=True):
+    def get_returns(self, compound_return=False, consider_commission=True, show_turnover_ratio=False):
         """
         Calculate strategy daily return and various metrics indicating strategy's performance.
         
@@ -795,7 +801,7 @@ class BaseAnalyzer(object):
 
         """
         # only get columns that we need
-        cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit']
+        cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'CumProfitComm', 'CumProfit', 'TurnOver']
         '''
         dic_symbol = {sec: self.inst_map[sec]['multiplier'] * df_daily.loc[:, cols]
                       for sec, df_daily in self.daily.items()}
@@ -827,6 +833,7 @@ class BaseAnalyzer(object):
         df_returns = market_values.pct_change(periods=1).fillna(0.0)
         df_cum_returns = (df_returns.loc[:, ['strat', 'bench']] + 1.0).cumprod()
         df_returns = df_returns.join(df_cum_returns, rsuffix='_cum')
+        df_returns.loc[:,'turnover_ratio'] = df_pnl.loc[:,"TurnOver"] / strategy_value
         
         if compound_return:
             df_returns.loc[:, 'active_cum'] = df_returns['strat_cum'] - df_returns['bench_cum'] + 1
@@ -874,6 +881,7 @@ class BaseAnalyzer(object):
         self.performance_metrics['Daily Win Rate(%)']  = win_rate*100
         self.performance_metrics['Daily Lose Rate(%)'] = lose_rate*100
         self.performance_metrics['Commission']         = df_pnl.loc[:,'commission'].sum()
+        self.performance_metrics['Turnover Ratio']         = df_returns.loc[:,'turnover_ratio'].sum() / years
         
         self.risk_metrics['Beta'] = np.corrcoef(df_returns.loc[:, 'bench'], df_returns.loc[:, 'strat'])[0, 1]
         self.risk_metrics['Maximum Drawdown (%)']   = max_dd * TO_PCT
@@ -884,6 +892,8 @@ class BaseAnalyzer(object):
         self.performance_metrics_report = []
         self.performance_metrics_report.append(('Annual Return (%)',        "{:,.2f}".format( self.performance_metrics['Annual Return (%)']))     )
         self.performance_metrics_report.append(('Annual Volatility (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility (%)'])) )
+        if show_turnover_ratio:
+            self.performance_metrics_report.append(('Annual Turnover Ratio',               "{:,.2f}".format( self.performance_metrics['Turnover Ratio']))    )
         self.performance_metrics_report.append(('Sharpe Ratio',             "{:,.2f}".format( self.performance_metrics['Sharpe Ratio']))          )
         self.performance_metrics_report.append(('Total PNL',                "{:,.2f}".format( self.performance_metrics['Total PNL']))             )
         self.performance_metrics_report.append(('Commission',               "{:,.2f}".format( self.performance_metrics['Commission']))            )
@@ -1035,6 +1045,7 @@ class BaseAnalyzer(object):
                         out_folder=result_dir,
                         selected=selected_sec)
 
+        return self.performance_metrics_report
 
 class EventAnalyzer(BaseAnalyzer):
     def __init__(self):
@@ -1257,7 +1268,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         '''
         print
         
-    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None, compound_rtn = False):
+    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None, compound_rtn = False, show_turnover_ratio = False):
         if selected_sec is None:
             selected_sec = []
     
@@ -1266,7 +1277,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         print("get daily stats...")
         self.get_daily()
         print("calc strategy return...")
-        self.get_returns(compound_return = compound_rtn, consider_commission=True)
+        self.get_returns(compound_return = compound_rtn, consider_commission=True, show_turnover_ratio = show_turnover_ratio)
         print("calc re-balance position")
         self.get_rebalance_position()
         print("Get stats")
