@@ -1691,8 +1691,8 @@ class DataView(object):
             mask = dates < self.start_date
             before_first_day = dates[mask][-1]
 
-            open = self.get_ts('open')
-            preclose = self.get_ts('close', start_date=before_first_day).shift(1)
+            open = self.get_ts('open_adj')
+            preclose = self.get_ts('close_adj', start_date=before_first_day).shift(1)
             limit = np.abs((open - preclose) / preclose)
             self.append_df(limit, "_limit", is_quarterly=False)
 
