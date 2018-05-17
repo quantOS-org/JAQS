@@ -753,9 +753,13 @@ class BaseAnalyzer(object):
 
         df_active_return = df_rtn.sub( s_bench_return['benchmark_return'], axis=0 )
 
+        tmp = np.where(holding_data.get_ts("holding_shares") >= 1, 1, 0)
+        df_active_return = df_active_return * tmp
+        df_rtn = df_rtn * tmp
+
         df_bench_return = df_active_return - df_active_return
         df_bench_return = df_bench_return.add(s_bench_return['benchmark_return'], axis=0 )
-
+		
         holding_data.add_field (df_rtn,           "holding_return")
         holding_data.add_field (df_active_return, "active_holding_return")
         holding_data.add_field (df_bench_return,  "benchmark_return")
