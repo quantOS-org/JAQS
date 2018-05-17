@@ -36,7 +36,7 @@ class FactorFunc:
 
         parser = self._dv._create_parser()
 
-        print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
+        # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
         expr = parser.parse(self._factor.body)
 
         var_df_dic = dict()
@@ -786,7 +786,7 @@ class DataView(object):
         # 持仓比例数据
         holding_ratio = df.pivot_table(index='trade_date', columns='symbol', values='calculate_ratio')
 
-        # 获取除权除息日信�?
+        # 获取除权除息日信�?
         df_dividend, msg = self.data_api.query_dividend(','.join(self.symbol), self.extended_start_date_d, self.end_date)
         if df_dividend is None:
             raise ValueError("query_dividend error: " + msg)
@@ -1207,12 +1207,7 @@ class DataView(object):
         return parser
 
     def _get_var(self, var):
-        # if not self.fields:
-        #     self.fields.extend(var_list)
-        #     self.prepare_data()
-        # else:
         if var in self._import_factors:
-            #df_var = None
             if self._is_quarter_field(var):
                 df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
             elif var in self.fields:
@@ -1223,10 +1218,6 @@ class DataView(object):
                 self.append_df(df_var, var, is_quarterly=factor_def.is_quarterly)
 
             return df_var
-
-        # if var in self._import_factors:
-        #
-        #     return f()
 
         if self._is_quarter_field(var):
             return self.get_ts_quarter(var, start_date=self.extended_start_date_q)
