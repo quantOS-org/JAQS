@@ -1229,7 +1229,7 @@ class DataView(object):
         if not name:
             name = factor.split('(')[0]
 
-        self.add_formula(field_name=name, formula=factor, is_quarterly=False)
+        self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly)
 
     def add_label(self, factor, name=None, is_quarterly=False):  # within_index=True):
         self.add_factor(factor, name, is_quarterly)
@@ -1308,13 +1308,13 @@ class DataView(object):
         # TODO:
         for factor in factors:
             if factor in self.fields:
-                df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
+                df_var = self.get_ts(factor, start_date=self.extended_start_date_d, end_date=self.end_date)
                 var_df_dic[factor] = df_var
 
             elif not self._import_factors[factor].args:
                 f = parser.functions[factor]
                 df_var = f()
-                self.append_df(df_var, factor, is_quarterly=False)
+                self.append_df(df_var, factor, is_quarterly=is_quarterly)
                 var_df_dic[factor] = df_var
             # else:
             #     raise ValueError("no arguments for factor: " + factor)
@@ -1372,22 +1372,20 @@ class DataView(object):
         if len(df.columns) < len(exist_symbols):
             df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
             for col in df.columns:
-                df2.loc[:,col] = df.loc[:,col]
-            #df2.update(df)
+                df2.loc[:, col] = df.loc[:, col]
+            # df2.update(df)
             df = df2
-        #elif len(df.columns) > len(exist_symbols):
-        else:
+        elif len(df.columns) > len(exist_symbols):
             df = df.loc[:, exist_symbols]
         multi_idx = pd.MultiIndex.from_product([[field_name], exist_symbols])
         df.columns = multi_idx
         df = df.sort_index(axis=1)
         
-
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
         
         new_cols = the_data.columns.append(df.columns)
-        the_data = the_data.reindex(columns = new_cols)
+        the_data = the_data.reindex(columns=new_cols)
         the_data[field_name] = df[field_name]
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
@@ -1565,20 +1563,25 @@ class DataView(object):
         res.columns = res.columns.droplevel(level='symbol')
         return res
 
-    def get_ts_quarter(self, field, symbol="", start_date=0, end_date=0):
+    def get_ts_quarter(self, fields, symbols="", start_date=0, end_date=0):
         # TODO
         sep = ','
-        if not symbol:
-            symbol = self.symbol
+        if not symbols:
+            symbols = self.symbol
         else:
-            symbol = symbol.split(sep)
+            symbols = symbols.split(sep)
 
-        if not start_date:
-            start_date = self.start_date
-        if not end_date:
-            end_date = self.end_date
+        if not fields:
+            fields = slice(None)  # self.fields
+        else:
+            fields = fields.split(sep)
 
-        df_ref_quarterly = self.data_q.loc[:, pd.IndexSlice[symbol, field]]
+        # if not start_date:
+        #     start_date = self.start_date
+        # if not end_date:
+        #     end_date = self.end_date
+
+        df_ref_quarterly = self.data_q.loc[:, pd.IndexSlice[symbols, fields]]
         df_ref_quarterly.columns = df_ref_quarterly.columns.droplevel(level='field')
 
         return df_ref_quarterly
@@ -1669,7 +1672,6 @@ class DataView(object):
                 if t is None or len(t.columns) == 0:
                     self.add_factor(factor_expr, factor_name, is_quarterly=False)
 
-
         t = self.get_ts('_daily_adjust_factor')
         if t is None or len(t.columns) == 0:
             a = self.get_ts('adjust_factor')
@@ -1691,7 +1693,6 @@ class DataView(object):
 
         if large_memory:
             self.update_snapshot()
-
 
     def update_snapshot(self):
         dates = self.data_d.index.values
@@ -1728,11 +1729,6 @@ class DataView(object):
         self._factor_df = dic.get('/factor_df', None)
         self.__dict__.update(meta_data)
 
-        # for index, row in self._factor_df.iterrows():
-        #     factor_id = row['factor_id']
-        #     factor_body = row['factor_def']
-        #     factor_args = row['factor_args'].split(',')
-        #     self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body)
         for index, row in self._factor_df.iterrows():
             factor_id = row['factor_id']
             factor_body = row['factor_def']
@@ -1775,7 +1771,6 @@ class DataView(object):
         print("\nStore data...")
         jutil.save_json(meta_data_to_store, meta_path)
         self._save_h5(data_path, data_to_store)
-
 
         print("Dataview has been successfully saved to:\n"
               + abs_folder + "\n\n"
