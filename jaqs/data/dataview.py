@@ -333,8 +333,13 @@ class DataView(object):
                         }
 
 
-        self.lgt_data = {"lgt_hold_stocks","lgt_calculate_ratio", "lgt_holding", "lgt_holding_ratio"}
+        self.lgt_data = {"lgt_holding", "lgt_holding_ratio"}
 
+        self.default_fields = { \
+                          '_daily_adjust_factor', '_limit', 'adjust_factor', 'close',
+                          'close_adj', 'high', 'high_adj', 'index_member', 'index_weight',
+                          'low', 'low_adj', 'open', 'open_adj', 'trade_status', 'vwap',
+                          'vwap_adj'}
 
         self.custom_daily_fields = []
         self.custom_quarterly_fields = []
@@ -570,46 +575,8 @@ class DataView(object):
         self.labels = props['labels'].split(';') if 'labels' in props else []
         self.load_labels = props['load_labels'].split(',') if 'load_labels' in props else []
 
-        # append all factors from db
-        factor_df, msg = data_api.query(view='jz.factorDef')
-        self._factor_df = factor_df
-        if self._factor_df is None:
-            raise ValueError("no factor_table: " + msg)
-
-        for index, row in self._factor_df.iterrows():
-            factor_id = row['factor_id']
-            factor_body = row['factor_def']
-            factor_args = list(filter(None, row['factor_args'].split(',')))
-            if 'factor_quarterly' in row:
-                factor_quarterly = row['factor_quarterly']
-            else:
-                factor_quarterly = False
-
-            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body, factor_quarterly)
-
-        factor_label_ids = list(filter(None, list(
-                                (set([item.split('(')[0] for item in self.load_factors]))
-                                .union(set([item.split('(')[0] for item in self.load_labels]))
-                                .union(set([item1.split('(')[0] for item1 in [item.split('=')[-1] for item in self.factors]]))
-                                .union(set([item1.split('(')[0] for item1 in [item.split('=')[-1] for item in self.labels]]))
-                                )))
-
-        dependencies = []
-        while factor_label_ids:
-            tmp = self._factor_df[self._factor_df['factor_id'].isin(factor_label_ids)]['dependency']
-            factor_label_ids = []
-            for dep in tmp:
-                for d in dep.split(','):
-                    d = d.strip()
-                    if not d: continue
-                    if d in self._import_factors:
-                        factor_label_ids.append(d)
-                    else:
-                        dependencies.append(d)
-
-        for dep in set(dependencies):
-            if dep not in self.fields:
-                self.fields.append(dep)
+        if self.factors or self.load_factors or self.labels or self.load_labels:
+            self._init_factors()
 
         # initialize universe/symbol
         universe = props.get('universe', "")
@@ -647,6 +614,48 @@ class DataView(object):
                 self.benchmark = self.universe[0]
 
         print("Initialize config success.")
+
+    def _init_factors(self):
+        # append all factors from db
+        factor_df, msg = self.data_api.query(view='jz.factorDef')
+        self._factor_df = factor_df
+        if self._factor_df is None:
+            raise ValueError("no factor_table: " + msg)
+
+        for index, row in self._factor_df.iterrows():
+            factor_id = row['factor_id']
+            factor_body = row['factor_def']
+            factor_args = list(filter(None, row['factor_args'].split(',')))
+            if 'factor_quarterly' in row:
+                factor_quarterly = row['factor_quarterly']
+            else:
+                factor_quarterly = False
+
+            self._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body, factor_quarterly)
+
+        factor_label_ids = list(filter(None, list(
+            (set([item.split('(')[0] for item in self.load_factors]))
+                .union(set([item.split('(')[0] for item in self.load_labels]))
+                .union(set([item1.split('(')[0] for item1 in [item.split('=')[-1] for item in self.factors]]))
+                .union(set([item1.split('(')[0] for item1 in [item.split('=')[-1] for item in self.labels]]))
+        )))
+
+        dependencies = []
+        while factor_label_ids:
+            tmp = self._factor_df[self._factor_df['factor_id'].isin(factor_label_ids)]['dependency']
+            factor_label_ids = []
+            for dep in tmp:
+                for d in dep.split(','):
+                    d = d.strip()
+                    if not d: continue
+                    if d in self._import_factors:
+                        factor_label_ids.append(d)
+                    else:
+                        dependencies.append(d)
+
+        for dep in set(dependencies):
+            if dep not in self.fields:
+                self.fields.append(dep)
 
     def distributed_query(self, query_func_name, symbol, start_date, end_date, limit=100000, **kwargs):
         n_symbols = len(symbol.split(','))
@@ -786,7 +795,7 @@ class DataView(object):
         # 持仓比例数据
         holding_ratio = df.pivot_table(index='trade_date', columns='symbol', values='calculate_ratio')
 
-        # 获取除权除息日信�?
+        # 获取除权除息日信�?
         df_dividend, msg = self.data_api.query_dividend(','.join(self.symbol), self.extended_start_date_d, self.end_date)
         if df_dividend is None:
             raise ValueError("query_dividend error: " + msg)
@@ -1797,7 +1806,7 @@ class DataView(object):
             h5[key] = value
         h5.close()
 
-    def dup(self, symbols=None, remove_fields=None, start_date=None, end_date=None, fields=None):
+    def dup(self, symbols=None, remove_fields=None, start_date=None, end_date=None, fields=None, with_default_fields=True):
         """
         Duplicate this dataview with less symbols, dates between start_date and end_date and less fields.
 
@@ -1814,6 +1823,9 @@ class DataView(object):
         if not end_date:
             end_date = self.end_date
 
+        extended_start_date_d = jutil.shift(self.start_date, n_weeks=-8)  # query more data
+        extended_start_date_q = jutil.shift(self.start_date, n_weeks=-80)
+
         if remove_fields and fields:
             raise ValueError("Shouldn't use both fields and remove_fields")
 
@@ -1828,6 +1840,11 @@ class DataView(object):
         else:
             fields = slice(None)
 
+        if with_default_fields:
+            if fields != slice(None):
+                fields = list( set(fields) | set(self.default_fields))
+        print("dup fields:", fields)
+
         if not symbols:
             symbols = slice(None)
         elif isinstance(symbols, basestring):
@@ -1835,27 +1852,23 @@ class DataView(object):
         elif isinstance(symbols, (list, tuple)):
             pass
 
-        if not fields:
-            fields = slice(None)
-        elif isinstance(fields, basestring):
-            fields = fields.split(',')
-        elif isinstance(fields, (list, tuple)):
-            pass
-
         dv2 = DataView()
-        dv2.data_benchmark = self.data_benchmark[start_date: end_date]
+        dv2.data_benchmark = self.data_benchmark[extended_start_date_d: end_date]
         if self.data_d is not None:
-            dv2.data_d = self.data_d.loc[pd.IndexSlice[start_date: end_date], pd.IndexSlice[symbols, fields]]
+            dv2.data_d = self.data_d.loc[pd.IndexSlice[extended_start_date_d: end_date], pd.IndexSlice[symbols, fields]]
         if self.data_q is not None:
-            dv2.data_q = self.data_q.copy()
+            dv2.data_q = self.data_q.loc[pd.IndexSlice[extended_start_date_d: end_date], pd.IndexSlice[symbols, slice(None)]]
 
         dv2._data_inst = self.data_inst.copy()
 
         meta_data = {key: self.__dict__[key] for key in self.meta_data_list}
         meta_data['start_date'] = start_date
         meta_data['end_date'] = end_date
-        if meta_data['symbol']:
+        if symbols != slice(None):
             meta_data['symbol'] = sorted(set(meta_data['symbol']) & set(symbols))
+
+        if fields != slice(None):
+            meta_data['fields'] = fields
         dv2.__dict__.update(meta_data)
         return dv2
 
