@@ -1019,7 +1019,7 @@ class DataView(object):
             symbols = self.symbol
         fields = df.columns.levels[1]
 
-        if len(fields) * len(self.symbol) != len(df.columns) or len(index) != len(df.index):
+        if len(fields) * len(self.symbol) != len(df.columns) or set(index) != set(df.index):
             cols_multi = pd.MultiIndex.from_product([fields, symbols], names=['field', 'symbol'])
             cols_multi = cols_multi.sort_values()
 
