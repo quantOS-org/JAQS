@@ -19,10 +19,11 @@ try:
 except NameError:
     basestring = str
 
+import os
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
-mpl.use('Agg')
+#mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
@@ -699,8 +700,9 @@ class BaseAnalyzer(object):
         gp = merge.groupby(by='symbol')
         res = gp.apply(_apply,self.inst_map)        
         self.daily = res
-        self._build_holding_data()
-        self._build_portfolio_data()
+        if self.dataview:
+            self._build_holding_data()
+            self._build_portfolio_data()
 
         self.save_data()
 
@@ -708,16 +710,25 @@ class BaseAnalyzer(object):
 
     def save_data(self):
         file_path = self.file_folder[0] + "/analyze_data.h5"
-        self.portfolio_data.to_hdf(file_path, "portfolio_data")
-        self.holding_data._data.to_hdf(file_path, "holding_data")
+        if self.portfolio_data is not None:
+            self.portfolio_data.to_hdf(file_path, "portfolio_data")
+        if self.holding_data  is not None:
+            self.holding_data._data.to_hdf(file_path, "holding_data")
 
     def load_data(self):
 
         file_path = self.file_folder[0] + "/analyze_data.h5"
+        if not os.path.exists(file_path):
+            print("load data error: no analyze_data.h5")
+            return
+
         self._portfolio_data = pd.read_hdf(file_path, "portfolio_data")
         self._holding_data = AnalyzeView(pd.read_hdf(file_path, "holding_data"))
 
+
     def _build_holding_data(self):
+        assert self.dataview, "Should have dataview"
+
         cols = ['trading_pnl', 'holding_pnl', 'total_pnl', 'commission', 'close','close_adj','position','trade_shares','AvgPosPrice']
         daily = self.daily.loc[:, cols]
         daily = daily.rename ( columns={'position': 'holding_shares'})
@@ -779,6 +790,7 @@ class BaseAnalyzer(object):
             ['AvgPosPrice', 'BuyVolume', 'CumNetTurnOver', 'CumProfit', 'CumProfitComm', 'SellVolume'], axis=1, level=1)
 
     def _build_portfolio_data(self):
+        assert self.dataview, "Should have dataview"
         assert self._holding_data != None, "Should build holding data firstly"
 
         df_weight = self._holding_data.get_ts("weight").shift()
