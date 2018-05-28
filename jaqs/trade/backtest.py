@@ -383,7 +383,7 @@ class AlphaBacktestInstance(BacktestInstance):
         Price here must not be adjusted.
 
         """
-        prices = {k: v['close'] for k, v in self.univ_price_dic.items()}
+        prices = {k: v['vwap'] for k, v in self.univ_price_dic.items()}
 
         # suspensions & limit_reaches: list of str
         suspensions = self.get_suspensions()
