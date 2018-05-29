@@ -365,6 +365,9 @@ class Parser(object):
             'IsNan': self.is_nan,
             # others
             'If': self.ifFunction,
+            'FillNan': self.fill_nan,
+            'Return_Abs': self.calc_return_abs,
+            'Return_Fwd': self.calc_return_fwd,
             # test
         }
         
@@ -578,13 +581,13 @@ class Parser(object):
         return r.mean()
     
     def std_dev(self, x, n):
-        return pd.rolling_std(x, n)
+        return x.rolling(n).std()
     
     def ts_sum(self, x, n):
         return x.rolling(n).sum()
     
     def count_nans(self, x, n):
-        return n - pd.rolling_count(x, n)
+        return n - x.rolling(n).count()
     
     def delay(self, x, n):
         return x.shift(n)
@@ -602,22 +605,22 @@ class Parser(object):
         return res
     
     def ts_mean(self, x, n):
-        return pd.rolling_mean(x, n)
+        return x.rolling(n).mean()
     
     def ts_min(self, x, n):
-        return pd.rolling_min(x, n)
+        return x.rolling(n).min()
     
     def ts_max(self, x, n):
-        return pd.rolling_max(x, n)
+        return x.rolling(n).max()
     
     def ts_kurt(self, x, n):
-        return pd.rolling_kurt(x, n)
+        return x.rolling(n).kurt()
     
     def ts_skew(self, x, n):
-        return pd.rolling_skew(x, n)
+        return x.rolling(n).skew()
     
     def ts_product(self, x, n):
-        return pd.rolling_apply(x, n, np.product)
+        return x.rolling(n).apply(np.product)
     
     @staticmethod
     def ts_rank(df, window):
@@ -648,11 +651,11 @@ class Parser(object):
     # Time Series Two Parameters
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return pd.rolling_corr(x, y, n)
+        return x.rolling( y, n).corr()
 
     def cov(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return pd.rolling_cov(x, y, n)
+        return x.rolling( y, n).cov()
 
     # financial statement data
     @staticmethod
@@ -689,14 +692,29 @@ class Parser(object):
         return np.dot(x, step) / np.sum(step)
     
     def decay_linear(self, x, n):
-        return pd.rolling_apply(x, n, self.decay_linear_array)
+        return x.rolling(n).apply(self.decay_linear_array)
     
     def decay_exp(self, x, f, n):
-        return pd.rolling_apply(x, n, self.decay_exp_array, args=[f])
+        return x.rolling(n).apply(self.decay_exp_array, args=[f])
     
     @staticmethod
     def is_nan(df):
         return df.isnull()
+
+    def fill_nan(self, df, value=np.nan):
+        return df.fillna(value=value)
+
+    @staticmethod
+    def calc_return_abs(df, forward=1):
+        shift = df.shift(forward)
+        res = (df - shift) / abs(shift)
+        return res
+
+    @staticmethod
+    def calc_return_fwd(df, forward=1):
+        shift = df.shift(-forward)
+        res = (shift - df) / df
+        return res
 
     # -----------------------------------------------------
     # Cross Section functions
