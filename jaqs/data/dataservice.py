@@ -13,6 +13,7 @@ from __future__ import unicode_literals
 from builtins import str
 from abc import abstractmethod
 from six import with_metaclass
+
 try:
     basestring
 except NameError:
@@ -81,6 +82,7 @@ class DataService(object):
     subscribe
 
     """
+
     def __init__(self):
         self.ctx = None
     
@@ -250,6 +252,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     It wraps DataApi and simplify usage.
 
     """
+
     def __init__(self):
         # print("Init RemoteDataService DEBUG")
         super(RemoteDataService, self).__init__()
@@ -260,6 +263,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self._username = ""
         self._password = ""
         self._timeout = 60
+        self._trade_dates_df = None
         
         self._REPORT_DATE_FIELD_NAME = 'report_date'
         
@@ -268,6 +272,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         self.data_api.close()
 
     '''
+
     def init_from_config(self, props):
         """
         
@@ -283,6 +288,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         "remote.data.password": "your password"}
 
         """
+
         def get_from_list_of_dict(l, key, default=None):
             res = None
             for dic in l:
@@ -329,6 +335,12 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
             self.data_api = data_api
             print(INDENT + "login success \n")
         
+        trade_dates_df, err_msg1 = self.query("jz.secTradeCal", fields="trade_date", filter="", orderby="")
+        if not trade_dates_df.empty:
+            self._trade_dates_df = trade_dates_df
+        else:
+            print("No trade date.\n".format(err_msg1))
+
         return err_msg
         
     @property
@@ -821,6 +833,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                 return s
             else:
                 raise NotImplementedError("type s = {}".format(type(s)))
+
         df_io.loc[:, 'in_date'] = df_io.loc[:, 'in_date'].apply(str2int)
         df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
         
@@ -1027,10 +1040,10 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
                                  filter=filter_argument,
                                  data_format='pandas')
         
-        #df = df.set_index('exdiv_date').sort_index(axis=0)
+        # df = df.set_index('exdiv_date').sort_index(axis=0)
         df = df.astype({'cash': float, 'cash_tax': float,
-                        #'bonus_list_date': np.integer,
-                        #'cashpay_date': np.integer,
+                        # 'bonus_list_date': np.integer,
+                        # 'cashpay_date': np.integer,
                         'exdiv_date': np.integer,
                         'publish_date': np.integer,
                         'record_date': np.integer})
@@ -1101,9 +1114,11 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         filter_argument = self._dic2url({'start_date': start_date,
                                          'end_date': end_date})
     
-        df_raw, err_msg = self.query("jz.secTradeCal", fields="trade_date",
-                                     filter=filter_argument, orderby="")
-        self._raise_error_if_msg(err_msg)
+        # df_raw, err_msg = self.query("jz.secTradeCal", fields="trade_date",
+        #                              filter=filter_argument, orderby="")
+        # self._raise_error_if_msg(err_msg)
+        df_raw = self._trade_dates_df[self._trade_dates_df['trade_date'] >= str(start_date)]
+        df_raw = df_raw[df_raw['trade_date'] <= str(end_date)]
         
         if df_raw.empty:
             return np.array([], dtype=int)
@@ -1171,6 +1186,15 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
     
         dates = self.query_trade_dates(date, date_new)
         mask = dates > date
-        res = dates[mask][n-1]
+        res = dates[mask][n - 1]
     
         return int(res)
+
+#
+# # test code
+# if __name__ == "__main__":
+#     data_config = jutil.read_json("D:\\whuang_git\\JAQs\\JAQS\\config\\data_config.json")
+#     ds = RemoteDataService()
+#     ds.init_from_config(data_config)
+#     while True:
+#         ds.query_trade_dates("20180501","20180507")
