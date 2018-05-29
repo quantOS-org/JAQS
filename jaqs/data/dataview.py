@@ -1884,6 +1884,31 @@ class DataView(object):
         return dv2
 
 
+    def group_demean(self, signal, group, new_name, is_quarterly=False, method='div'):
+
+        df = self.get_ts(signal + ',' + group + ',index_member')
+        df_all = df.stack(level=0).reset_index()
+
+        ## use only index member for demean
+        df_all_mask = df_all[df_all['index_member'].astype(bool)]
+        if method == 'div':
+            df_all_mask[new_name] = df_all_mask.groupby(['trade_date', group])[signal].apply(lambda x: x / np.nanmedian(x))
+        else:
+            df_all_mask[new_name] = df_all_mask.groupby(['trade_date', group])[signal].apply(lambda x: x - np.nanmedian(x))
+
+        ## convert back to long data
+        df_all_clean = df_all.loc[:, ['trade_date', 'symbol']]\
+            .merge(df_all_mask, on=['trade_date', 'symbol'],how='left')\
+            .pivot_table(values=new_name,
+                         index='trade_date',
+                         columns='symbol',
+                         fill_value=np.nan)
+
+        self.remove_field(new_name)
+        self.append_df(df_all_clean, new_name, is_quarterly=is_quarterly)
+        return self
+
+
 class EventDataView(object):
     """
     Prepare data before research / trade. Support file I/O.
