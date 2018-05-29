@@ -631,7 +631,8 @@ class BaseAnalyzer(object):
         col_names = ['symbol', 'field']
         data.columns.names = col_names
         data = data.sort_index(axis=1, level=col_names)
-        data.sortlevel(axis = 1, inplace=True)
+        #data.sortlevel(axis = 1, inplace=True)
+        data.sort_index(level=0, axis=1, inplace=True)
         return data
         
     def get_daily(self):
