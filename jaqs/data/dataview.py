@@ -335,11 +335,12 @@ class DataView(object):
 
         self.lgt_data = {"lgt_holding", "lgt_holding_ratio"}
 
-        self.default_fields = { \
+        self.default_fields = {
                           '_daily_adjust_factor', '_limit', 'adjust_factor', 'close',
                           'close_adj', 'high', 'high_adj', 'index_member', 'index_weight',
                           'low', 'low_adj', 'open', 'open_adj', 'trade_status', 'vwap',
-                          'vwap_adj'}
+                          'vwap_adj',
+                          'sw1', 'sw2', 'sw3', 'sw4', 'zz1', 'zz2' }
 
         self.custom_daily_fields = []
         self.custom_quarterly_fields = []
@@ -562,6 +563,10 @@ class DataView(object):
             self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj',
                                 'open', 'high', 'low', 'close',
                                 'vwap', 'vwap_adj'])
+
+        # always inclde sw1 for industry analysis
+        if 'sw1' not in self.fields:
+            self.fields.extend(['sw1'])
 
         # TODO: load factors and labels from DataCore server
         # "factors"       : "vwap=vwap; mom_1_2=mom_m_n(1,);..."
@@ -1864,7 +1869,7 @@ class DataView(object):
             pass
 
         dv2 = DataView()
-        dv2.data_benchmark = self.data_benchmark[extended_start_date_d: end_date]
+        dv2.data_benchmark = self.data_benchmark.loc[pd.IndexSlice[extended_start_date_d: end_date]]
         if self.data_d is not None:
             dv2.data_d = self.data_d.loc[pd.IndexSlice[extended_start_date_d: end_date], pd.IndexSlice[symbols, fields]]
         if self.data_q is not None:
@@ -2172,6 +2177,10 @@ class EventDataView(object):
             self.fields.extend(['open_adj', 'high_adj', 'low_adj', 'close_adj',
                                 'open', 'high', 'low', 'close',
                                 'vwap', 'vwap_adj'])
+
+        # always inclde sw1 for industry analysis
+        if 'sw1' not in self.fields:
+            self.fields.extend(['sw1'])
 
         # initialize universe/symbol
         universe = props.get('universe', "")
