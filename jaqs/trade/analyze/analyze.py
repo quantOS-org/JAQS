@@ -956,6 +956,13 @@ class BaseAnalyzer(object):
 
         plt.close(fig)
 
+    def plot_alpha_decay_weight(self, df, output_folder):
+        fig, ax = plt.subplots(figsize=(16, 8))
+        plt.bar(df.index, df.values)
+        fig.savefig(os.path.join(output_folder, 'alpha_decay_weight.png'), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+
+        plt.close(fig)
+
     def plot_pnl(self, output_folder):
         """
         Plot 2 graphs:
@@ -1017,11 +1024,18 @@ class BaseAnalyzer(object):
         df_alpha_weight = df_alpha_weight.sort_values('mean_weight', ascending=False)
         df_alpha_weight['rank'] = range(len(df_alpha))
         df_alpha_weight['group'] = df_alpha_weight['rank'].apply(lambda x: int(x / n_group))
-        df_alpha_weight_group = df_alpha_weight.groupby('group')['alpha'].sum()
+        df_alpha_weight['alpha_ratio'] = df_alpha_weight['alpha'] / df_alpha_weight['alpha'].sum()
+
+        df_alpha_group = df_alpha_weight.groupby('group')['alpha_ratio'].sum()
+        df_weight_group = df_alpha_weight.groupby('group')['mean_weight'].sum()
+        df_alpha_weight_group = df_alpha_group / df_weight_group
 
         #df_alpha_weight_group.plot.bar(figsize=(16, 8), grid=True)
-        self.plot_alpha_decay(df_alpha_weight_group,result_dir)
+        self.plot_alpha_decay(df_alpha_group,result_dir)
         self._alpha_decay_image = "alpha_decay.png"
+
+        self.plot_alpha_decay_weight(df_alpha_weight_group,result_dir)
+        self._alpha_decay_weight_image = "alpha_decay_weight.png"
 
     def analyze_industry_overweight(self, result_dir):
         if 'sw1' not in self.dataview.data_d.columns.levels[1]:
@@ -1196,6 +1210,7 @@ class BaseAnalyzer(object):
         dic['dailypnl_tail5_metrics_report'] = self.dailypnl_tail5_metrics_report
         dic['industry_overweight_images'] = self._industry_overweight_images
         dic['alpha_decay_image'] = self._alpha_decay_image
+        dic['alpha_decay_weight_image'] = self._alpha_decay_weight_image
         dic['average_industry_overweight'] = self._average_industry_overweight
         self.report_dic.update(dic)
         

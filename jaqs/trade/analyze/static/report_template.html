@@ -231,7 +231,7 @@
 
             <!-- Trading & Holding PnL -->
             {% if alpha_decay_image  %}
-              <h2 id="alpha_decay">Alpah Decay</h2>
+              <h2 id="alpha_decay">Alpha Decay</h2>
               <p>
                 Sort the stock by average weight from top to bottom, then aggregate the alpha contribution by every 5 stocks.
               </p>
@@ -239,8 +239,17 @@
               <img src="{{alpha_decay_image}}" class="img-fluid" alt="Responsive Image">
             {% endif %}
 
+            {% if alpha_decay_weight_image  %}
+              <h2 id="alpha_decay_weight">Alpha Decay Scaled by Weight</h2>
+              <p>
+                In each group, scale the alpha contribution by aggregate weight
+              </p>
+
+              <img src="{{alpha_decay_weight_image}}" class="img-fluid" alt="Responsive Image">
+            {% endif %}
+
             {% if industry_overweight_images %}
-              <h2 id="industry_overweight">Industry Overwwight</h2>
+              <h2 id="industry_overweight">Industry Overwight</h2>
                 {% for image in industry_overweight_images %}
                   <img src="{{image}}" class="img-fluid" alt="Responsive Image">
                 {% endfor %}
