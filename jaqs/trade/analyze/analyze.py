@@ -23,7 +23,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
-#mpl.use('Agg')
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
 
@@ -307,6 +307,10 @@ class BaseAnalyzer(object):
         self._portfolio_data = None
         # self._order_data   = None
         # self._trade_data   = None
+
+        self._alpha_decay_image = None
+        self._industry_overweight_images = None
+        self._average_industry_overweight = None
         
     @property
     def trades(self):
@@ -945,12 +949,19 @@ class BaseAnalyzer(object):
         # df_returns = df_returns.join(bt_strat_mv, how='right')
         self.returns = df_returns
     
+    def plot_alpha_decay(self, df, output_folder):
+        fig, ax = plt.subplots(figsize=(16, 8))
+        plt.bar(df.index, df.values)
+        fig.savefig(os.path.join(output_folder, 'alpha_decay.png'), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+
+        plt.close(fig)
+
     def plot_pnl(self, output_folder):
         """
         Plot 2 graphs:
             1. Percentage return of strategy, benchmark and strategy's excess part.
             2. Daily trading, holding and total PnL.
-        
+
         Parameters
         ----------
         output_folder : str
@@ -959,7 +970,7 @@ class BaseAnalyzer(object):
         """
         old_mpl_rcparams = {k: v for k, v in mpl.rcParams.items()}
         mpl.rcParams.update(MPL_RCPARAMS)
-        
+
         fig1 = plot_portfolio_bench_pnl(self.returns.loc[:, 'strat_cum'],
                                         self.returns.loc[:, 'bench_cum'],
                                         self.returns.loc[:, 'active_cum'],
@@ -967,15 +978,188 @@ class BaseAnalyzer(object):
                                         self.risk_metrics['Maximum Drawdown end'])
         fig1.savefig(os.path.join(output_folder, 'pnl_img.png'), facecolor=fig1.get_facecolor(), dpi=fig1.get_dpi())
         plt.close(fig1)
-        
+
         fig2 = plot_daily_trading_holding_pnl(self.df_pnl['trading_pnl'],
                                               self.df_pnl['holding_pnl'],
                                               self.df_pnl['total_pnl'],
                                               self.df_pnl['total_pnl'].cumsum())
-        fig2.savefig(os.path.join(output_folder, 'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(), dpi=fig2.get_dpi())
+        fig2.savefig(os.path.join(output_folder, 'pnl_img_trading_holding.png'), facecolor=fig2.get_facecolor(),
+                     dpi=fig2.get_dpi())
         plt.close(fig2)
-        
+
         mpl.rcParams.update(old_mpl_rcparams)
+
+    def analyze_alpha_decay(self,result_dir):
+
+        # 个股平均持仓
+        df_weight = self.holding_data.get_ts('weight')
+        df_weight = pd.DataFrame(df_weight.mean(axis=0))
+        df_weight.columns = ['mean_weight']
+        df_weight = pd.merge(left=df_weight, right=self.dataview.data_inst[['name']], left_index=True, right_index=True,
+                             how='left')
+        df_weight = df_weight[df_weight['mean_weight'] > 0]
+        #df_weight.sort_values('mean_weight', ascending=False)
+
+        # 个股Alpha合计
+        raw_alpha = self.holding_data.get_ts('active_holding_return')
+        raw_weight = self.holding_data.get_ts('weight')
+
+        df_alpha = raw_alpha.mul(raw_weight)
+        df_alpha = pd.DataFrame(df_alpha.sum(axis=0))
+        df_alpha.columns = ['alpha']
+        df_alpha = pd.merge(left=df_alpha, right=self.dataview.data_inst[['name']], left_index=True, right_index=True, how='left')
+        df_alpha = df_alpha[df_alpha['alpha'] != 0]
+        df_alpha.sort_values('alpha', ascending=False)
+        df_alpha_weight = pd.concat([df_weight, df_alpha], axis=1)
+
+        # Alpha在个股中分布
+        n_group = 5
+        df_alpha_weight = df_alpha_weight.sort_values('mean_weight', ascending=False)
+        df_alpha_weight['rank'] = range(len(df_alpha))
+        df_alpha_weight['group'] = df_alpha_weight['rank'].apply(lambda x: int(x / n_group))
+        df_alpha_weight_group = df_alpha_weight.groupby('group')['alpha'].sum()
+
+        #df_alpha_weight_group.plot.bar(figsize=(16, 8), grid=True)
+        self.plot_alpha_decay(df_alpha_weight_group,result_dir)
+        self._alpha_decay_image = "alpha_decay.png"
+
+    def analyze_industry_overweight(self, result_dir):
+        if 'sw1' not in self.dataview.data_d.columns.levels[1]:
+            print("Ignore industry overwight analysis for missing sw1 in dataview")
+            return
+
+        # 个股平均持仓
+        df_weight = self.holding_data.get_ts('weight')
+        df_weight = pd.DataFrame(df_weight.mean(axis=0))
+        df_weight.columns = ['mean_weight']
+        df_weight = pd.merge(left=df_weight, right=self.dataview.data_inst[['name']], left_index=True, right_index=True,
+                             how='left')
+        df_weight = df_weight[df_weight['mean_weight'] > 0]
+
+        raw_weight = self.holding_data.get_ts('weight')[df_weight.index]
+        index = self.dataview.get_ts('sw1')[df_weight.index]
+        index = index.loc[raw_weight.index]
+
+        matching = {
+            '110000': 'NLMY',
+            '210000': 'Digging',
+            '220000': 'Chemistry',
+            '230000': 'Metal',
+            '240000': 'Nonferrous Metal',
+            '270000': 'Electronic',
+            '280000': 'Car',
+            '330000': 'Applicants',
+            '340000': 'Food',
+            '350000': 'Clothing',
+            '360000': 'Light Industrials',
+            '370000': 'Health Care',
+            '410000': 'Utility',
+            '420000': 'Transportation',
+            '430000': 'Housing',
+            '450000': 'Commercial',
+            '460000': 'Service',
+            '480000': 'Bank',
+            '490000': 'Non bank',
+            '510000': 'Others',
+            '610000': 'Construction Material',
+            '620000': 'Construction decoration',
+            '630000': 'Electronic equipment',
+            '640000': 'Mechenical equipment',
+            '650000': 'Army',
+            '710000': 'IT',
+            '720000': 'Media',
+            '730000': 'Telecom',
+            'nan': 'Unclassified'
+        }
+
+        for key, value in matching.items():
+            index = index.replace(key, value)
+
+        def group_sum(df, group_daily):
+            groups = np.unique(group_daily.values.flatten())
+            mask = groups == 'nan'
+            groups = groups[np.logical_not(mask)]
+            res = pd.DataFrame(index=df.index, columns=groups, data=np.nan)
+            for g in groups:
+                mask = group_daily == g
+                tmp = df[mask]
+                res.loc[:, g] = tmp.sum(axis=1)
+            return res
+
+        weight_industry = group_sum(raw_weight, index)
+
+        ## 指数行业分析
+        raw_index_weight = self.dataview.get_ts('index_weight')
+        raw_industry = self.dataview.get_ts('sw1')
+
+
+        for key, value in matching.items():
+            raw_industry = raw_industry.replace(key, value)
+
+
+        weight_index = group_sum(raw_index_weight, raw_industry)
+
+        ## 行业超配分析
+        # weight_industry['Army'] = 0.0
+        # weight_industry['Clothing'] = 0.0
+        # weight_industry['Others'] = 0.0
+
+        weight_dif = weight_industry - weight_index
+        index_weight_industry = pd.DataFrame(weight_index.mean(axis=0).sort_values(ascending=False))
+        index_weight_industry.columns = ['index']
+        #print('相对指数超配')
+        self._industry_overweight_images = []
+        for single_industry in weight_dif.columns:
+            image_name = ('iw_' + single_industry + '.png').replace(' ', '_').lower()
+            self._industry_overweight_images.append(image_name)
+            self.plot_industry_weight(weight_dif, single_industry, image_name, result_dir)
+
+        # 行业平均持仓及相对指数超配
+        portfolio_weight_industry = pd.DataFrame(weight_industry.mean(axis=0).sort_values(ascending=False))
+        portfolio_weight_industry.columns = ['portfolio']
+        weight_industry_compare = pd.concat([portfolio_weight_industry, index_weight_industry], axis=1)
+        weight_industry_compare['overweight'] = weight_industry_compare['portfolio'] - weight_industry_compare['index']
+        self._average_industry_overweight = weight_industry_compare.sort_values('overweight', ascending=False)
+
+    def plot_industry_weight(self, df, industry_name, image_name, output_folder):
+        idx0 = df.index.astype(str)
+        n = len(idx0)
+        idx = np.arange(n)
+        idx2016 = np.where(idx0 == '20160701')
+        fig, ax3 = plt.subplots(figsize=(16, 8))
+        # ax1 = ax0.twinx()
+
+        bar_width = 0.2
+        profit_color, lose_color = '#D63434', '#2DB635'
+        curve_color = '#174F67'
+        y_label = 'Daily Return'
+        color_arr_raw = np.array([profit_color] * n)
+
+        color_arr = color_arr_raw.copy()
+        # color_arr[holding_pnl_tot.PnL < 0] = lose_color
+        # ax3.bar(idx, df_volume_cyb.turnover_300, width = 1, color='green', label = '300', alpha = 0.4)
+        # ax3.bar(idx, df_volume_cyb.turnover_cyb, width = 1, color='yellow', label = 'cyb', alpha = 0.4)
+
+        # ax3.set(title='Cumulative and daily holding PnL', ylabel=y_label)
+        ax3.xaxis.set_major_formatter(MyFormatter(idx0, '%Y%m%d'))
+        ax3.legend()
+        ax3.axhline(0, color='red', lw=1, ls='--')
+        ax3.plot(idx, df[industry_name], color='blue', label='%s' % industry_name, linewidth=1.5, alpha=0.8)
+
+        # ax3.plot(idx, stock_alpha['active_holding_return'].cumsum(), lw=1, color='red', label = 'alpha')
+        # ax6 = ax3.twinx()
+        # ax3.plot(idx, stock_alpha['weight'], lw = 1, color = 'blue', label = 'weight')
+        # ax3.yaxis.label.set_color(curve_color)
+        ax3.grid()
+        plt.tick_params(axis='both', which='major', labelsize=12)
+        plt.legend(fontsize=14)
+        plt.title('%s' % industry_name, fontsize=16)
+        plt.tight_layout()
+
+        fig.savefig(os.path.join(output_folder, image_name),
+                    facecolor=fig.get_facecolor(),
+                    dpi=fig.get_dpi())
+        plt.close(fig)
 
     def gen_report(self, source_dir, template_fn, out_folder='.', selected=None):
         """
@@ -1010,7 +1194,9 @@ class BaseAnalyzer(object):
         dic['dailypnl_metrics_report'] = self.dailypnl_metrics_report
         dic['dailypnl_top5_metrics_report'] = self.dailypnl_top5_metrics_report
         dic['dailypnl_tail5_metrics_report'] = self.dailypnl_tail5_metrics_report
-        
+        dic['industry_overweight_images'] = self._industry_overweight_images
+        dic['alpha_decay_image'] = self._alpha_decay_image
+        dic['average_industry_overweight'] = self._average_industry_overweight
         self.report_dic.update(dic)
         
         r = Report(self.report_dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
@@ -1322,6 +1508,10 @@ class AlphaAnalyzer(BaseAnalyzer):
     
         self.daily_position.to_csv(os.path.join(result_dir, 'daily_position.csv'))
         self.returns.to_csv(os.path.join(result_dir, 'returns.csv'))
+
+        print("Analyze alpha data...")
+        self.analyze_alpha_decay(result_dir)
+        self.analyze_industry_overweight(result_dir)
 
         print("generate report...")
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',

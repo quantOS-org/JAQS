@@ -229,6 +229,29 @@
                 <p>This data is stored in <code>Analyzer.rebalance_positions</code></p>
             {% endif %}
 
+            <!-- Trading & Holding PnL -->
+            {% if alpha_decay_image  %}
+              <h2 id="alpha_decay">Alpah Decay</h2>
+              <p>
+                Sort the stock by average weight from top to bottom, then aggregate the alpha contribution by every 5 stocks.
+              </p>
+
+              <img src="{{alpha_decay_image}}" class="img-fluid" alt="Responsive Image">
+            {% endif %}
+
+            {% if industry_overweight_images %}
+              <h2 id="industry_overweight">Industry Overwwight</h2>
+                {% for image in industry_overweight_images %}
+                  <img src="{{image}}" class="img-fluid" alt="Responsive Image">
+                {% endfor %}
+            {% endif %}
+
+            {% if average_industry_overweight is not none%}
+              <h2 id="average_industry_overweight">Average Industry Overwwight</h2>
+                <div class="card card-body">
+                    {{ average_industry_overweight.to_html(classes="table table-striped", border=0) }}
+                </div>
+            {% endif %}
 
             <!-- Daily Position -->
             {% if daily_position is not none %}
