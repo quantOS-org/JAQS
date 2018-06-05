@@ -312,6 +312,7 @@ class BaseAnalyzer(object):
         self._industry_overweight_images = None
         self._average_industry_overweight = None
         self._alpha_decay_weight_image = None
+        self._cum_alpha_weight_image = None
         
     @property
     def trades(self):
