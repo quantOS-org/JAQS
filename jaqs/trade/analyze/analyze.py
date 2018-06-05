@@ -311,6 +311,7 @@ class BaseAnalyzer(object):
         self._alpha_decay_image = None
         self._industry_overweight_images = None
         self._average_industry_overweight = None
+        self._alpha_decay_weight_image = None
         
     @property
     def trades(self):
@@ -1524,9 +1525,12 @@ class AlphaAnalyzer(BaseAnalyzer):
         self.daily_position.to_csv(os.path.join(result_dir, 'daily_position.csv'))
         self.returns.to_csv(os.path.join(result_dir, 'returns.csv'))
 
-        print("Analyze alpha data...")
-        self.analyze_alpha_decay(result_dir)
-        self.analyze_industry_overweight(result_dir)
+        if self.dataview:
+            print("Analyze alpha data...")
+            self.analyze_alpha_decay(result_dir)
+            self.analyze_industry_overweight(result_dir)
+        else:
+            print("Ignore analyzing alpha data")
 
         print("generate report...")
         self.gen_report(source_dir=STATIC_FOLDER, template_fn='report_template.html',
