@@ -963,6 +963,18 @@ class BaseAnalyzer(object):
 
         plt.close(fig)
 
+    def plot_cum_alpha_weight(self, df, output_folder):
+        fig, ax = plt.subplots(figsize=(16, 8))
+        ax.plot(range(len(df)), df.mean_weight.cumsum(), lw=1, color='dodgerblue',
+                label='Cumulative weight')
+        ax.plot(range(len(df)), df.alpha_ratio.cumsum(), lw=1, color='darkorchid',
+                label='Cumulative Alpha')
+        ax.legend()
+        ax.grid()
+        fig.savefig(os.path.join(output_folder, 'cum_alpha_weight.png'), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+
+        plt.close(fig)
+
     def plot_pnl(self, output_folder):
         """
         Plot 2 graphs:
@@ -1036,6 +1048,9 @@ class BaseAnalyzer(object):
 
         self.plot_alpha_decay_weight(df_alpha_weight_group,result_dir)
         self._alpha_decay_weight_image = "alpha_decay_weight.png"
+
+        self.plot_cum_alpha_weight(df_alpha_weight,result_dir)
+        self._cum_alpha_weight_image = "cum_alpha_weight.png"
 
     def analyze_industry_overweight(self, result_dir):
         if 'sw1' not in self.dataview.data_d.columns.levels[1]:
@@ -1211,6 +1226,7 @@ class BaseAnalyzer(object):
         dic['industry_overweight_images'] = self._industry_overweight_images
         dic['alpha_decay_image'] = self._alpha_decay_image
         dic['alpha_decay_weight_image'] = self._alpha_decay_weight_image
+        dic['cum_alpha_weight_image'] = self._cum_alpha_weight_image
         dic['average_industry_overweight'] = self._average_industry_overweight
         self.report_dic.update(dic)
         
@@ -1521,8 +1537,8 @@ class AlphaAnalyzer(BaseAnalyzer):
                 raise ValueError("group data is None.")
             self.brinson(group, output_folder=result_dir)
     
-        self.daily_position.to_csv(os.path.join(result_dir, 'daily_position.csv'))
-        self.returns.to_csv(os.path.join(result_dir, 'returns.csv'))
+        self.daily_position.to_csv(os.path.join(result_dir, 'daily_position_%s.csv' % self.configs['Name']))
+        self.returns.to_csv(os.path.join(result_dir, 'returns_%s.csv' % self.configs['Name']))
 
         print("Analyze alpha data...")
         self.analyze_alpha_decay(result_dir)
