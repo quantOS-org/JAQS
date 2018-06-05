@@ -248,6 +248,15 @@
               <img src="{{alpha_decay_weight_image}}" class="img-fluid" alt="Responsive Image">
             {% endif %}
 
+            {% if cum_alpha_weight_image  %}
+              <h2 id="cum_alpha_weight">Cumulative Alpha and Weight</h2>
+              <p>
+                Calculate cumulative weight and alpha contribution after sort the stock by average weight from top to bottom.
+              </p>
+
+              <img src="{{cum_alpha_weight_image}}" class="img-fluid" alt="Responsive Image">
+            {% endif %}
+
             {% if industry_overweight_images %}
               <h2 id="industry_overweight">Industry Overwight</h2>
                 {% for image in industry_overweight_images %}
