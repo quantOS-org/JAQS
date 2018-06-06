@@ -84,8 +84,14 @@ def to_obj(class_name, data):
 
 def to_date_int(date):
     if isinstance(date, basestring):
-        tmp = date.replace('-', '')
-        return int(tmp)
+        if '-' in date:
+            tmp = date.replace('-','')
+            return int(tmp)
+        else:
+            t = dt.datetime.strptime(date, "%Y-%m-%d")
+            date_int = t.year * 10000 + t.month * 100 + t.day
+            return date_int
+
     elif isinstance(date, (int, np.integer)):
         return date
     else:
