@@ -1538,9 +1538,10 @@ class AlphaAnalyzer(BaseAnalyzer):
             if group is None:
                 raise ValueError("group data is None.")
             self.brinson(group, output_folder=result_dir)
-    
-        self.daily_position.to_csv(os.path.join(result_dir, 'daily_position_%s.csv' % self.configs['Name']))
-        self.returns.to_csv(os.path.join(result_dir, 'returns_%s.csv' % self.configs['Name']))
+
+        test_name = self.configs['Name'] if 'Name' in self.configs else "default"
+        self.daily_position.to_csv(os.path.join(result_dir, 'daily_position_%s.csv' % test_name))
+        self.returns.to_csv(os.path.join(result_dir, 'returns_%s.csv' % test_name))
 
         if self.dataview:
             print("Analyze alpha data...")
