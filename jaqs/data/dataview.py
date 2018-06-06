@@ -1393,19 +1393,12 @@ class DataView(object):
         else:
             the_data = self.data_d
 
-        exist_symbols = the_data.columns.levels[0]
-        if len(df.columns) < len(exist_symbols):
-            df2 = pd.DataFrame(index=df.index, columns=exist_symbols, data=np.nan)
-            for col in df.columns:
-                df2.loc[:, col] = df.loc[:, col]
-            # df2.update(df)
-            df = df2
-        elif len(df.columns) > len(exist_symbols):
-            df = df.loc[:, exist_symbols]
-        multi_idx = pd.MultiIndex.from_product([[field_name], exist_symbols])
+        # Copy exists symbols and set multi index
+        df = df.loc[:, the_data.columns.levels[0]]
+        multi_idx = pd.MultiIndex.from_product([[field_name], df.columns])
         df.columns = multi_idx
         df = df.sort_index(axis=1)
-        
+
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
         
