@@ -1815,7 +1815,7 @@ class DataView(object):
             h5[key] = value
         h5.close()
 
-    def dup(self, symbols=None, remove_fields=None, start_date=None, end_date=None, fields=None, with_default_fields=True):
+    def dup(self, symbols=None, remove_fields=None, start_date=None, end_date=None, fields=None, with_default_fields=True, large_memory=False):
         """
         Duplicate this dataview with less symbols, dates between start_date and end_date and less fields.
 
@@ -1879,6 +1879,8 @@ class DataView(object):
         if fields != slice(None):
             meta_data['fields'] = fields
         dv2.__dict__.update(meta_data)
+
+        dv2._process_data(large_memory=large_memory)
         return dv2
 
 
