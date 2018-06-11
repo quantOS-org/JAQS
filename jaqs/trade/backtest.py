@@ -422,8 +422,13 @@ class AlphaBacktestInstance(BacktestInstance):
         begin_time = dt.datetime.now()
 
         tapi = self.ctx.trade_api
-        
-        self.ctx.trade_date = self._get_next_trade_date(self.start_date)
+
+        # Keep compatible, the original test starts with next day, not start_date
+        if self.ctx.strategy.period in ['week', 'month']:
+            self.ctx.trade_date = self._get_first_period_day()
+        else:
+            self.ctx.trade_date = self._get_next_trade_date(self.start_date)
+
         self.last_date = self._get_last_trade_date(self.ctx.trade_date)
         self.current_rebalance_date = self.ctx.trade_date
         while True:
@@ -510,7 +515,115 @@ class AlphaBacktestInstance(BacktestInstance):
             return dates[mask][-1]
         else:
             return self.ctx.data_api.query_last_trade_date(date)
-    
+
+    def _get_first_period_day(self):
+
+        current = self.start_date
+
+        current_date = jutil.convert_int_to_datetime(current)
+        period = self.ctx.strategy.period
+
+        if period == 'day':
+            offset = pd.tseries.offsets.BDay()  # move to next business day
+        elif period == 'week':
+            offset = pd.tseries.offsets.Week(weekday=0)  # move to next Monday
+        elif period == 'month':
+            offset = pd.tseries.offsets.BMonthBegin()  # move to first business day of next month
+        else:
+            raise NotImplementedError("Frequency as {} not support".format(period))
+
+        current_date -= offset * self.ctx.strategy.n_periods;
+
+        current = jutil.convert_datetime_to_int(current_date)
+
+        return self._get_next_period_day(current, self.ctx.strategy.period,
+                                         n=self.ctx.strategy.n_periods,
+                                         extra_offset=self.ctx.strategy.days_delay)
+
+    def _get_next_period_day(self, current, period, n=1, extra_offset=0):
+        """
+        Get the n'th day in next period from current day.
+
+        Parameters
+        ----------
+        current : int
+            Current date in format "%Y%m%d".
+        period : str
+            Interval between current and next. {'day', 'week', 'month'}
+        n : int
+            n times period.
+        extra_offset : int
+            n'th business day after next period.
+
+        Returns
+        -------
+        nxt : int
+
+        """
+        #while True:
+        #for _ in range(4):
+
+        current_date = jutil.convert_int_to_datetime(current)
+        while current <= self.end_date:
+            if period == 'day':
+                offset = pd.tseries.offsets.BDay()  # move to next business day
+                if extra_offset < 0:
+                    raise ValueError("Wrong offset for day period")
+            elif period == 'week':
+                offset = pd.tseries.offsets.Week(weekday=0)  # move to next Monday
+                if extra_offset < -5 :
+                    raise ValueError("Wrong offset for week period")
+            elif period == 'month':
+                offset = pd.tseries.offsets.BMonthBegin()  # move to first business day of next month
+                if extra_offset < -31:
+                    raise  ValueError("Wrong offset for month period")
+            else:
+                raise NotImplementedError("Frequency as {} not support".format(period))
+
+            offset = offset * n
+
+            begin_date = current_date + offset
+            if period == 'day':
+                end_date = begin_date + pd.tseries.offsets.Day()*366
+            elif period == 'week':
+                end_date   = begin_date + pd.tseries.offsets.Day() * 6
+            elif period == 'month':
+                end_date = begin_date + pd.tseries.offsets.BMonthBegin() #- pd.tseries.offsets.BDay()
+
+
+            if extra_offset > 0 :
+                next_date = begin_date + extra_offset * pd.tseries.offsets.BDay()
+                if next_date >= end_date:
+                    next_date = end_date - pd.tseries.offsets.BDay()
+            elif extra_offset < 0:
+                next_date = end_date + extra_offset * pd.tseries.offsets.BDay()
+                if next_date < begin_date:
+                    next_date = begin_date
+            else:
+                next_date = begin_date
+
+            date = next_date
+            while date < end_date:
+                nxt = jutil.convert_datetime_to_int(date)
+                if self._is_trade_date(nxt):
+                    return nxt
+                date += pd.tseries.offsets.BDay()
+
+            date = next_date
+            while date >= begin_date:
+                nxt = jutil.convert_datetime_to_int(date)
+                if self._is_trade_date(nxt):
+                    return nxt
+                date -= pd.tseries.offsets.BDay()
+
+            # no trading day in this period, try next period
+            current_date = end_date - pd.tseries.offsets.BDay()
+            current = jutil.convert_datetime_to_int( current_date)
+            # Check if there are more trade dates
+            self._get_next_trade_date(current)
+
+        raise ValueError("no trading day after {0}".format(current))
+
     def go_next_rebalance_day(self):
         """
         update self.ctx.trade_date and last_date.
@@ -531,18 +644,27 @@ class AlphaBacktestInstance(BacktestInstance):
                     return True
             else:
                 # use natural week/month
-                next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
+                # next_period_day = jutil.get_next_period_day(current_date, self.ctx.strategy.period,
+                #                                             n=self.ctx.strategy.n_periods,
+                #                                             extra_offset=self.ctx.strategy.days_delay)
+                # # update current_date: next_period_day is a workday, but not necessarily a trade date
+                # if self._is_trade_date(next_period_day):
+                #     current_date = next_period_day
+                # else:
+                #     try:
+                #         current_date = self._get_next_trade_date(next_period_day)
+                #     except IndexError:
+                #         return True
+
+                try:
+                    current_date = self._get_next_period_day(current_date, self.ctx.strategy.period,
                                                             n=self.ctx.strategy.n_periods,
                                                             extra_offset=self.ctx.strategy.days_delay)
-                # update current_date: next_period_day is a workday, but not necessarily a trade date
-                if self._is_trade_date(next_period_day):
-                    current_date = next_period_day
-                else:
-                    try:
-                        current_date = self._get_next_trade_date(next_period_day)
-                    except IndexError:
-                        return True
-                
+                except ValueError:
+                    return True
+                except IndexError:
+                    return True
+
             if current_date > self.end_date:
                 return True
 
