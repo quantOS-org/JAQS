@@ -523,12 +523,16 @@ class AlphaBacktestInstance(BacktestInstance):
         current_date = jutil.convert_int_to_datetime(current)
         period = self.ctx.strategy.period
 
+        # set current date to first date of current period
+        # set offset to first date of previous period
         if period == 'day':
-            offset = pd.tseries.offsets.BDay()  # move to next business day
+            offset = pd.tseries.offsets.BDay()
         elif period == 'week':
-            offset = pd.tseries.offsets.Week(weekday=0)  # move to next Monday
+            offset = pd.tseries.offsets.Week(weekday=0)
+            current_date -= pd.tseries.offsets.Day(current_date.weekday())
         elif period == 'month':
-            offset = pd.tseries.offsets.BMonthBegin()  # move to first business day of next month
+            offset = pd.tseries.offsets.BMonthBegin()
+            current_date -= pd.tseries.offsets.Day(current_date.day - 1)
         else:
             raise NotImplementedError("Frequency as {} not support".format(period))
 
