@@ -9,6 +9,7 @@ from abc import abstractmethod
 from six import with_metaclass
 
 import numpy as np
+import pandas as pd
 
 from jaqs.data.basic import GoalPosition
 from jaqs.util.sequence import SequenceGenerator
@@ -405,6 +406,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.position_ratio = props.get('position_ratio', 0.98)
         self.single_symbol_weight_limit = props.get('single_symbol_weight_limit', 1.0)
 
+        self.use_pc_method(name='industry_neutral_equal_weight', func=self.industry_neutral_equal_weight, options=None)
+        self.use_pc_method(name='industry_neutral_index_weight', func=self.industry_neutral_index_weight, options=None)
         self.use_pc_method(name='equal_weight', func=self.equal_weight, options=None)
         self.use_pc_method(name='mc', func=self.optimize_mc, options={'util_func': self.util_net_signal,
                                                                            'constraints': None,
@@ -429,7 +432,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                 'index_weight',
                                 'equal_index_weight',
                                 'market_value_weight',
-                                'market_value_sqrt_weight']:
+                                'market_value_sqrt_weight',
+                                'industry_neutral_index_weight',
+                                'industry_neutral_equal_weight']:
             pass
         else:
             raise NotImplementedError("pc_method = {:s}".format(self.pc_method))
@@ -531,6 +536,70 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     def equal_weight(self):
         # discrete
         weights = {k: 1.0 for k in self.ctx.snapshot_sub.index.values}
+        return weights, ''
+
+    def industry_neutral_equal_weight(self):
+        snap = self.ctx.snapshot_sub
+        snap['symbol'] = snap.index
+
+        # calculate weight distribution of all industry
+        df_weight = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[['total_mv', 'index_member', 'sw1']]
+        df_weight = df_weight[df_weight['index_member'] == 1]
+        df_weight['weight'] = df_weight['total_mv']/df_weight['total_mv'].sum()
+        df_industry_weight = df_weight.groupby('sw1')['weight'].sum()
+
+        # industries in portfolio
+        industry_list = list(set(snap['sw1'].values.flatten()))
+        df_industry_weight_sub = df_industry_weight.loc[industry_list]
+        df_industry_weight_sub = pd.DataFrame(df_industry_weight_sub)
+        df_industry_weight_sub.columns = ['weight']
+        df_industry_weight_sub['norm_weight'] = df_industry_weight_sub['weight']/df_industry_weight_sub['weight'].sum()
+        df_industry_weight_sub = df_industry_weight_sub.reset_index()
+
+        count_industry = pd.DataFrame(snap.groupby('sw1')['close'].count()).reset_index()
+        count_industry.columns = ['sw1', 'count']
+        count_industry['internal_weight'] = 1.0/count_industry['count']
+
+        snap = pd.merge(left = snap, right = count_industry[['sw1', 'internal_weight']], how = 'left', on = 'sw1')
+        snap = pd.merge(left = snap, right = df_industry_weight_sub[['sw1', 'norm_weight']], how = 'left', on = 'sw1')
+        snap['weight'] = snap['internal_weight'] * snap['norm_weight']
+        df_weight = snap[['symbol','weight']]
+
+        df_weight = df_weight.set_index('symbol')
+        weights = df_weight['weight'].to_dict()
+
+        return weights, ''
+
+    def industry_neutral_index_weight(self):
+        snap = self.ctx.snapshot_sub
+        snap['symbol'] = snap.index
+
+        # calculate weight distribution of all industry
+        df_weight = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[['total_mv', 'index_member', 'sw1']]
+        df_weight = df_weight[df_weight['index_member'] == 1]
+        df_weight['weight'] = df_weight['total_mv']/df_weight['total_mv'].sum()
+        df_industry_weight = df_weight.groupby('sw1')['weight'].sum()
+
+        # industries in portfolio
+        industry_list = list(set(snap['sw1'].values.flatten()))
+        df_industry_weight_sub = df_industry_weight.loc[industry_list]
+        df_industry_weight_sub = pd.DataFrame(df_industry_weight_sub)
+        df_industry_weight_sub.columns = ['weight']
+        df_industry_weight_sub['norm_weight'] = df_industry_weight_sub['weight']/df_industry_weight_sub['weight'].sum()
+        df_industry_weight_sub = df_industry_weight_sub.reset_index()
+
+        count_industry = pd.DataFrame(snap.groupby('sw1')['index_weight'].sum()).reset_index()
+        count_industry.columns = ['sw1', 'agg_index_weight']
+
+        snap = pd.merge(left = snap, right = count_industry[['sw1', 'agg_index_weight']], how = 'left', on = 'sw1')
+        snap['internal_weight'] = snap['index_weight']/snap['agg_index_weight']
+        snap = pd.merge(left = snap, right = df_industry_weight_sub[['sw1', 'norm_weight']], how = 'left', on = 'sw1')
+        snap['weight'] = snap['internal_weight'] * snap['norm_weight']
+        df_weight = snap[['symbol','weight']]
+
+        df_weight = df_weight.set_index('symbol')
+        weights = df_weight['weight'].to_dict()
+
         return weights, ''
 
     def market_value_weight(self, sqrt=False):
