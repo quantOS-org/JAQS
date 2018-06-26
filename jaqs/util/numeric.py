@@ -1,10 +1,12 @@
 # encoding: utf-8
 import numpy as np
+import pandas as pd
 
 
 def quantilize_without_nan(mat, n_quantiles=5, axis=-1):
-    mask = np.isnan(mat)
-    
+    # mask = np.isnan(mat)
+    mask = pd.isnull(mat)
+
     rank = mat.argsort(axis=axis).argsort(axis=axis)  # int
     
     count = np.sum(~mask, axis=axis)  # int
