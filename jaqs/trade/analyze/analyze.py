@@ -23,6 +23,7 @@ import os
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
+# import seaborn as sns
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import Formatter
@@ -310,9 +311,14 @@ class BaseAnalyzer(object):
 
         self._alpha_decay_image = None
         self._industry_overweight_images = None
+        self._alpha_decomposition_images = None
+        self._alpha_decomposition_industry_images = None
+
         self._average_industry_overweight = None
         self._alpha_decay_weight_image = None
         self._cum_alpha_weight_image = None
+        self._alpha_decomposition = None
+        self._industry_agg = None
         
     @property
     def trades(self):
@@ -810,7 +816,7 @@ class BaseAnalyzer(object):
 
         self._portfolio_data = df
 
-    def get_returns(self, compound_return=False, consider_commission=True, show_turnover_ratio=False):
+    def get_returns(self, compound_return=False, consider_commission=True, show_turnover_ratio=True):
         """
         Calculate strategy daily return and various metrics indicating strategy's performance.
         
@@ -899,6 +905,19 @@ class BaseAnalyzer(object):
             100 * (df_returns.loc[:, 'active'].std() * np.sqrt(common.CALENDAR_CONST.TRADE_DAYS_PER_YEAR))
         self.performance_metrics['Sharpe Ratio'] = (self.performance_metrics['Annual Return (%)']
                                                     / self.performance_metrics['Annual Volatility (%)'])
+
+        # self.performance_metrics['Annual Holding Alpha (%)'] = np.mean(self._alpha_decomposition['total_holding_alpha']) * 242/100
+        # self.performance_metrics['Annual Volatility of Holding Alpha (%)'] = np.std(self._alpha_decomposition['total_holding_alpha']) * sqrt(242)/100
+        # self.performance_metrics['Sharpe Ratio of Holding Alpha'] = self.performance_metrics['Annual Holding Alpha (%)']/self.performance_metrics['Annual Volatility of Holding Alpha (%)']
+        #
+        # self.performance_metrics['Annual Industry Holding Alpha (%)'] = np.mean(self._alpha_decomposition['industry_holding_alpha']) * 242/100
+        # self.performance_metrics['Annual Volatility of Industry Holding Alpha (%)'] = np.std(self._alpha_decomposition['industry_holding_alpha']) * sqrt(242)/100
+        # self.performance_metrics['Sharpe Ratio of Industry Holding Alpha'] = self.performance_metrics['Annual Industry Holding Alpha (%)']/self.performance_metrics['Annual Volatility of Industry Holding Alpha (%)']
+        #
+        # self.performance_metrics['Annual Stock Specific Holding Alpha (%)'] = np.mean(self._alpha_decomposition['stock_specific_holding_alpha']) * 242/100
+        # self.performance_metrics['Annual Volatility of Stock Specific Holding Alpha (%)'] = np.std(self._alpha_decomposition['stock_specific_holding_alpha']) * sqrt(242)/100
+        # self.performance_metrics['Sharpe Ratio of Stock Specific Holding Alpha'] = self.performance_metrics['Annual Stock Specific Holding Alpha (%)']/self.performance_metrics['Annual Volatility of Stock Specific Holding Alpha (%)']
+
         self.performance_metrics['Number of Trades']   = len(self.trades.index)
         self.performance_metrics['Total PNL']          = df_pnl.loc[:,'total_pnl'].sum()
         self.performance_metrics['Daily Win Rate(%)']  = win_rate*100
@@ -915,9 +934,22 @@ class BaseAnalyzer(object):
         self.performance_metrics_report = []
         self.performance_metrics_report.append(('Annual Return (%)',        "{:,.2f}".format( self.performance_metrics['Annual Return (%)']))     )
         self.performance_metrics_report.append(('Annual Volatility (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility (%)'])) )
+        self.performance_metrics_report.append(('Sharpe Ratio',             "{:,.2f}".format( self.performance_metrics['Sharpe Ratio']))          )
+
+        # self.performance_metrics_report.append(('Annual Holding Alpha (%)',        "{:,.2f}".format( self.performance_metrics['Annual Holding Alpha (%)']))     )
+        # self.performance_metrics_report.append(('Annual Volatility of Holding Alpha (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility of Holding Alpha (%)'])) )
+        # self.performance_metrics_report.append(('Sharpe Ratio of Holding Alpha',    "{:,.2f}".format( self.performance_metrics['Sharpe Ratio of Holding Alpha'])) )
+        #
+        # self.performance_metrics_report.append(('Annual Industry Holding Alpha (%)',        "{:,.2f}".format( self.performance_metrics['Annual Industry Holding Alpha (%)']))     )
+        # self.performance_metrics_report.append(('Annual Volatility of Industry Holding Alpha (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility of Industry Holding Alpha (%)'])) )
+        # self.performance_metrics_report.append(('Sharpe Ratio of Industry Holding Alpha',    "{:,.2f}".format( self.performance_metrics['Sharpe Ratio of Industry Holding Alpha'])) )
+        #
+        # self.performance_metrics_report.append(('Annual Stock Specific Holding Alpha (%)',        "{:,.2f}".format( self.performance_metrics['Annual Stock Specific Holding Alpha (%)']))     )
+        # self.performance_metrics_report.append(('Annual Volatility of Stock Specific Holding Alpha (%)',    "{:,.2f}".format( self.performance_metrics['Annual Volatility of Stock Specific Holding Alpha (%)'])) )
+        # self.performance_metrics_report.append(('Sharpe Ratio of Stock Specific Holding Alpha',    "{:,.2f}".format( self.performance_metrics['Sharpe Ratio of Stock Specific Holding Alpha'])) )
+
         if show_turnover_ratio:
             self.performance_metrics_report.append(('Annual Turnover Ratio',               "{:,.2f}".format( self.performance_metrics['Turnover Ratio']))    )
-        self.performance_metrics_report.append(('Sharpe Ratio',             "{:,.2f}".format( self.performance_metrics['Sharpe Ratio']))          )
         self.performance_metrics_report.append(('Total PNL',                "{:,.2f}".format( self.performance_metrics['Total PNL']))             )
         self.performance_metrics_report.append(('Commission',               "{:,.2f}".format( self.performance_metrics['Commission']))            )
         self.performance_metrics_report.append(('Number of Trades',         self.performance_metrics['Number of Trades']))
@@ -1054,6 +1086,222 @@ class BaseAnalyzer(object):
         self.plot_cum_alpha_weight(df_alpha_weight,result_dir)
         self._cum_alpha_weight_image = "cum_alpha_weight.png"
 
+    def analyze_alpha_contribution(self, result_dir):
+        """
+        Calculate alpha contribution from industry and specific stocks
+        """
+        if 'sw1' not in self.dataview.data_d.columns.levels[1]:
+            print("Ignore industry overwight analysis for missing sw1 in dataview")
+            return
+
+        # Get stock weight in the portfolio
+        df_weight = self.holding_data.get_ts('weight')
+        df_weight = pd.DataFrame(df_weight.mean(axis=0))
+        df_weight.columns = ['mean_weight']
+        df_weight = pd.merge(left=df_weight, right=self.dataview.data_inst[['name']], left_index=True, right_index=True,
+                             how='left')
+        df_weight = df_weight[df_weight['mean_weight'] > 0]
+
+        # Calculate industry weight in the portfolio
+        raw_weight = self.holding_data.get_ts('weight')[df_weight.index]
+        index = self.dataview.get_ts('sw1')[df_weight.index]
+        index = index.loc[raw_weight.index]
+
+        matching = {
+            '110000': 'NLMY',
+            '210000': 'Digging',
+            '220000': 'Chemistry',
+            '230000': 'Metal',
+            '240000': 'Nonferrous Metal',
+            '270000': 'Electronic',
+            '280000': 'Car',
+            '330000': 'Applicants',
+            '340000': 'Food',
+            '350000': 'Clothing',
+            '360000': 'Light Industrials',
+            '370000': 'Health Care',
+            '410000': 'Utility',
+            '420000': 'Transportation',
+            '430000': 'Housing',
+            '450000': 'Commercial',
+            '460000': 'Service',
+            '480000': 'Bank',
+            '490000': 'Non bank',
+            '510000': 'Others',
+            '610000': 'Construction Material',
+            '620000': 'Construction decoration',
+            '630000': 'Electronic equipment',
+            '640000': 'Mechenical equipment',
+            '650000': 'Army',
+            '710000': 'IT',
+            '720000': 'Media',
+            '730000': 'Telecom',
+            'nan': 'Unclassified'
+        }
+
+        for key, value in matching.items():
+            index = index.replace(key, value)
+
+        def group_sum(df, group_daily):
+            groups = np.unique(group_daily.values.flatten())
+            mask = groups == 'nan'
+            groups = groups[np.logical_not(mask)]
+            res = pd.DataFrame(index=df.index, columns=groups, data=np.nan)
+            for g in groups:
+                mask = group_daily == g
+                tmp = df[mask]
+                res.loc[:, g] = tmp.sum(axis=1)
+            return res
+
+        weight_portfolio = group_sum(raw_weight, index)
+
+        # Calculate index weight in the portfolio
+        raw_index_weight = self.dataview.get_ts('index_weight')
+        raw_industry = self.dataview.get_ts('sw1')
+
+        for key, value in matching.items():
+            raw_industry = raw_industry.replace(key, value)
+
+        weight_index = group_sum(raw_index_weight, raw_industry)
+        weight_overweight = weight_portfolio - weight_index
+
+        START_DATE, END_DATE = weight_overweight.index.values[0], weight_overweight.index.values[-1]
+
+        # Get the SW industry daily returns
+        df_industry, msg = self.data_api.query(view="jz.industryIndexDaily",
+                                         filter="start_date=%d&end_date=%d" % (START_DATE, END_DATE), fields='preclose')
+
+        mapping = {
+            '801010.SI': 'NLMY',
+            '801020.SI': 'Digging',
+            '801030.SI': 'Chemistry',
+            '801040.SI': 'Metal',
+            '801050.SI': 'Nonferrous Metal',
+            '801080.SI': 'Electronic',
+            '801880.SI': 'Car',
+            '801110.SI': 'Applicants',
+            '801120.SI': 'Food',
+            '801130.SI': 'Clothing',
+            '801140.SI': 'Light Industrials',
+            '801150.SI': 'Health Care',
+            '801160.SI': 'Utility',
+            '801170.SI': 'Transportation',
+            '801180.SI': 'Housing',
+            '801200.SI': 'Commercial',
+            '801210.SI': 'Service',
+            '801780.SI': 'Bank',
+            '801790.SI': 'Non bank',
+            '801230.SI': 'Others',
+            '801710.SI': 'Construction Material',
+            '801720.SI': 'Construction decoration',
+            '801730.SI': 'Electronic equipment',
+            '801890.SI': 'Mechenical equipment',
+            '801740.SI': 'Army',
+            '801750.SI': 'IT',
+            '801760.SI': 'Media',
+            '801770.SI': 'Telecom'
+        }
+
+        for key, value in mapping.items():
+            df_industry = df_industry.replace(key, value)
+
+        # Calculate industry daily return
+        df_industry['ret'] = (df_industry['close'] - df_industry['preclose']) / df_industry['preclose']
+        df_industry['trade_date'] = df_industry['trade_date'].apply(lambda x: int(x))
+        df_industry_ret = df_industry.pivot_table(index='trade_date', columns='symbol', values='ret')
+
+        # Calculate index daily return
+        index_ret = self.dataview.data_benchmark.pct_change()
+        index_ret.columns = ['index_ret']
+        index_ret = index_ret.loc[df_industry_ret.index]
+
+        # Calculate industry daily alpha
+        df_industry_alpha = pd.concat([df_industry_ret, index_ret], axis=1)
+        df_industry_alpha = df_industry_alpha.sub(df_industry_alpha['index_ret'], axis=0)
+        del df_industry_alpha['index_ret']
+
+        weight_overweight_shift = weight_overweight.shift(1)
+        df_industry_alpha_stock = weight_overweight_shift.mul(df_industry_alpha)
+        df_industry_alpha_daily = df_industry_alpha_stock.sum(axis=1)
+
+        # Get the total alpha on each day
+        raw_alpha = self.holding_data.get_ts('active_holding_return')
+        raw_weight = self.holding_data.get_ts('weight')
+        df_alpha = raw_alpha.mul(raw_weight)
+        total_alpha = df_alpha.sum(axis=1)
+
+        df_alpha_all = pd.concat([total_alpha, df_industry_alpha_daily], axis=1)
+        df_alpha_all.columns = ['total_holding_alpha', 'industry_holding_alpha']
+        df_alpha_all['stock_specific_holding_alpha'] = df_alpha_all['total_holding_alpha'] - df_alpha_all['industry_holding_alpha']
+        df_alpha_all *= 10000
+
+        df_alpha_sum = df_alpha_all.sum()/100
+        df_alpha_mean = df_alpha_all.mean() * 242 / 100
+        df_alpha_std  = df_alpha_all.std() * np.sqrt(242) / 100
+        df_alpha_sharpe = df_alpha_mean/df_alpha_std
+        df_alpha_agg = pd.concat([df_alpha_sum, df_alpha_mean, df_alpha_std, df_alpha_sharpe], axis = 1)
+        df_alpha_agg.columns = ['Total Alpha(%)', 'Annual Return(%)', 'Annual Volatility(%)', 'Sharpe']
+        df_alpha_agg = df_alpha_agg.T
+        df_alpha_agg.columns = ['Holding Alpha', 'Industry Holding Alpha', 'Stock Specific Holding Alpha']
+
+        df_industry_alpha_byindustry = df_industry_alpha_stock.sum(axis = 0) * 100
+        df_industry_agg = pd.concat([df_industry_alpha_byindustry, self._average_industry_overweight], axis = 1)
+        df_industry_agg.columns = ['total alpha', 'portfolio', 'index', 'overweight']
+        df_industry_agg = df_industry_agg.sort_values('total alpha', ascending = False)
+
+        # Aggregate the alpha by month
+        df_alpha_all_month_total = df_alpha_all.copy()
+        df_alpha_all_month_total/= 100
+        df_alpha_all_month_total['date'] = df_alpha_all_month_total.index
+        df_alpha_all_month_total['year_month'] = df_alpha_all_month_total['date'].apply(lambda x: str(int(x))[:6])
+        del df_alpha_all_month_total['date']
+        df_alpha_all_month_total = df_alpha_all_month_total.groupby('year_month').sum()
+        df_alpha_all_month_total.columns = ['Total', 'Industry', 'Stock specific']
+
+        df_alpha_all_month_industry = df_industry_alpha_stock.copy()
+        df_alpha_all_month_industry *= 100
+        df_alpha_all_month_industry['date'] = df_alpha_all_month_industry.index
+        df_alpha_all_month_industry['year_month'] = df_alpha_all_month_industry['date'].apply(lambda x: str(int(x))[:6])
+        del df_alpha_all_month_industry['date']
+        df_alpha_all_month_industry = df_alpha_all_month_industry.groupby('year_month').sum()
+
+        self._alpha_decomposition_images = []
+        self._alpha_decomposition_industry_images = []
+
+        image_name1 = 'total_alpha_m'
+        self._alpha_decomposition_images = 'total_alpha_m.png'
+        self.plot_return_heatmap(df_alpha_all_month_total, image_name1, result_dir, (6,12))
+
+        image_name2 = 'industry_alpha_m'
+        self._alpha_decomposition_industry_images = 'industry_alpha_m.png'
+        self.plot_return_heatmap(df_alpha_all_month_industry, image_name2, result_dir, (20,12))
+
+        self._industry_agg = df_industry_agg
+        self._alpha_decomposition = df_alpha_agg
+
+    def plot_return_heatmap(self, df, image_name, output_folder, figsize):
+
+        # plot
+        # df_factor_heatmap_pivot = df_factor_heatmap.pivot('year', 'month', single_factor_name)
+        import seaborn as sns
+        cmap = sns.diverging_palette(220, 10, as_cmap=True)
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+        ax = sns.heatmap(df, ax=ax, annot=True, center=0,
+                         annot_kws={"size": 10},
+                         fmt="0.2f", linewidths=0.5,
+                         square=False, cbar=True, cmap=cmap)
+        fig.subplots_adjust(hspace=0)
+        plt.yticks(rotation=0)
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        plt.tick_params(axis='both', which='major', labelsize=16)
+        plt.tight_layout()
+
+        fig.savefig(os.path.join(output_folder, image_name),
+                    facecolor=fig.get_facecolor(),
+                    dpi=fig.get_dpi())
+        plt.close(fig)
+
     def analyze_industry_overweight(self, result_dir):
         if 'sw1' not in self.dataview.data_d.columns.levels[1]:
             print("Ignore industry overwight analysis for missing sw1 in dataview")
@@ -1152,6 +1400,7 @@ class BaseAnalyzer(object):
         weight_industry_compare['overweight'] = weight_industry_compare['portfolio'] - weight_industry_compare['index']
         self._average_industry_overweight = weight_industry_compare.sort_values('overweight', ascending=False)
 
+
     def plot_industry_weight(self, df, industry_name, image_name, output_folder):
         idx0 = df.index.astype(str)
         n = len(idx0)
@@ -1226,10 +1475,14 @@ class BaseAnalyzer(object):
         dic['dailypnl_top5_metrics_report'] = self.dailypnl_top5_metrics_report
         dic['dailypnl_tail5_metrics_report'] = self.dailypnl_tail5_metrics_report
         dic['industry_overweight_images'] = self._industry_overweight_images
+        dic['alpha_decomposition_images'] = self._alpha_decomposition_images
+        dic['alpha_decomposition_industry_images'] = self._alpha_decomposition_industry_images
         dic['alpha_decay_image'] = self._alpha_decay_image
         dic['alpha_decay_weight_image'] = self._alpha_decay_weight_image
         dic['cum_alpha_weight_image'] = self._cum_alpha_weight_image
         dic['average_industry_overweight'] = self._average_industry_overweight
+        dic['alpha_decomposition'] = self._alpha_decomposition
+        dic['industry_agg'] = self._industry_agg
         self.report_dic.update(dic)
         
         r = Report(self.report_dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
@@ -1504,7 +1757,7 @@ class AlphaAnalyzer(BaseAnalyzer):
         '''
         print
         
-    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None, compound_rtn = False, show_turnover_ratio = False):
+    def do_analyze(self, result_dir, selected_sec=None, brinson_group=None, compound_rtn = False, show_turnover_ratio = True):
         if selected_sec is None:
             selected_sec = []
     
@@ -1547,6 +1800,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             print("Analyze alpha data...")
             self.analyze_alpha_decay(result_dir)
             self.analyze_industry_overweight(result_dir)
+            self.analyze_alpha_contribution(result_dir)
         else:
             print("Ignore analyzing alpha data")
 
