@@ -1144,7 +1144,7 @@ class BaseAnalyzer(object):
 
         def group_sum(df, group_daily):
             groups = np.unique(group_daily.values.flatten())
-            mask = groups == 'nan'
+            mask = pd.isnull(groups)
             groups = groups[np.logical_not(mask)]
             res = pd.DataFrame(index=df.index, columns=groups, data=np.nan)
             for g in groups:
@@ -1356,7 +1356,7 @@ class BaseAnalyzer(object):
 
         def group_sum(df, group_daily):
             groups = np.unique(group_daily.values.flatten())
-            mask = groups == 'nan'
+            mask = pd.isnull(groups)
             groups = groups[np.logical_not(mask)]
             res = pd.DataFrame(index=df.index, columns=groups, data=np.nan)
             for g in groups:
