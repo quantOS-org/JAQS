@@ -1115,7 +1115,7 @@ class BaseAnalyzer(object):
             '240000': 'Nonferrous Metal',
             '270000': 'Electronic',
             '280000': 'Car',
-            '330000': 'Applicants',
+            '330000': 'Appliance',
             '340000': 'Food',
             '350000': 'Clothing',
             '360000': 'Light Industrials',
@@ -1179,7 +1179,7 @@ class BaseAnalyzer(object):
             '801050.SI': 'Nonferrous Metal',
             '801080.SI': 'Electronic',
             '801880.SI': 'Car',
-            '801110.SI': 'Applicants',
+            '801110.SI': 'Appliance',
             '801120.SI': 'Food',
             '801130.SI': 'Clothing',
             '801140.SI': 'Light Industrials',
@@ -1215,6 +1215,19 @@ class BaseAnalyzer(object):
         index_ret.columns = ['index_ret']
         index_ret = index_ret.loc[df_industry_ret.index]
 
+        # Calculate index and industry period return from START_DATE to END_DATE
+        df_industry_period_start = df_industry[df_industry['trade_date'] == START_DATE][['close', 'symbol']]
+        df_industry_period_end   = df_industry[df_industry['trade_date'] == END_DATE][['close', 'symbol']]
+        df_industry_period       = pd.merge(left = df_industry_period_start, right = df_industry_period_end,
+                                            how = 'left', on = 'symbol', suffixes=('_start', '_end'))
+        df_industry_period['period_ret'] = (df_industry_period['close_end'] - df_industry_period['close_start'])/df_industry_period['close_start']
+
+        df_index_period = (self.dataview.data_benchmark.loc[END_DATE] - self.dataview.data_benchmark.loc[START_DATE])/self.dataview.data_benchmark.loc[START_DATE]
+        df_industry_period['index_ret'] = df_index_period[0]
+        df_industry_period['period_alpha'] = df_industry_period['period_ret'] - df_industry_period['index_ret']
+        df_industry_period['period_alpha'] *= 100
+        df_industry_period = df_industry_period.set_index('symbol')
+
         # Calculate industry daily alpha
         df_industry_alpha = pd.concat([df_industry_ret, index_ret], axis=1)
         df_industry_alpha = df_industry_alpha.sub(df_industry_alpha['index_ret'], axis=0)
@@ -1248,6 +1261,11 @@ class BaseAnalyzer(object):
         df_industry_agg = pd.concat([df_industry_alpha_byindustry, self._average_industry_overweight], axis = 1)
         df_industry_agg.columns = ['total alpha', 'portfolio', 'index', 'overweight']
         df_industry_agg = df_industry_agg.sort_values('total alpha', ascending = False)
+        df_industry_agg = pd.concat([df_industry_agg, df_industry_period['period_alpha']], axis = 1)
+        df_industry_agg['selection_alpha'] = df_industry_agg['overweight'] * df_industry_agg['period_alpha']
+        df_industry_agg['timing_alpha'] = df_industry_agg['total alpha'] - df_industry_agg['selection_alpha']
+        df_industry_agg = df_industry_agg[['total alpha', 'selection_alpha', 'timing_alpha', 'period_alpha', 'portfolio', 'index', 'overweight']]
+        df_industry_agg.columns = ['total alpha', 'selection alpha', 'timing alpha', 'period alpha', 'portfolio', 'index', 'overweight']
 
         # Aggregate the alpha by month
         df_alpha_all_month_total = df_alpha_all.copy()
@@ -1327,7 +1345,7 @@ class BaseAnalyzer(object):
             '240000': 'Nonferrous Metal',
             '270000': 'Electronic',
             '280000': 'Car',
-            '330000': 'Applicants',
+            '330000': 'Appliance',
             '340000': 'Food',
             '350000': 'Clothing',
             '360000': 'Light Industrials',
