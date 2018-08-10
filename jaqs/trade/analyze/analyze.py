@@ -275,9 +275,11 @@ class BaseAnalyzer(object):
     risk_metrics : dict
         
     """
-    def __init__(self):
+    def __init__(self, is_alpha_analyzer=True):
         self.file_folder = ""
-        
+
+        self._is_alpha_analyzer = is_alpha_analyzer
+
         self._raw_trades = None
         self._trades = None
         self._configs = None
@@ -713,7 +715,7 @@ class BaseAnalyzer(object):
         gp = merge.groupby(by='symbol')
         res = gp.apply(_apply,self.inst_map)        
         self.daily = res
-        if self.dataview:
+        if self._is_alpha_analyzer and self.dataview:
             self._build_holding_data()
             self._build_portfolio_data()
 
@@ -1092,6 +1094,10 @@ class BaseAnalyzer(object):
         """
         if 'sw1' not in self.dataview.data_d.columns.levels[1]:
             print("Ignore industry overwight analysis for missing sw1 in dataview")
+            return
+
+        if not self.data_api:
+            print("Ignore industry overwight analysis for missing data_api in dataview")
             return
 
         # Get stock weight in the portfolio
@@ -1556,7 +1562,7 @@ class BaseAnalyzer(object):
 
 class EventAnalyzer(BaseAnalyzer):
     def __init__(self):
-        super(EventAnalyzer, self).__init__()
+        super(EventAnalyzer, self).__init__(is_alpha_analyzer = False)
         
         self.metrics = dict()
         self.daily = None
