@@ -596,7 +596,10 @@ class DataView(object):
             self.universe = univ_list
             symbols_list = []
             for univ in univ_list:
-                symbols_list.extend(data_api.query_index_member(univ, self.extended_start_date_d, self.end_date))
+                if univ.endswith('.UNI'):
+                    symbols_list.extend(data_api.query_universe_member(univ, self.extended_start_date_d, self.end_date))
+                else:
+                    symbols_list.extend(data_api.query_index_member(univ, self.extended_start_date_d, self.end_date))
 
             self.symbol = sorted(list(set(symbols_list)))
         # else:
@@ -1082,34 +1085,40 @@ class DataView(object):
     def _prepare_comp_info(self):
         # if a symbol is index member of any one universe, its value of index_member will be 1.0
 
-        if False:
-            res = dict()
-            for univ in self.universe:
-                df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
-                res[univ] = df
-            df_res = pd.concat(res, axis=0)
-            df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
-
-            # Always include additional symbols
-            # for code in self.symbol:
-            #     if code not in df.columns:
-            #         df[code] = 1.0
-        else:
-            # tzxu 2018.5.28 only set index_member and index_weight of first universe
-            df = self.data_api.query_index_member_daily(self.universe[0], self.extended_start_date_d, self.end_date)
+        #  Backup code
+        #    Multiple universe
+        #     res = dict()
+        #     for univ in self.universe:
+        #         df = self.data_api.query_index_member_daily(univ, self.extended_start_date_d, self.end_date)
+        #         res[univ] = df
+        #     df_res = pd.concat(res, axis=0)
+        #     df = df_res.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+        #
+        #     # Always include additional symbols
+        #     # for code in self.symbol:
+        #     #     if code not in df.columns:
+        #     #         df[code] = 1.0
+        # else:
+        # tzxu 2018.5.28 only set index_member and index_weight of first universe
+        first_universe = self.universe[0]
+        if first_universe.endswith(".UNI"):
+            df = self.data_api.query_universe_member_daily(first_universe, self.extended_start_date_d, self.end_date)
             df = df.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+            self.append_df(df, 'index_member', is_quarterly=False)
 
-            # # Always include additional symbols
-            # for code in self.symbol:
-            #     if code not in df.columns:
-            #         df[code] = 0.0
+            # use weights of the first universe
+            df_weights = self.data_api.query_universe_weights_daily(first_universe, self.extended_start_date_d,
+                                                                    self.end_date)
+            self.append_df(df_weights, 'index_weight', is_quarterly=False)
+        else:
+            df = self.data_api.query_index_member_daily(first_universe, self.extended_start_date_d, self.end_date)
+            df = df.groupby(by='trade_date').apply(lambda df: df.any(axis=0)).astype(float)
+            self.append_df(df, 'index_member', is_quarterly=False)
 
-        self.append_df(df, 'index_member', is_quarterly=False)
-
-        # use weights of the first universe
-        df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d,
-                                                             self.end_date)
-        self.append_df(df_weights, 'index_weight', is_quarterly=False)
+            # use weights of the first universe
+            df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d,
+                                                                 self.end_date)
+            self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
     def _prepare_report_date(self):
         idx = self.data_q.index

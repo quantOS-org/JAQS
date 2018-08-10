@@ -854,6 +854,166 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         
         return res
 
+    def _get_universe_comp(self, universe, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+
+        Parameters
+        ----------
+        universe : str
+            separated by ','
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        list
+
+        """
+        # Remove mkt suffix
+
+        filter_argument = self._dic2url({'univ_id'   : universe,
+                                         'start_date': start_date,
+                                         'end_date'  : end_date})
+
+        df_io, err_msg = self.query("jz.univMember", fields="",
+                                    filter=filter_argument, orderby="univ_member")
+        self._raise_error_if_msg(err_msg)
+
+        return df_io, err_msg
+
+    def query_universe_member(self, universe, start_date, end_date):
+        """
+        Return list of symbols that have been in index during start_date and end_date.
+
+        Parameters
+        ----------
+        index : str
+            separated by ','
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        list
+
+        """
+        df_io, err_msg = self._get_universe_comp(universe, start_date, end_date)
+        return list(np.unique(df_io.loc[:, 'univ_member']))
+
+    def query_universe_member_daily(self, universe, start_date, end_date):
+        """
+        Get universe's members on each day during start_date and end_date.
+
+        Parameters
+        ----------
+        universe : str
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+            index dates, columns all securities that have ever been components,
+            values are 0 (not in) or 1 (in)
+
+        """
+        df_io, err_msg = self._get_universe_comp(universe, start_date, end_date)
+        if err_msg != '0,':
+            print(err_msg)
+
+        def str2int(s):
+            if isinstance(s, basestring):
+                return int(s) if s else 99999999
+            elif isinstance(s, (int, np.integer, float, np.float)):
+                return s
+            else:
+                raise NotImplementedError("type s = {}".format(type(s)))
+
+        # df_io.loc[:, 'in_date'] = df_io.loc[:, 'in_date'].apply(str2int)
+        # df_io.loc[:, 'out_date'] = df_io.loc[:, 'out_date'].apply(str2int)
+
+        # df_io.set_index('symbol', inplace=True)
+        dates = self.query_trade_dates(start_date=start_date, end_date=end_date)
+        dates = pd.Series(dates)
+
+        df_io = df_io.rename(columns={'univ_weight': 'weight', 'univ_member':'symbol'})
+        df_io = df_io[['trade_date', 'symbol','weight']]
+
+        dic = dict()
+        gp = df_io.groupby(by='symbol')
+        for sec, df in gp:
+            mask = np.zeros_like(dates, dtype=np.integer)
+            for idx, row in df.iterrows():
+                bool_index = dates.isin(df['trade_date'])
+                mask[bool_index] = 1
+            dic[sec] = mask
+
+        res = pd.DataFrame(index=dates, data=dic)
+        res.index.name = 'trade_date'
+
+        return res
+
+    def query_universe_weights_range(self, universe, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+
+        Parameters
+        ----------
+        index : str
+            separated by ','
+        trade_date : int
+
+        Returns
+        -------
+        pd.DataFrame
+
+        """
+        df_io, msg = self._get_universe_comp(universe, start_date, end_date)
+        if msg != '0,':
+            print(msg)
+
+        df_io = df_io.rename(columns={'univ_weight': 'weight', 'univ_member':'symbol'})
+        df_io = df_io[['trade_date', 'symbol','weight']]
+        df_io = df_io.astype({'weight': float, 'trade_date': np.integer})
+        df_io.loc[:, 'weight'] = df_io['weight'] # / 100.
+        df_io = df_io.pivot(index='trade_date', columns='symbol', values='weight')
+        df_io = df_io.fillna(0.0)
+        return df_io
+
+    def query_universe_weights_daily(self, universe, start_date, end_date):
+        """
+        Return all securities that have been in index during start_date and end_date.
+
+        Parameters
+        ----------
+        universe : str
+        start_date : int
+        end_date : int
+
+        Returns
+        -------
+        res : pd.DataFrame
+            Index is trade_date, columns are symbols.
+
+        """
+
+        start_dt = jutil.convert_int_to_datetime(start_date)
+        start_dt_extended = start_dt - pd.Timedelta(days=45)
+        start_date_extended = jutil.convert_datetime_to_int(start_dt_extended)
+        trade_dates = self.query_trade_dates(start_date_extended, end_date)
+
+        df_weight_raw = self.query_universe_weights_range(universe, start_date=start_date_extended, end_date=end_date)
+        res = df_weight_raw.reindex(index=trade_dates)
+        res = res.fillna(method='ffill')
+        res = res.loc[res.index >= start_date]
+        res = res.loc[res.index <= end_date]
+
+        mask_col = res.sum(axis=0) > 0
+        res = res.loc[:, mask_col]
+
+        return res
+
     def query_industry_daily(self, symbol, start_date, end_date, type_='SW', level=1):
         """
         Get index components on each day during start_date and end_date.
