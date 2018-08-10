@@ -63,4 +63,4 @@
 
 接口还在进一步的丰富过程中。
 
-详细的说明文档，please refer to `tushare <http://tushare.org/pro>`__
+详细的说明文档，please refer to `quantos <https://www.quantos.org>`__

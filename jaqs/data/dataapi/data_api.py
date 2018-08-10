@@ -61,7 +61,7 @@ class DataApi(object):
 
     """
     
-    def __init__(self, addr="tcp://data.tushare.org:8910", use_jrpc=False):
+    def __init__(self, addr="tcp://data.quantos.org:8910", use_jrpc=False):
         """Create DataApi client.
         
         If use_jrpc, try to load the C version of JsonRpc. If failed, use pure

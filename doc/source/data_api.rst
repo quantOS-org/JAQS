@@ -20,7 +20,7 @@
 
 .. code:: python
 
-    api = DataApi(addr='tcp://data.tushare.org:8910')
+    api = DataApi(addr='tcp://data.quantos.org:8910')
     api.login("phone", "token") 
 
 调用数据接口

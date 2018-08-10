@@ -1,5 +1,5 @@
 {
-  "remote.data.address": "tcp://data.tushare.org:8910",
+  "remote.data.address": "tcp://data.quantos.org:8910",
   "remote.data.username": "17621969269",
   "remote.data.password": "eyJhbGciOiJIUzI1NiJ9.eyJjcmVhdGVfdGltZSI6IjE1MTIwMjA0OTQwMzciLCJpc3MiOiJhdXRoMCIsImlkIjoiMTc2MjE5NjkyNjkifQ.WQvI9k6dvXe5zIzQwyuPI4BM0Py1OSYFENIQ3z0RG6c"
 }
