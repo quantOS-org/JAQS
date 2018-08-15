@@ -18,7 +18,7 @@ from jaqs.trade import (AlphaStrategy, AlphaBacktestInstance, AlphaTradeApi,
 import jaqs.trade.analyze as ana
 
 data_config = {
-    "remote.data.address": "tcp://data.tushare.org:8910",
+    "remote.data.address": "tcp://data.quantos.org:8910",
     "remote.data.username": "YourTelephoneNumber",
     "remote.data.password": "YourToken"
 }
