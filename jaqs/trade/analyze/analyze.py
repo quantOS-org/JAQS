@@ -1100,8 +1100,10 @@ class BaseAnalyzer(object):
             print("Ignore industry overwight analysis for missing data_api in dataview")
             return
 
+        # Get the start and end date
+        START_DATE, END_DATE = self.configs['start_date'], self.configs['end_date']
         # Get stock weight in the portfolio
-        df_weight = self.holding_data.get_ts('weight')
+        df_weight = self.holding_data.get_ts('weight').loc[START_DATE:END_DATE, :]
         df_weight = pd.DataFrame(df_weight.mean(axis=0))
         df_weight.columns = ['mean_weight']
         df_weight = pd.merge(left=df_weight, right=self.dataview.data_inst[['name']], left_index=True, right_index=True,
@@ -1109,8 +1111,8 @@ class BaseAnalyzer(object):
         df_weight = df_weight[df_weight['mean_weight'] > 0]
 
         # Calculate industry weight in the portfolio
-        raw_weight = self.holding_data.get_ts('weight')[df_weight.index]
-        index = self.dataview.get_ts('sw1')[df_weight.index]
+        raw_weight = self.holding_data.get_ts('weight')[df_weight.index].loc[START_DATE:END_DATE, :]
+        index = self.dataview.get_ts('sw1')[df_weight.index].loc[START_DATE:END_DATE, :]
         index = index.loc[raw_weight.index]
 
         matching = {
@@ -1162,16 +1164,14 @@ class BaseAnalyzer(object):
         weight_portfolio = group_sum(raw_weight, index)
 
         # Calculate index weight in the portfolio
-        raw_index_weight = self.dataview.get_ts('index_weight')
-        raw_industry = self.dataview.get_ts('sw1')
+        raw_index_weight = self.dataview.get_ts('index_weight').loc[START_DATE:END_DATE, :]
+        raw_industry = self.dataview.get_ts('sw1').loc[START_DATE:END_DATE, :]
 
         for key, value in matching.items():
             raw_industry = raw_industry.replace(key, value)
 
         weight_index = group_sum(raw_index_weight, raw_industry)
         weight_overweight = weight_portfolio - weight_index
-
-        START_DATE, END_DATE = weight_overweight.index.values[0], weight_overweight.index.values[-1]
 
         # Get the SW industry daily returns
         df_industry, msg = self.data_api.query(view="jz.industryIndexDaily",
@@ -1221,6 +1221,8 @@ class BaseAnalyzer(object):
         index_ret.columns = ['index_ret']
         index_ret = index_ret.loc[df_industry_ret.index]
 
+        START_DATE, END_DATE = weight_overweight.index[0], weight_overweight.index[-1]
+        
         # Calculate index and industry period return from START_DATE to END_DATE
         df_industry_period_start = df_industry[df_industry['trade_date'] == START_DATE][['close', 'symbol']]
         df_industry_period_end   = df_industry[df_industry['trade_date'] == END_DATE][['close', 'symbol']]
@@ -1244,8 +1246,8 @@ class BaseAnalyzer(object):
         df_industry_alpha_daily = df_industry_alpha_stock.sum(axis=1)
 
         # Get the total alpha on each day
-        raw_alpha = self.holding_data.get_ts('active_holding_return')
-        raw_weight = self.holding_data.get_ts('weight')
+        raw_alpha = self.holding_data.get_ts('active_holding_return').loc[START_DATE:END_DATE, :]
+        raw_weight = self.holding_data.get_ts('weight').loc[START_DATE:END_DATE, :]
         df_alpha = raw_alpha.mul(raw_weight)
         total_alpha = df_alpha.sum(axis=1)
 
