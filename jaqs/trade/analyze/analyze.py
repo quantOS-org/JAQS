@@ -1252,8 +1252,8 @@ class BaseAnalyzer(object):
         df_alpha_mean = df_alpha_all.mean() * 242 / 100
         df_alpha_std  = df_alpha_all.std() * np.sqrt(242) / 100
         df_alpha_sharpe = df_alpha_mean/df_alpha_std
-        df_alpha_agg = pd.concat([df_alpha_sum, df_alpha_mean, df_alpha_std, df_alpha_sharpe], axis = 1)
-        df_alpha_agg.columns = ['Total Alpha(%)', 'Annual Return(%)', 'Annual Volatility(%)', 'Sharpe']
+        df_alpha_agg = pd.concat([df_alpha_mean, df_alpha_std, df_alpha_sharpe], axis = 1)
+        df_alpha_agg.columns = ['Annual Alpha(%)', 'Annual Alpha Volatility(%)', 'IR']
         df_alpha_agg = df_alpha_agg.T
         df_alpha_agg.columns = ['Holding Alpha', 'Industry Holding Alpha', 'Stock Specific Holding Alpha']
 
