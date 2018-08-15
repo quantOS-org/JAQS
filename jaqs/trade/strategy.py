@@ -514,6 +514,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
 
         # Step.3 use the registered method to calculate weights and get weights for all symbols in universe
         weights_sub_universe, msg = func(**options)
+
+        # portfolio balance check
         weights_all_universe = {symbol: weights_sub_universe.get(symbol, 0.0) for symbol in self.ctx.universe}
         if msg:
             print(msg)
@@ -543,9 +545,12 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         snap['symbol'] = snap.index
 
         # calculate weight distribution of all industry
-        df_weight = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[['total_mv', 'index_member', 'sw1']]
-        df_weight = df_weight[df_weight['index_member'] == 1]
-        df_weight['weight'] = df_weight['total_mv']/df_weight['total_mv'].sum()
+        # df_weight = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[['total_mv', 'index_member', 'sw1']]
+        # df_weight = df_weight[df_weight['index_member'] == 1]
+        # df_weight['weight'] = df_weight['total_mv']/df_weight['total_mv'].sum()
+        df_weight = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[['index_weight', 'sw1']]
+        df_weight.columns = ['weight', 'sw1']
+
         df_industry_weight = df_weight.groupby('sw1')['weight'].sum()
 
         # industries in portfolio
@@ -553,7 +558,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         df_industry_weight_sub = df_industry_weight.loc[industry_list]
         df_industry_weight_sub = pd.DataFrame(df_industry_weight_sub)
         df_industry_weight_sub.columns = ['weight']
-        df_industry_weight_sub['norm_weight'] = df_industry_weight_sub['weight']/df_industry_weight_sub['weight'].sum()
+        df_industry_weight_sub['equal_weight'] = pd.DataFrame(snap.groupby('sw1')['sw1'].count()/len(snap))
+
+        df_industry_weight_sub['dif'] = df_industry_weight_sub['equal_weight'] - df_industry_weight_sub['weight']
+
         df_industry_weight_sub = df_industry_weight_sub.reset_index()
 
         count_industry = pd.DataFrame(snap.groupby('sw1')['close'].count()).reset_index()
