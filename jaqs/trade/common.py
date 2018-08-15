@@ -9,11 +9,11 @@ class ReprEnum(Enum):
                                     self._name_)
     
     def __str__(self):
-        return self.__repr__()
+        return self.value
     
     @property
     def full_name(self):
-        return str(self)
+        return self.__repr__()
     
     @classmethod
     def to_enum(cls, key):
