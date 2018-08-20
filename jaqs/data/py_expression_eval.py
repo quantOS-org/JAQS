@@ -651,11 +651,11 @@ class Parser(object):
     # Time Series Two Parameters
     def corr(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling( y, n).corr()
+        return x.rolling(n).corr(y)
 
     def cov(self, x, y, n):
         (x, y) = self._align_bivariate(x, y)
-        return x.rolling( y, n).cov()
+        return x.rolling(n).cov(y)
 
     # financial statement data
     @staticmethod
