@@ -334,6 +334,7 @@ class DataView(object):
 
 
         self.lgt_data = {"lgt_holding", "lgt_holding_ratio"}
+        self.rating_data = {"num_rating"}
 
         self.default_fields = {
                           '_daily_adjust_factor', '_limit', 'adjust_factor', 'close',
@@ -436,6 +437,7 @@ class DataView(object):
                 or field_name in self.custom_daily_fields
                 or field_name in self.group_fields
                 or field_name in self.risk_model_fields
+                or field_name in self.rating_data
                 or field_name in self.lgt_data)
         return flag
 
@@ -479,7 +481,8 @@ class DataView(object):
                     'fin_indicator': self.fin_indicator,
                     'group': self.group_fields,
                     'risk_model':self.risk_model_fields,
-                    'lgt_data' : self.lgt_data
+                    'lgt_data' : self.lgt_data,
+                    'rating_data': self.rating_data
                     }
         pool_map['daily'] = set.union(pool_map['market_daily'],
                                       pool_map['ref_daily'],
@@ -779,12 +782,40 @@ class DataView(object):
             multi_quarterly = self._fill_missing_idx_col(multi_quarterly, index=None, symbols=self.symbol)
             print("Query data - quarterly fields prepared.")
 
-        # FIXME: patch for lgt_data
+        # FIXME: patch for lgt_data and rating_data
         fields_lgt_ind = self._get_fields('lgt_data', fields, append=True)
         if fields_lgt_ind:
             multi_daily = self.query_lgt_data(fields_lgt_ind, multi_daily)
 
+        fields_rating_ind = self._get_fields('rating_data', fields, append=True)
+        if fields_rating_ind:
+            multi_daily = self.query_rating_data(fields_rating_ind, multi_daily)
+
         return multi_daily, multi_quarterly
+
+    def query_rating_data(self, fields_rating_ind, daily_df):
+        filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
+            ','.join(self.symbol),
+            self.extended_start_date_q,
+            self.end_date)
+
+        df, msg = self.data_api.query(view='wd.secStockRatingConsus', filter=filter_str)
+
+        df_clean = df[['symbol', 'date', 'wrating_cycle', 'wrating_instnum']]
+        df_clean['wrating_cycle'] = df_clean['wrating_cycle'].str[-4:].astype(int) / 1000 * 30
+        df_clean['date'] = df_clean['date'].astype(int)
+        df_clean = df_clean[df_clean['wrating_cycle'] == 90]
+        df_rating = df_clean.pivot_table(values='wrating_instnum', index='date', columns='symbol').fillna(method='ffill')
+        df_rating = df_rating.replace(np.nan, 0)
+
+        data_d_orig = self.data_d
+        self.data_d = daily_df
+
+        self.append_df(df_rating, 'num_rating', is_quarterly=False)
+
+        daily_df = self.data_d
+        self.data_d = data_d_orig
+        return daily_df
 
     def query_lgt_data(self, fields_lgt_ind, daily_df):
         filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
@@ -803,7 +834,7 @@ class DataView(object):
         # 持仓比例数据
         holding_ratio = df.pivot_table(index='trade_date', columns='symbol', values='calculate_ratio')
 
-        # 获取除权除息日信�?
+        # 获取除权除息日信息
         df_dividend, msg = self.data_api.query_dividend(','.join(self.symbol), self.extended_start_date_d, self.end_date)
         if df_dividend is None:
             raise ValueError("query_dividend error: " + msg)
