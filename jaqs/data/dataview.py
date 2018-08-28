@@ -1183,12 +1183,31 @@ class DataView(object):
             self.append_df(df, field, is_quarterly=False)
 
     def _prepare_benchmark(self):
-        df_bench, msg = self.data_api.daily(self.benchmark,
-                                            start_date=self.extended_start_date_d, end_date=self.end_date,
-                                            adjust_mode=self.adjust_mode,
-                                            fields='trade_date,symbol,close,vwap,volume,turnover')
-        # TODO: we want more than just close price of benchmark
-        df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
+        if self.benchmark == 'EW_UNIVERSE':
+            df_close = self.get_ts('close_adj', start_date=self.extended_start_date_d)
+            df_ret   = df_close.pct_change()
+            df_float_mv = self.get_ts('float_mv', start_date=self.extended_start_date_d)
+            df_weight = df_float_mv.div(df_float_mv.sum(axis = 1), axis = 0)
+            df_ret_vw = df_weight.mul(df_ret).sum(axis = 1).replace(np.nan, 0.0)
+            df_price = (1 + df_ret_vw).cumprod()
+            df_price = pd.DataFrame(df_price)
+            df_price.columns = ['close']
+            df_bench = df_price
+        elif self.benchmark == 'VW_UNIVERSE':
+            df_close = self.get_ts('close_adj', start_date=self.extended_start_date_d)
+            df_ret   = df_close.pct_change()
+            df_ret_ew = df_ret.mean(axis = 1).replace(np.nan, 0.0)
+            df_price = (1 + df_ret_ew).cumprod()
+            df_price = pd.DataFrame(df_price)
+            df_price.columns = ['close']
+            df_bench = df_price
+        else:
+            df_bench, msg = self.data_api.daily(self.benchmark,
+                                                start_date=self.extended_start_date_d, end_date=self.end_date,
+                                                adjust_mode=self.adjust_mode,
+                                                fields='trade_date,symbol,close,vwap,volume,turnover')
+            # TODO: we want more than just close price of benchmark
+            df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
         return df_bench
 
     # --------------------------------------------------------------------------------------------------------
