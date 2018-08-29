@@ -1183,7 +1183,7 @@ class DataView(object):
             self.append_df(df, field, is_quarterly=False)
 
     def _prepare_benchmark(self):
-        if self.benchmark == 'EW_UNIVERSE':
+        if self.benchmark == 'VW_UNIVERSE':
             df_close = self.get_ts('close_adj', start_date=self.extended_start_date_d)
             df_ret   = df_close.pct_change()
             df_float_mv = self.get_ts('float_mv', start_date=self.extended_start_date_d)
@@ -1193,7 +1193,7 @@ class DataView(object):
             df_price = pd.DataFrame(df_price)
             df_price.columns = ['close']
             df_bench = df_price
-        elif self.benchmark == 'VW_UNIVERSE':
+        elif self.benchmark == 'EW_UNIVERSE':
             df_close = self.get_ts('close_adj', start_date=self.extended_start_date_d)
             df_ret   = df_close.pct_change()
             df_ret_ew = df_ret.mean(axis = 1).replace(np.nan, 0.0)
