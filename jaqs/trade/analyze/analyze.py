@@ -1333,18 +1333,17 @@ class BaseAnalyzer(object):
             print("Ignore industry overwight analysis for missing sw1 in dataview")
             return
 
+        START_DATE, END_DATE = self.configs['start_date'], self.configs['end_date']
         # 个股平均持仓
-        df_weight = self.holding_data.get_ts('weight')
-        date_list = df_weight.dropna().index
-        df_weight = df_weight.loc[date_list]
+        df_weight = self.holding_data.get_ts('weight').loc[START_DATE:END_DATE, :]
         df_weight = pd.DataFrame(df_weight.mean(axis=0))
         df_weight.columns = ['mean_weight']
         df_weight = pd.merge(left=df_weight, right=self.dataview.data_inst[['name']], left_index=True, right_index=True,
                              how='left')
         df_weight = df_weight[df_weight['mean_weight'] > 0]
 
-        raw_weight = self.holding_data.get_ts('weight')[df_weight.index].loc[date_list]
-        index = self.dataview.get_ts('sw1')[df_weight.index].loc[date_list]
+        raw_weight = self.holding_data.get_ts('weight')[df_weight.index].loc[START_DATE:END_DATE, :]
+        index = self.dataview.get_ts('sw1')[df_weight.index].loc[START_DATE:END_DATE, :]
         index = index.loc[raw_weight.index]
 
         matching = {
@@ -1396,8 +1395,8 @@ class BaseAnalyzer(object):
         weight_industry = group_sum(raw_weight, index)
 
         ## 指数行业分析
-        raw_index_weight = self.dataview.get_ts('index_weight').loc[date_list]
-        raw_industry = self.dataview.get_ts('sw1').loc[date_list]
+        raw_index_weight = self.dataview.get_ts('index_weight').loc[START_DATE:END_DATE, :]
+        raw_industry = self.dataview.get_ts('sw1').loc[START_DATE:END_DATE, :]
 
 
         for key, value in matching.items():
