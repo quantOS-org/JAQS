@@ -701,8 +701,11 @@ class Parser(object):
     def is_nan(df):
         return df.isnull()
 
-    def fill_nan(self, df, value=np.nan):
-        return df.fillna(value=value)
+    def fill_nan(self, df, value=None, fmethod = 'ffill'):
+        if value:
+            return df.fillna(value=value)
+        else:
+            return df.fillna(method = fmethod)
 
     @staticmethod
     def calc_return_abs(df, forward=1):
