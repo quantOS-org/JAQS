@@ -1030,7 +1030,8 @@ class DataView(object):
         
         for df in new_dfs:
             for col in df.columns.levels[0]:
-                merge[col] = df[col]
+                if not df[col].empty:
+                    merge[col] = df[col]
         
         merge.columns = merge.columns.swaplevel()
         merge = merge.sort_index(axis=1)
