@@ -373,7 +373,10 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
     def __init__(self, signal_model=None, stock_selector=None,
                  cost_model=None, risk_model=None,
                  pc_method="equal_weight",
-                 match_method="vwap"
+                 match_method="vwap",
+                 fc_selector=None,
+                 fc_constructor=None,
+                 fc_options=None
                  ):
         super(AlphaStrategy, self).__init__()
         
@@ -392,9 +395,14 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         self.weights = None
         
         self.pc_method = pc_method
-        
+
         self.goal_positions = None
         self.match_method = match_method
+
+        self.portfolio_construction = self.forecast_portfolio_construction if pc_method=="forecast" else self.default_portfolio_construction
+        self._fc_selector    = fc_selector if fc_selector else AlphaStrategy.default_forecast_selector
+        self._fc_constructor = fc_constructor if fc_constructor else AlphaStrategy.default_forecast_constructor
+        self._fc_options     = fc_options
 
     def init_from_config(self, props):
         Strategy.init_from_config(self, props)
@@ -435,6 +443,8 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                 'market_value_sqrt_weight',
                                 'industry_neutral_index_weight',
                                 'industry_neutral_equal_weight']:
+            pass
+        elif self.pc_method in ['forecast']:
             pass
         else:
             raise NotImplementedError("pc_method = {:s}".format(self.pc_method))
@@ -483,8 +493,9 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         cost_coef = 1.0
         net_signal = signal - risk_coef * risk - cost_coef * cost  # - liquid * liq_factor
         return net_signal
-    
-    def portfolio_construction(self, universe_list=None):
+
+
+    def default_portfolio_construction(self, universe_list=None):
         """
         Calculate target weights of each symbol in the strategy universe.
         User should not modify this function arbitrarily.
@@ -503,12 +514,18 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         # Step.1 filter and narrow down universe to sub-universe
         if self.stock_selector is not None:
             selected_list = self.stock_selector.get_selection()
-            universe_list = [s for s in universe_list if s in selected_list]
+            if type(selected_list) is pd.DataFrame:
+                self.ctx.forecast_selected_list = selected_list
+                universe_list = [s for s in universe_list if s in selected_list['symbol']]
+            else:
+                universe_list = [s for s in universe_list if s in selected_list]
+
         sub_univ = sorted(universe_list)
-        
+
         self.ctx.snapshot_sub = self.ctx.snapshot.loc[sub_univ, :]
-        
+
         # Step.2 pick the registered portfolio construction method
+
         rf = self.func_table[self.pc_method]
         func, options = rf.func, rf.options
 
@@ -534,6 +551,95 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
                                     for k, v in weights_all_universe.items()}
 
         self.weights = weights_all_universe
+
+    def forecast_portfolio_construction(self, universe_list=None):
+
+        assert callable(self._fc_selector), "fc_selector should be function"
+        assert callable(self._fc_constructor), "fc_constuctor should be function"
+
+        forecast_list = self._fc_selector(self, universe=universe_list)
+
+        options = {}
+        if self._fc_options:
+            options.update(self._fc_options)
+
+        self.weights = self._fc_constructor(self,
+                                            self.weights.copy() if self.weights else [],
+                                            forecast_list,
+                                            **options)
+
+    @staticmethod
+    def default_forecast_selector(self, forecast_field='close_adj', universe=None):
+        forecast = self.ctx.dataview.get_snapshot(self.ctx.trade_date)[[forecast_field]].copy()
+        forecast = forecast.rename( columns={forecast_field: "forecast"})
+        forecast['symbol'] = forecast.index
+        return forecast
+
+    @staticmethod
+    def default_forecast_constructor(self, cur_weights, forecast,
+                                     max_turnover=1,
+                                     alpha_threshold=0.0005,
+                                     turnover_cost_rate=0.001,
+                                     init_size=20):
+
+        forecast = forecast.sort_values(['forecast'], ascending=False)
+        forecast.index = forecast['symbol']
+        if not cur_weights:
+            new_weights = forecast[:init_size].copy()
+            new_weights.loc[:, 'weight'] = 1.0 / len(forecast)
+            new_weights.index = new_weights['symbol']
+            return new_weights[['weight']].T.to_dict(orient='records')[0]
+
+        cur_weights = pd.DataFrame({'symbol': list(cur_weights.keys()), 'weight': list(cur_weights.values())})
+        cur_weights = cur_weights[cur_weights['weight'] > 0].copy()
+        cur_weights.index = cur_weights['symbol']
+
+        cur_weights['forecast'] = forecast['forecast']
+        cur_weights['forecast'] = cur_weights['forecast'].fillna(0.0)
+        cur_weights = cur_weights.sort_values(['forecast'])
+        cur_weights['handled'] = False
+
+        turnover = 0.0
+        new_weights = []
+        for i in range(len(forecast)):
+            fc = forecast.iloc[i]
+            replaced = False
+            if fc['symbol'] not in cur_weights['symbol']:
+                for k in range(len(cur_weights)):
+                    tmp = cur_weights.iloc[k]
+                    if fc['forecast'] > tmp['forecast'] + turnover_cost_rate + alpha_threshold and \
+                            tmp['weight'] + turnover <= max_turnover:
+                        new_weights.append({'symbol': fc['symbol'], 'weight': tmp['weight']})
+                        new_weights.append({'symbol': tmp['symbol'], 'weight': 0})
+                        cur_weights['handled'][0] = True
+                        turnover += tmp['weight']
+                        replaced = True
+                        break
+                if not replaced:
+                    break
+            else:
+                tmp = cur_weights.loc[fc['symbol']]
+                cur_weights.loc[fc['symbol'], 'handled'] = True
+                new_weights.append({'symbol': fc['symbol'], 'weight': tmp['weight']})
+
+            cur_weights = cur_weights[cur_weights['handled'] != True].copy()
+            if cur_weights.empty or turnover >= max_turnover:
+                break
+
+        if not cur_weights.empty:
+            for i in range(len(cur_weights)):
+                tmp = cur_weights.iloc[i]
+                new_weights.append({'symbol': tmp['symbol'], 'weight': tmp['weight']})
+
+        new_weights = pd.DataFrame(new_weights)
+        w_sum = new_weights['weight'].sum()
+        if w_sum > 1e-8:  # else all zeros weights
+            new_weights.loc[:, 'weight'] /= w_sum
+
+        new_weights.index = new_weights['symbol']
+        del new_weights['symbol']
+
+        return new_weights.T.to_dict(orient='records')[0]
 
     def equal_weight(self):
         # discrete
