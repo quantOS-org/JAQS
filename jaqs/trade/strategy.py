@@ -591,6 +591,7 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
             return new_weights[['weight']].T.to_dict(orient='records')[0]
 
         cur_weights = pd.DataFrame({'symbol': list(cur_weights.keys()), 'weight': list(cur_weights.values())})
+        zero_weights = cur_weights[cur_weights['weight'] == 0].copy()
         cur_weights = cur_weights[cur_weights['weight'] > 0].copy()
         cur_weights.index = cur_weights['symbol']
 
@@ -635,6 +636,11 @@ class AlphaStrategy(Strategy, model.FuncRegisterable):
         w_sum = new_weights['weight'].sum()
         if w_sum > 1e-8:  # else all zeros weights
             new_weights.loc[:, 'weight'] /= w_sum
+
+        # Keep all removed stocks in weight, so when stock can be sold after it is tradable again after suspended.
+        tmp = zero_weights[ ~zero_weights['symbol'].isin(new_weights['symbol']) ]
+        if not tmp.empty:
+            new_weights = pd.concat([new_weights, tmp])
 
         new_weights.index = new_weights['symbol']
         del new_weights['symbol']
