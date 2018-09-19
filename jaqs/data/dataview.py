@@ -332,6 +332,21 @@ class DataView(object):
                             "expo_utilities"
                         }
 
+        self.consensus_data = [
+            "est_bps_fy0","est_cfps_fy0","est_dps_fy0","est_ebit_fy0","est_eps_fy0","est_oper_revenue_fy0","est_pb_fy0","est_pe_fy0","est_peg_fy0","est_roe_fy0","net_profit_fy0","rolling_type_fy0",
+            "est_bps_fy1","est_cfps_fy1","est_dps_fy1","est_ebit_fy1","est_eps_fy1","est_oper_revenue_fy1","est_pb_fy1","est_pe_fy1","est_peg_fy1","est_roe_fy1","net_profit_fy1","rolling_type_fy1",
+            "est_bps_fy2","est_cfps_fy2","est_dps_fy2","est_ebit_fy2","est_eps_fy2","est_oper_revenue_fy2","est_pb_fy2","est_pe_fy2","est_peg_fy2","est_roe_fy2","net_profit_fy2","rolling_type_fy2",
+            "est_bps_fy3","est_cfps_fy3","est_dps_fy3","est_ebit_fy3","est_eps_fy3","est_oper_revenue_fy3","est_pb_fy3","est_pe_fy3","est_peg_fy3","est_roe_fy3","net_profit_fy3","rolling_type_fy3",
+            "est_bps_fttm","est_cfps_fttm","est_dps_fttm","est_ebit_fttm","est_eps_fttm","est_oper_revenue_fttm","est_pb_fttm","est_pe_fttm","est_peg_fttm","est_roe_fttm","net_profit_fttm","rolling_type_fttm",
+            "est_bps_yoy","est_cfps_yoy","est_dps_yoy","est_ebit_yoy","est_eps_yoy","est_oper_revenue_yoy","est_pb_yoy","est_pe_yoy","est_peg_yoy","est_roe_yoy","net_profit_yoy","rolling_type_yoy",
+            "est_bps_yoy2","est_cfps_yoy2","est_dps_yoy2","est_ebit_yoy2","est_eps_yoy2","est_oper_revenue_yoy2","est_pb_yoy2","est_pe_yoy2","est_peg_yoy2","est_roe_yoy2","net_profit_yoy2","rolling_type_yoy2",
+            "est_bps_cagr","est_cfps_cagr","est_dps_cagr","est_ebit_cagr","est_eps_cagr","est_oper_revenue_cagr","est_pb_cagr","est_pe_cagr","est_peg_cagr","est_roe_cagr","net_profit_cagr","rolling_type_cagr" ]
+
+        self.stk_rating_data = [
+            "est_price_30d", "est_priceinstnum_30d", "wrating_avg_30d", "wrating_downgrade_30d","wrating_instnum_30d", "wrating_maintain_30d", "wrating_numofbuy_30d", "wrating_numofhold_30d","wrating_numofoutperform_30d", "wrating_numofsell_30d", "wrating_numofunderperform_30d","wrating_upgrade_30d",
+            "est_price_90d", "est_priceinstnum_90d", "wrating_avg_90d", "wrating_downgrade_90d", "wrating_instnum_90d", "wrating_maintain_90d", "wrating_numofbuy_90d","wrating_numofhold_90d", "wrating_numofoutperform_90d", "wrating_numofsell_90d","wrating_numofunderperform_90d", "wrating_upgrade_90d",
+            "est_price_180d", "est_priceinstnum_180d","wrating_avg_180d","wrating_downgrade_180d", "wrating_instnum_180d", "wrating_maintain_180d", "wrating_numofbuy_180d", "wrating_numofhold_180d", "wrating_numofoutperform_180d","wrating_numofsell_180d", "wrating_numofunderperform_180d", "wrating_upgrade_180d"
+        ]
 
         self.lgt_data = {"lgt_holding", "lgt_holding_ratio"}
         self.rating_data = {"num_rating"}
@@ -438,7 +453,9 @@ class DataView(object):
                 or field_name in self.group_fields
                 or field_name in self.risk_model_fields
                 or field_name in self.rating_data
-                or field_name in self.lgt_data)
+                or field_name in self.lgt_data
+                or field_name in self.consensus_data
+                or field_name in self.stk_rating_data)
         return flag
 
     def _is_predefined_field(self, field_name):
@@ -482,7 +499,9 @@ class DataView(object):
                     'group': self.group_fields,
                     'risk_model':self.risk_model_fields,
                     'lgt_data' : self.lgt_data,
-                    'rating_data': self.rating_data
+                    'rating_data': self.rating_data,
+                    'consensus_data': self.consensus_data,
+                    'stk_rating_data': self.stk_rating_data
                     }
         pool_map['daily'] = set.union(pool_map['market_daily'],
                                       pool_map['ref_daily'],
@@ -791,6 +810,14 @@ class DataView(object):
         if fields_rating_ind:
             multi_daily = self.query_rating_data(fields_rating_ind, multi_daily)
 
+        tmp_fields = self._get_fields('consensus_data', fields, append=True)
+        if tmp_fields:
+            multi_daily = self.query_consensus_data(tmp_fields, multi_daily)
+
+        tmp_fields = self._get_fields('stk_rating_data', fields, append=True)
+        if tmp_fields:
+            multi_daily = self.query_stk_rating_data(tmp_fields, multi_daily)
+
         return multi_daily, multi_quarterly
 
     def query_rating_data(self, fields_rating_ind, daily_df):
@@ -812,6 +839,68 @@ class DataView(object):
         self.data_d = daily_df
 
         self.append_df(df_rating, 'num_rating', is_quarterly=False)
+
+        daily_df = self.data_d
+        self.data_d = data_d_orig
+        return daily_df
+
+    def query_stk_rating_data(self, fields_rating_ind, daily_df):
+        filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
+            ','.join(self.symbol),
+            self.extended_start_date_d,
+            self.end_date)
+
+        df, msg = self.data_api.query(view='wd.secStockRatingConsus', filter=filter_str)
+        if df is None:
+            raise ValueError("query wd.secStockRatingConsus Error:" + msg)
+
+        df['date'] = df['date'].astype(int)
+
+        cycle_map = {'263001000' : '30d', '263002000': '90d', '263003000': '180d' }
+
+        data_d_orig = self.data_d
+        self.data_d = daily_df
+
+        for cycle, postfix in cycle_map.items():
+            df2 = df[df['wrating_cycle']==cycle].copy()
+            if df2.empty: continue
+            columns = [ (col ,col + '_' + postfix) for col in df2.columns if col not in ['date','symbol', 'wrating_cycle']]
+            df2 = df2.rename(columns=dict(columns))
+            for col in df2.columns :
+                if col in fields_rating_ind and col not in ['date','symbol', 'wrating_cycle']:
+                    tmp = df2.pivot_table(values=col, index='date', columns='symbol').fillna(method='ffill')
+                    self.append_df(tmp, col, is_quarterly=False)
+
+        daily_df = self.data_d
+        self.data_d = data_d_orig
+        return daily_df
+
+    def query_consensus_data(self, fields_ind, daily_df):
+
+        filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
+            ','.join(self.symbol),
+            self.extended_start_date_d,
+            self.end_date)
+
+        df, msg = self.data_api.query(view='wd.stkConsensusRollingData', filter=filter_str)
+        if df is None:
+            raise ValueError("query wd.stkConsensusRollingData Error:" + msg)
+
+        df['date'] = df['date'].astype(int)
+
+        data_d_orig = self.data_d
+        self.data_d = daily_df
+
+        for rolling_type in df['rolling_type'].unique():
+            df2 = df[df['rolling_type']==rolling_type].copy()
+            if df2.empty: continue
+            columns = [ (col ,col + '_' + rolling_type.lower()) for col in df2.columns if col not in ['date','symbol', 'rolling_type']]
+            df2 = df2.rename(columns=dict(columns))
+            df2.index = df2['date']
+            for col in df2.columns:
+                if col in fields_ind and col not in ['date','symbol', 'wrating_cycle']:
+                    tmp = df2.pivot_table(values=col, index='date', columns='symbol').fillna(method='ffill')
+                    self.append_df(tmp, col, is_quarterly=False)
 
         daily_df = self.data_d
         self.data_d = data_d_orig
