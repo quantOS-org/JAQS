@@ -877,15 +877,39 @@ class DataView(object):
 
     def query_consensus_data(self, fields_ind, daily_df):
 
-        filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
-            ','.join(self.symbol),
-            self.extended_start_date_d,
-            self.end_date)
+        rolling_types = set() #['fy0','fy1','fy2','fy3','fttm','yoy','yoy2','cagr']
+        query_fields = set(['rolling_type'])
+        for f in fields_ind:
+            if f in self.consensus_data:
+                query_fields.add ( '_'.join(f.split('_')[0:-1]))
+                rolling_types.add( f.split('_')[-1] )
 
-        df, msg = self.data_api.query(view='wd.stkConsensusRollingData', filter=filter_str)
-        if df is None:
-            raise ValueError("query wd.stkConsensusRollingData Error:" + msg)
 
+        data = []
+        for i in range((len(self.symbol) + 19) // 20):
+            symbols = self.symbol[i*20: (i+1)*20]
+
+            filter_str = "symbol={0}&start_date={1}&end_date={2}&rolling_type={3}".format(
+                ','.join(self.symbol),
+                self.extended_start_date_d,
+                self.end_date,
+                ','.join(rolling_types).upper()
+            )
+            # filter_str = "symbol={0}&start_date={1}&end_date={2}".format(
+            #     ','.join(symbols),
+            #     self.extended_start_date_d,
+            #     self.end_date
+            # )
+
+            df, msg = self.data_api.query(view='wd.stkConsensusRollingData',
+                                          filter=filter_str,
+                                          fields=','.join(query_fields))
+            if df is None:
+                raise ValueError("query wd.stkConsensusRollingData Error:" + msg)
+            data.append(df)
+            break
+
+        df = pd.concat(data)
         df['date'] = df['date'].astype(int)
 
         data_d_orig = self.data_d
