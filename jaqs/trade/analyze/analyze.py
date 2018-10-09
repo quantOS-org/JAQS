@@ -1311,29 +1311,29 @@ class BaseAnalyzer(object):
         :return:
         """
 
-
         # Get Top 40% wight stocks
-        mv = self.holding_data.get_ts('holding_shares') * self.holding_data.get_ts('close_adj')
+        mv = self.holding_data.get_ts('holding_shares') * self.holding_data.get_ts('close')
         total_mv = mv.sum(axis=1)
 
         for col in mv.columns:
             mv[col] /= total_mv
 
-        weight = mv.sum(axis=0).sort_values(ascending=False)
-        tmp  = weight.cumsum()
-        weight = weight[tmp < tmp[-1] * 0.4]
-        weight /= tmp[-1]
+        weight_in_day = mv
 
-        symbols = weight.index
+        weight_in_cycle = weight_in_day.sum(axis=0).sort_values(ascending=False)
+        tmp = weight_in_cycle.cumsum()
+        weight_in_cycle = weight_in_cycle[tmp < tmp[-1] * 0.4]
+        weight_in_cycle /= tmp[-1]
+        symbols = weight_in_cycle.index
 
         # Get alpha contribution of each stock on whole test cycle
-        active_return = self.holding_data.get_ts('active_holding_return')
+        active_return = self.holding_data.get_ts('active_holding_return') * weight_in_day
         alpha_contribution = active_return.loc[:, symbols].sum()
 
-        df_contrib = pd.DataFrame(index=weight.index)
-        df_contrib['symbol'] = weight.index
+        df_contrib = pd.DataFrame(index=weight_in_cycle.index)
+        df_contrib['symbol'] = weight_in_cycle.index
         df_contrib['name']   = df_contrib['symbol'].apply(lambda x: self.inst_map[x]['name'])
-        df_contrib['weight'] = weight
+        df_contrib['weight'] = weight_in_cycle
         df_contrib['alpha_contribution'] = alpha_contribution
         df_contrib.reset_index(drop=True, inplace=True)
 
