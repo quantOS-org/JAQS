@@ -1305,6 +1305,40 @@ class BaseAnalyzer(object):
         self._industry_agg = df_industry_agg
         self._alpha_decomposition = df_alpha_agg
 
+    def analyze_alpha_weight_contribution(self, result_dir):
+        """
+        Get top 40% weights of stocks and calculate its alpaha contribution
+        :return:
+        """
+
+
+        # Get Top 40% wight stocks
+        mv = self.holding_data.get_ts('holding_shares') * self.holding_data.get_ts('close_adj')
+        total_mv = mv.sum(axis=1)
+
+        for col in mv.columns:
+            mv[col] /= total_mv
+
+        weight = mv.sum(axis=0).sort_values(ascending=False)
+        tmp  = weight.cumsum()
+        weight = weight[tmp < tmp[-1] * 0.4]
+        weight /= tmp[-1]
+
+        symbols = weight.index
+
+        # Get alpha contribution of each stock on whole test cycle
+        active_return = self.holding_data.get_ts('active_holding_return')
+        alpha_contribution = active_return.loc[:, symbols].sum()
+
+        df_contrib = pd.DataFrame(index=weight.index)
+        df_contrib['symbol'] = weight.index
+        df_contrib['name']   = df_contrib['symbol'].apply(lambda x: self.inst_map[x]['name'])
+        df_contrib['weight'] = weight
+        df_contrib['alpha_contribution'] = alpha_contribution
+        df_contrib.reset_index(drop=True, inplace=True)
+
+        self._alpha_wegith_contribution = df_contrib
+
     def plot_return_heatmap(self, df, image_name, output_folder, figsize):
 
         # plot
@@ -1510,6 +1544,8 @@ class BaseAnalyzer(object):
         dic['average_industry_overweight'] = self._average_industry_overweight
         dic['alpha_decomposition'] = self._alpha_decomposition
         dic['industry_agg'] = self._industry_agg
+        dic['alpha_weight_contribution'] = self._alpha_wegith_contribution
+
         self.report_dic.update(dic)
         
         r = Report(self.report_dic, source_dir=source_dir, template_fn=template_fn, out_folder=out_folder)
@@ -1828,6 +1864,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             self.analyze_alpha_decay(result_dir)
             self.analyze_industry_overweight(result_dir)
             self.analyze_alpha_contribution(result_dir)
+            self.analyze_alpha_weight_contribution(result_dir)
         else:
             print("Ignore analyzing alpha data")
 

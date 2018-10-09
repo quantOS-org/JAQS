@@ -243,6 +243,14 @@
                 <p>This data is stored in <code>Analyzer.rebalance_positions</code></p>
             {% endif %}
 
+            {% if alpah_weight_contribution is not none %}
+              <h2 id="alpha_weight_contribution">Alpha Weight Contribution</h2>
+              <p>Table of Alpha contribution on top 40% weight </p>
+                <div class="card card-body">
+                  {{ alpha_weight_contribution.to_html(classes="table table-striped", border=0) }}
+                </div>
+            {% endif %}
+
             <!-- Trading & Holding PnL -->
             {% if alpha_decay_image  %}
               <h2 id="alpha_decay">Alpha Decay</h2>
