@@ -8,12 +8,18 @@ def quantilize_without_nan(mat, n_quantiles=5, axis=-1):
     mask = pd.isnull(mat)
     res = mat.copy()
 
-    nonnan_mat = mat[~mask]
+    nonnan_mat = mat[~mask].reshape(mat.shape)
+
     rank = nonnan_mat.argsort(axis = axis).argsort(axis = axis)
+
     count = np.sum(~mask, axis=axis)  # int
     divisor = count * 1. / n_quantiles  # float
+    shape = list(mat.shape)
+    shape[axis] = 1
+    divisor = divisor.reshape(*shape)
+
     nonnan_res = np.floor(rank / divisor) + 1.0
-    res[~mask] = nonnan_res
+    res[~mask] = nonnan_res.reshape(res[~mask].shape)
 
     # res[~mask] = pd.qcut(mat[~mask], n_quantiles, labels = False) + 1
     # rank = mat.argsort(axis=axis).argsort(axis=axis)  # int
