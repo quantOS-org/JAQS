@@ -1333,10 +1333,13 @@ class BaseAnalyzer(object):
         df_contrib = pd.DataFrame(index=weight_in_cycle.index)
         df_contrib['symbol'] = weight_in_cycle.index
         df_contrib['name']   = df_contrib['symbol'].apply(lambda x: self.inst_map[x]['name'])
-        df_contrib['weight'] = weight_in_cycle
-        df_contrib['alpha_contribution'] = alpha_contribution
+        df_contrib['weight']             = weight_in_cycle.apply(lambda x: str(np.round(x * 100, 2)) + "%")
+        df_contrib['alpha_contribution'] = alpha_contribution.apply(lambda x: str(np.round(x * 100, 2)) + "%")
         df_contrib.reset_index(drop=True, inplace=True)
 
+        holding_shares = self.holding_data.get_ts('holding_shares').sum(axis=0)
+
+        self._alpha_weight_traded_stocks = holding_shares[holding_shares>0].shape[0]
         self._alpha_wegith_contribution = df_contrib
 
     def plot_return_heatmap(self, df, image_name, output_folder, figsize):
@@ -1544,7 +1547,9 @@ class BaseAnalyzer(object):
         dic['average_industry_overweight'] = self._average_industry_overweight
         dic['alpha_decomposition'] = self._alpha_decomposition
         dic['industry_agg'] = self._industry_agg
-        dic['alpha_weight_contribution'] = self._alpha_wegith_contribution
+
+        dic['alpha_weight_contribution']  = self._alpha_wegith_contribution
+        dic['alpha_weight_traded_stocks'] = self._alpha_weight_traded_stocks
 
         self.report_dic.update(dic)
         

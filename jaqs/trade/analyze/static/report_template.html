@@ -226,7 +226,7 @@
 
             <!-- Position on Re-balance Days -->
             {% if rebalance_positions is not none %}
-            <h2 id="rebalance_positions"> Table of Position on Re-balance Days </h2>
+            <h2 id="rebalance_positions">Table of Position on Re-balance Days </h2>
                 {% for date, df in rebalance_positions.items() %}
                     <p>
                         <button class="btn btn-primary" type="button" data-toggle="collapse" data-target="#collapsePos{{date}}" aria-expanded="false" aria-controls="collapsePos{{date}}">
@@ -245,7 +245,7 @@
 
             {% if alpah_weight_contribution is not none %}
               <h2 id="alpha_weight_contribution">Alpha Weight Contribution</h2>
-              <p>Table of Alpha contribution on top 40% weight </p>
+              <p>Table of Alpha contribution on top 40% weight. Total {{ alpha_weight_traded_stocks }} stocks were bought. </p>
                 <div class="card card-body">
                   {{ alpha_weight_contribution.to_html(classes="table table-striped", border=0) }}
                 </div>
