@@ -908,7 +908,6 @@ class DataView(object):
             if df is None:
                 raise ValueError("query wd.stkConsensusRollingData Error:" + msg)
             data.append(df)
-            break
 
         df = pd.concat(data)
         df['date'] = df['date'].astype(int)
