@@ -885,12 +885,13 @@ class DataView(object):
                 rolling_types.add( f.split('_')[-1] )
 
 
+        nsymbols  = 20
         data = []
-        for i in range((len(self.symbol) + 19) // 20):
-            symbols = self.symbol[i*20: (i+1)*20]
+        for i in range((len(self.symbol) + nsymbols -1) // nsymbols):
+            symbols = self.symbol[i*nsymbols: (i+1)*nsymbols]
 
             filter_str = "symbol={0}&start_date={1}&end_date={2}&rolling_type={3}".format(
-                ','.join(self.symbol),
+                ','.join(symbols),
                 self.extended_start_date_d,
                 self.end_date,
                 ','.join(rolling_types).upper()
