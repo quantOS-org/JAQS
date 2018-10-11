@@ -801,6 +801,14 @@ class BaseAnalyzer(object):
         df_weight = df_mktvalue.div(total_mktvalue, axis=0)
         holding_data.add_field(df_weight, "weight")
 
+        for i in range(5):
+            day = i + 1
+            field_name = 'T+{0}'.format(day )
+
+            field_value = df_weight * df_active_return.rolling(day).sum().shift(-day)
+            #field_value = df_weight * df_active_return.shift(-day)
+            holding_data.add_field(field_value, field_name)
+
         holding_data._data = holding_data._data.drop(
             ['AvgPosPrice', 'BuyVolume', 'CumNetTurnOver', 'CumProfit', 'CumProfitComm', 'SellVolume'], axis=1, level=1)
 
@@ -1781,22 +1789,49 @@ class AlphaAnalyzer(BaseAnalyzer):
         mask = (self._raw_trades['fill_no'] != '101010') & (self._raw_trades['fill_no'] != '202020')
         trades_rebalance = self._raw_trades.loc[mask]
         rebalance_dates = trades_rebalance['trade_date'].unique()
-        
-        daily_pos_name = self.daily_position.T.copy()
-        daily_pos_name.loc[:, 0] = u'               '
-        for idx, _ in daily_pos_name.iterrows():
-            daily_pos_name.loc[idx, 0] = self.inst_map[idx]['name']
-        
+
+        tmp = self.holding_data.get_ts('holding_shares')
+        for col in tmp.columns:
+            tmp[col] = self.inst_map[col]['name']
+
+        self.holding_data.add_field(tmp, 'name')
+
         dic_pos = OrderedDict()
         for date in rebalance_dates:
-            daily = daily_pos_name.loc[:, [0, date]]
-            daily = daily.loc[daily[date] >= 1]
-            daily = daily.reset_index()
-            daily.index.name = date
-            daily.columns = ['symbol', 'name', 'position']
-            daily.loc[:, 'position'] = daily['position'].astype(np.integer)
+            fields = ['name', 'holding_shares','weight', 'T+1','T+2','T+3','T+4','T+5']
+            daily = self.holding_data.data.loc[[date], pd.IndexSlice[:, fields]].T.unstack()
+            daily.columns = daily.columns.droplevel(level='trade_date')
+            daily.columns.name = ""
+            daily['symbol'] = daily.index
+
+            daily.reset_index(drop=True, inplace=True)
+            daily.index.name = ""
+            daily.rename(inplace=True, columns= {'holding_shares': 'position'})
+
+            for col in [ 'weight', 'T+1', 'T+2', 'T+3', 'T+4', 'T+5']:
+                daily[col] = daily[col].apply(lambda x: str(np.round(x * 100, 2)) + "%")
+
+            daily = daily[ ['symbol', 'name', 'position','weight', 'T+1','T+2','T+3','T+4','T+5']]
+
             dic_pos[date] = daily
+
         self.rebalance_positions = dic_pos
+
+        # daily_pos_name = self.daily_position.T.copy()
+        # daily_pos_name.loc[:, 0] = u'               '
+        # for idx, _ in daily_pos_name.iterrows():
+        #     daily_pos_name.loc[idx, 0] = self.inst_map[idx]['name']
+        #
+        # dic_pos = OrderedDict()
+        # for date in rebalance_dates:
+        #     daily = daily_pos_name.loc[:, [0, date]]
+        #     daily = daily.loc[daily[date] >= 1]
+        #     daily = daily.reset_index()
+        #     daily.index.name = date
+        #     daily.columns = ['symbol', 'name', 'position']
+        #     daily.loc[:, 'position'] = daily['position'].astype(np.integer)
+        #     dic_pos[date] = daily
+        # self.rebalance_positions = dic_pos
         
     @staticmethod
     def calc_win_ratio(ret_arr):
