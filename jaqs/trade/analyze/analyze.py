@@ -1811,9 +1811,9 @@ class AlphaAnalyzer(BaseAnalyzer):
             for col in [ 'weight', 'T+1', 'T+2', 'T+3', 'T+4', 'T+5']:
                 daily[col] = daily[col].apply(lambda x: str(np.round(x * 100, 2)) + "%")
 
-            daily = daily[ ['symbol', 'name', 'position','weight', 'T+1','T+2','T+3','T+4','T+5']]
+            daily = daily[ ['symbol', 'name', 'position', 'weight', 'T+1','T+2','T+3','T+4','T+5']]
 
-            dic_pos[date] = daily
+            dic_pos[date] = daily[daily['weight'] != "0.0%"]
 
         self.rebalance_positions = dic_pos
 
