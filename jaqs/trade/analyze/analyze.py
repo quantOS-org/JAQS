@@ -321,7 +321,10 @@ class BaseAnalyzer(object):
         self._cum_alpha_weight_image = None
         self._alpha_decomposition = None
         self._industry_agg = None
-        
+
+        self._sold_alpha_decay = None
+        self._sold_alpha_decay_image = None
+
     @property
     def trades(self):
         """Read-only attribute"""
@@ -1052,6 +1055,15 @@ class BaseAnalyzer(object):
 
         mpl.rcParams.update(old_mpl_rcparams)
 
+    def plot_sold_alpha_decay(self, df, output_folder):
+        fig, ax = plt.subplots(figsize=(16, 8))
+        fig, ax = plt.subplots(figsize=(16, 8))
+        plt.bar(df.index, df['alpha'].values)
+
+        fig.savefig(os.path.join(output_folder, self._sold_alpha_decay_image), facecolor=fig.get_facecolor(), dpi=fig.get_dpi())
+
+        plt.close(fig)
+
     def analyze_alpha_decay(self,result_dir):
 
         # 个股平均持仓
@@ -1350,6 +1362,37 @@ class BaseAnalyzer(object):
         self._alpha_weight_traded_stocks = holding_shares[holding_shares>0].shape[0]
         self._alpha_wegith_contribution = df_contrib
 
+    def analyze_sold_alpha_decay(self, result_dir):
+        """
+        Take sold stocks as a portfolio and calculate next 10 days' pnl.
+        """
+
+        # Get Top 40% wight stocks
+        sold_shares = self.holding_data.get_ts('holding_shares').diff()
+        sold_shares *= np.where(sold_shares < 0, -1, 0)
+
+        mv = sold_shares * self.holding_data.get_ts('close')
+        total_mv = mv.sum(axis=1)
+
+        for col in mv.columns:
+            mv[col] /= total_mv
+
+        weight_in_day = mv
+
+        active_return = self.holding_data.get_ts('active_holding_return')
+
+        sold_pnl = [0 for i in range(10)]
+        for day in range(10):
+            sold_pnl[day] = (active_return.shift(day + 1) * weight_in_day).sum(axis=1).mean()
+
+        df = pd.DataFrame(sold_pnl)
+        df.columns = ['alpha']
+        df.index = [i + 1 for i in range(10)]
+
+        self._sold_alpha_decay_image = "sold_alpha_decay.png"
+        self._sold_alpha_decay = df
+        self.plot_sold_alpha_decay(df, result_dir)
+
     def plot_return_heatmap(self, df, image_name, output_folder, figsize):
 
         # plot
@@ -1558,6 +1601,9 @@ class BaseAnalyzer(object):
 
         dic['alpha_weight_contribution']  = self._alpha_wegith_contribution
         dic['alpha_weight_traded_stocks'] = self._alpha_weight_traded_stocks
+
+        dic['sold_alpha_decay_image'] = self._sold_alpha_decay_image
+
 
         self.report_dic.update(dic)
         
@@ -1906,6 +1952,7 @@ class AlphaAnalyzer(BaseAnalyzer):
             self.analyze_industry_overweight(result_dir)
             self.analyze_alpha_contribution(result_dir)
             self.analyze_alpha_weight_contribution(result_dir)
+            self.analyze_sold_alpha_decay(result_dir)
         else:
             print("Ignore analyzing alpha data")
 
