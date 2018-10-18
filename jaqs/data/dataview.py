@@ -13,6 +13,7 @@ except NameError:
 
 import numpy as np
 import pandas as pd
+import re
 
 import jaqs.util as jutil
 from jaqs.data.align import align
@@ -110,6 +111,8 @@ class DataView(object):
         self.load_factors = []
         self.labels = []
         self.load_labels = []
+        self.index_weights = {}
+        self.industry_groups = {}
 
         self.meta_data_list = ['start_date', 'end_date',
                                'extended_start_date_d', 'extended_start_date_q',
@@ -1261,8 +1264,12 @@ class DataView(object):
             self.append_df(df, 'index_member', is_quarterly=False)
 
             # use weights of the first universe
-            df_weights = self.data_api.query_index_weights_daily(self.universe[0], self.extended_start_date_d,
+            df_weights = self.data_api.query_index_weights_daily(first_universe, self.extended_start_date_d,
                                                                  self.end_date)
+
+            if first_universe not in self.index_weights:
+                self.index_weights[first_universe] = df_weights
+
             self.append_df(df_weights, 'index_weight', is_quarterly=False)
 
     def _prepare_report_date(self):
@@ -1295,6 +1302,7 @@ class DataView(object):
                                                     start_date=self.extended_start_date_q, end_date=self.end_date,
                                                     type_=type_, level=level)
             self.append_df(df, field, is_quarterly=False)
+            self.industry_groups[field] = df
 
     def _prepare_benchmark(self):
         if self.benchmark == 'VW_UNIVERSE':
@@ -1322,6 +1330,29 @@ class DataView(object):
                                                 fields='trade_date,symbol,close,vwap,volume,turnover')
             # TODO: we want more than just close price of benchmark
             df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
+
+            is_index = re.match('399.*.SZ', self.benchmark) or re.match('000.*.SH', self.benchmark)
+            if is_index:
+                # use weights of the first universe
+                if self.benchmark not in self.index_weights:
+                    df_weights = self.data_api.query_index_weights_daily(self.benchmark, self.extended_start_date_d,
+                                                                     self.end_date)
+                    self.index_weights[self.benchmark] = df_weights
+
+        def _prepare_group(self, group_fields):
+            data_map = {'sw1': ('SW', 1),
+                        'sw2': ('SW', 2),
+                        'sw3': ('SW', 3),
+                        'sw4': ('SW', 4),
+                        'zz1': ('ZZ', 1),
+                        'zz2': ('ZZ', 2)}
+            for field in group_fields:
+                type_, level = data_map[field]
+                df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
+                                                        start_date=self.extended_start_date_q, end_date=self.end_date,
+                                                        type_=type_, level=level)
+                self.append_df(df, field, is_quarterly=False)
+
         return df_bench
 
     # --------------------------------------------------------------------------------------------------------
@@ -1918,6 +1949,13 @@ class DataView(object):
         self._data_benchmark = dic.get('/data_benchmark', None)
         self._data_inst = dic.get('/data_inst', None)
         self._factor_df = dic.get('/factor_df', None)
+
+        for k in dic.keys():
+            if k.startswith('/index_weight/'):
+                self.index_weights[k.split('/')[2]] = dic[k]
+            if k.startswith('/industry_group/'):
+                self.industry_groups[k.split('/')[2]] = dic[k]
+
         self.__dict__.update(meta_data)
 
         for index, row in self._factor_df.iterrows():
@@ -1956,8 +1994,15 @@ class DataView(object):
                          'data_inst': self.data_inst,
                          'factor_df': self._factor_df
                          }
+        for symbol in self.index_weights.keys():
+            data_to_store['index_weight/' + symbol] = self.index_weights[symbol]
+
+        for group in self.industry_groups.keys():
+            data_to_store['industry_group/' + group] = self.industry_groups[group]
+
         data_to_store = {k: v for k, v in data_to_store.items() if v is not None}
         meta_data_to_store = {key: self.__dict__[key] for key in self.meta_data_list}
+
 
         print("\nStore data...")
         jutil.save_json(meta_data_to_store, meta_path)
