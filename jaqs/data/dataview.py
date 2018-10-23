@@ -74,9 +74,10 @@ class ResReturnFunc:
         parser = self._dv._create_parser()
 
         # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
-        formula = "Return({0}, {1}, {2}) - Return({3},{1},{2}".format(
-            args[0], args[1], args[2],
-            "bm_" + args[0]
+        field_name = args[0].columns.name
+        formula = "Return({0}, {1}, {2}) - Return({3},{1},{2})".format(
+            field_name, args[1], args[2],
+            "bm_" + field_name
         )
         expr = parser.parse(formula)
 
@@ -1467,7 +1468,7 @@ class DataView(object):
             factor = self._import_factors[key]
             parser.register_function(factor.name, FactorFunc(self, factor))
 
-        #parser.register_function("ResReturn", ResReturnFunc(self))
+        parser.register_function("ResReturn", ResReturnFunc(self))
         return parser
 
     def _get_var(self, var):
@@ -1873,6 +1874,8 @@ class DataView(object):
 
         if not keep_level and len(res.columns) and len(field.split(',')) == 1:
             res.columns = res.columns.droplevel(level='field')
+            # XXX Save field name for ResReturnFunc
+            res.columns.name = field
 
         return res
 
