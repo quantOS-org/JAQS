@@ -61,6 +61,46 @@ class FactorFunc:
         return df_eval
 
 
+
+class ResReturnFunc:
+    """
+    ResReturn(close, m, n)
+    """
+    def __init__(self, dv):
+        self._dv = dv
+
+    def __call__(self, *args, **kwargs):
+
+        parser = self._dv._create_parser()
+
+        # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
+        formula = "Return({0}, {1}, {2}) - Return({3},{1},{2}".format(
+            args[0], args[1], args[2],
+            "bm_" + args[0]
+        )
+        expr = parser.parse(formula)
+
+        var_df_dic = dict()
+        var_list = expr.variables()
+
+        for var in var_list:
+            # if var in self._factor.args:
+            #     i = self._factor.args.index(var)
+            #     var_df_dic[var] = args[i]
+            if var in parser.functions:
+                if var in self._dv._import_factors and not self._dv._import_factors[var].args:
+                    var_df_dic[var] = self._dv._get_var(var)
+            else:
+                var_df_dic[var] = self._dv._get_var(var)
+
+        # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
+        df_ann = self._dv._get_ann_df()
+
+        df_eval = parser.evaluate(var_df_dic, ann_dts=df_ann, trade_dts=self._dv.dates)
+
+        return df_eval
+
+
 class LabelDef(FactorDef):
     pass
 
@@ -1327,9 +1367,9 @@ class DataView(object):
             df_bench, msg = self.data_api.daily(self.benchmark,
                                                 start_date=self.extended_start_date_d, end_date=self.end_date,
                                                 adjust_mode=self.adjust_mode,
-                                                fields='trade_date,symbol,close,vwap,volume,turnover')
+                                                fields='trade_date,symbol,open,high,low,close,vwap,volume,turnover')
             # TODO: we want more than just close price of benchmark
-            df_bench = df_bench.set_index('trade_date').loc[:, ['close']]
+            df_bench = df_bench.set_index('trade_date').loc[:, ['open','high','low','close']]
 
             is_index = re.match('399.*.SZ', self.benchmark) or re.match('000.*.SH', self.benchmark)
             if is_index:
@@ -1339,20 +1379,14 @@ class DataView(object):
                                                                      self.end_date)
                     self.index_weights[self.benchmark] = df_weights
 
-        def _prepare_group(self, group_fields):
-            data_map = {'sw1': ('SW', 1),
-                        'sw2': ('SW', 2),
-                        'sw3': ('SW', 3),
-                        'sw4': ('SW', 4),
-                        'zz1': ('ZZ', 1),
-                        'zz2': ('ZZ', 2)}
-            for field in group_fields:
-                type_, level = data_map[field]
-                df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
-                                                        start_date=self.extended_start_date_q, end_date=self.end_date,
-                                                        type_=type_, level=level)
-                self.append_df(df, field, is_quarterly=False)
+            # Add bm_high, bm_low, bm_open, bm_close to each code
+            tmp = self.get_ts('open')
+            for field in ['open','high','low','close']:
+                for symbol in tmp.columns:
+                    tmp[symbol] = df_bench[field]
+                self.append_df(tmp,   'bm_' + field,  is_quarterly=False)
 
+            df_bench = df_bench[['close']]
         return df_bench
 
     # --------------------------------------------------------------------------------------------------------
@@ -1433,6 +1467,7 @@ class DataView(object):
             factor = self._import_factors[key]
             parser.register_function(factor.name, FactorFunc(self, factor))
 
+        #parser.register_function("ResReturn", ResReturnFunc(self))
         return parser
 
     def _get_var(self, var):
