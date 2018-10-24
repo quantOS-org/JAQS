@@ -1808,12 +1808,13 @@ class AlphaAnalyzer(BaseAnalyzer):
             daily.index.name = ""
             daily.rename(inplace=True, columns= {'holding_shares': 'position'})
 
-            for col in [ 'weight', 'T+1', 'T+2', 'T+3', 'T+4', 'T+5']:
+            daily = daily.sort_values('weight', ascending=False)
+            for col in ['weight', 'T+1', 'T+2', 'T+3', 'T+4', 'T+5']:
                 daily[col] = daily[col].apply(lambda x: str(np.round(x * 100, 2)) + "%")
 
-            daily = daily[ ['symbol', 'name', 'position', 'weight', 'T+1','T+2','T+3','T+4','T+5']]
+            daily = daily[['symbol', 'name', 'position', 'weight', 'T+1','T+2','T+3','T+4','T+5']]
 
-            dic_pos[date] = daily[daily['weight'] != "0.0%"]
+            dic_pos[date] = daily[(daily['weight'] != "0.0%") & (daily['weight'] != "nan%")]
             dic_pos[date].index = range(1, len(dic_pos[date]) + 1)
 
         self.rebalance_positions = dic_pos
