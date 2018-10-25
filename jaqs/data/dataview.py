@@ -2136,9 +2136,76 @@ class DataView(object):
             meta_data['fields'] = fields
         dv2.__dict__.update(meta_data)
 
+        dv2.index_weights = {}
+        for k,v in self.index_weights.items():
+            dv2.index_weights[k] = v[ (v.index >= extended_start_date_d) & (v.index <= end_date)]
+
+        dv2.industry_groups = {}
+        for k,v in self.index_weights.items():
+            dv2.industry_groups[k] = v[(v.index >= extended_start_date_d) & (v.index <= end_date)]
+
         dv2._process_data(large_memory=large_memory)
         return dv2
 
+    @staticmethod
+    def concat(dv1, dv2):
+        def concat_df(dv1, dv2, name):
+            a = dv1.__dict__[name]
+            b = dv2.__dict__[name]
+            if a is None:
+                return b
+            elif b is None:
+                return a
+            else:
+                a = a[a.index < dv2.start_date]
+                b = b[b.index > dv1.end_date]
+                return pd.concat([a, b])
+
+        dv = DataView()
+        for key in dv.meta_data_list:
+            dv.__dict__[key] = dv1.__dict__[key]
+
+        dv.end_date = dv2.end_date
+        for key in ['fields', 'symbol', 'custom_daily_fields', 'custom_quarterly_fields',
+                    'factors', 'load_factors', 'labels', 'load_labels']:
+            dv.__dict__[key] = list(set(dv1.__dict__[key] + dv2.__dict__[key]))
+
+        dv._data_inst = pd.concat([dv1._data_inst, dv2._data_inst]).drop_duplicates()
+        dv._factor_df = pd.concat([dv1._factor_df, dv2._factor_df])
+
+        if not dv._factor_df.empty:
+            dv._factor_df.drop_duplicates('factor_id')
+            for index, row in dv._factor_df.iterrows():
+                factor_id = row['factor_id']
+                factor_body = row['factor_def']
+                factor_args = list(filter(None, row['factor_args'].split(',')))
+                if 'factor_quarterly' in row:
+                    factor_quarterly = row['factor_quarterly']
+                else:
+                    factor_quarterly = False
+
+                dv._import_factors[factor_id] = FactorDef(factor_id, factor_args, factor_body, factor_quarterly)
+
+        dv.index_weights = {}
+        for k,v in dv1.index_weights.items():
+            if k in dv2.index_weights:
+                df1 = v
+                df2 = dv2.index_weights[k]
+                dv.index_weights[k] = pd.concat( [df1[df1.index < dv2.start_date], df2[df2.index > dv1.end_date]] )
+
+        dv.industry_groups = {}
+        for k,v in dv1.industry_groups.items():
+            if k in dv2.industry_groups:
+                df1 = v
+                df2 = dv2.industry_groups[k]
+                dv.industry_groups[k] = pd.concat( [ df1[df1.index < dv2.start_date], df2[df2.index > dv1.end_date] ] )
+
+        dv.data_d = concat_df(dv1, dv2, 'data_d')
+        dv.data_q = concat_df(dv1, dv2, 'data_q')
+        dv._data_benchmark = concat_df(dv1, dv2, '_data_benchmark')
+
+        dv._process_data(True if dv1._snapshot else False)
+        return dv
 
     def group_demean(self, signal, group, new_name, is_quarterly=False, method='div'):
 
@@ -2150,7 +2217,7 @@ class DataView(object):
         if method == 'div':
             df_all_mask[new_name] = df_all_mask.groupby(['trade_date', group])[signal].apply(lambda x: x / np.nanmedian(x))
         else:
-            df_all_mask[new_name] = df_all_mask.groupby(['trade_date', group])[signal].apply(lambda x: x - np.nanmedian(x))
+            df_all_mask[new_name] = df_all_mask.groupby(['tpdrade_date', group])[signal].apply(lambda x: x - np.nanmedian(x))
 
         ## convert back to long data
         df_all_clean = df_all.loc[:, ['trade_date', 'symbol']]\
@@ -3269,3 +3336,7 @@ class EventDataView(object):
         for key, value in dic.items():
             h5[key] = value
         h5.close()
+
+
+    # --------------------------------------------------------------------------------------------------------
+    # DataView I/O
