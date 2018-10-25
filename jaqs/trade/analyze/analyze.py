@@ -93,8 +93,11 @@ class AnalyzeView(object):
             raise ValueError
             return
 
-        if not keep_level and len(res.columns) and len(field.split(',')) == 1:
+        #if not keep_level and len(res.columns) and len(field.split(',')) == 1:
+        if not keep_level and len(field.split(',')) == 1:
             res.columns = res.columns.droplevel(level='field')
+            # XXX Save field name for ResReturnFunc
+            #res.columns.name = field
 
         return res
 
