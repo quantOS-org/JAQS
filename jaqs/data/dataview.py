@@ -2233,6 +2233,27 @@ class DataView(object):
         return self
 
 
+    def to_dataframe(self):
+        data = []
+
+        df = self.data_d
+        for symbol in df.columns.levels[0]:
+            tmp = df.loc[:, [symbol]].copy()  # .loc[[20161207]]
+            tmp.columns = tmp.columns.droplevel()
+            tmp.columns.name = ""
+            tmp['symbol'] = '600000.SH'
+            tmp['trade_date'] = tmp.index
+
+            fields = list(tmp.columns)
+            fields.remove('symbol')
+            fields.remove('trade_date')
+            tmp = tmp[['trade_date', 'symbol'] + fields]
+            tmp = tmp.reset_index(drop=True)
+            data.append(tmp)
+
+        return pd.concat(data)
+
+
 class EventDataView(object):
     """
     Prepare data before research / trade. Support file I/O.
