@@ -411,6 +411,8 @@ class DataView(object):
         self.TRADE_STATUS_FIELD_NAME = 'trade_status'
         self.TRADE_DATE_FIELD_NAME = 'trade_date'
 
+        self.misc_data = [ 'st_flag' ]
+
     # --------------------------------------------------------------------------------------------------------
     # Properties
     @property
@@ -499,7 +501,8 @@ class DataView(object):
                 or field_name in self.rating_data
                 or field_name in self.lgt_data
                 or field_name in self.consensus_data
-                or field_name in self.stk_rating_data)
+                or field_name in self.stk_rating_data
+                or field_name in self.misc_data)
         return flag
 
     def _is_predefined_field(self, field_name):
@@ -545,7 +548,8 @@ class DataView(object):
                     'lgt_data' : self.lgt_data,
                     'rating_data': self.rating_data,
                     'consensus_data': self.consensus_data,
-                    'stk_rating_data': self.stk_rating_data
+                    'stk_rating_data': self.stk_rating_data,
+                    'misc_data' : self.misc_data
                     }
         pool_map['daily'] = set.union(pool_map['market_daily'],
                                       pool_map['ref_daily'],
@@ -862,6 +866,10 @@ class DataView(object):
         if tmp_fields:
             multi_daily = self.query_stk_rating_data(tmp_fields, multi_daily)
 
+        tmp_fields = self._get_fields('misc_data', fields, append=True)
+        if tmp_fields:
+            multi_daily = self.query_misc_data(tmp_fields, multi_daily)
+
         return multi_daily, multi_quarterly
 
     def query_rating_data(self, fields_rating_ind, daily_df):
@@ -1026,6 +1034,39 @@ class DataView(object):
         self.append_df(lgt_holding_ratio, 'lgt_holding_ratio', is_quarterly=False)
 
         self.remove_field('_regdt,lgt_holding_origin,lgt_holding_ratio_origin')
+        daily_df = self.data_d
+        self.data_d = data_d_orig
+        return daily_df
+
+    def query_misc_data(self, fields, daily_df):
+
+        data_d_orig = self.data_d
+        self.data_d = daily_df
+
+        if 'st_flag' in fields:
+            df, msg = self.data_api.query(view='wd.stockST')
+            if df is None:
+                raise ValueError("query wd.secStockRatingConsus Error:" + msg)
+
+            st_symbols = df['symbol'].unique()
+            st_daily = self.get_ts('high')
+            for symbol in st_daily.columns:
+                st_daily[symbol] = ''
+                if symbol not in st_symbols: continue
+                tmp = df[df['symbol']==symbol]
+                for i in range(len(tmp)):
+                    x = tmp.iloc[i]
+                    entry_date = x['entry_dt']
+                    remove_dt  = x['remove_dt']
+                    if remove_dt == 0 :
+                        remove_dt = 99999999
+                    else:
+                        remove_dt -= 1
+                    stype = x['stype']
+                    st_daily.loc[pd.IndexSlice[entry_date: remove_dt], [symbol]] = stype
+
+            self.append_df(st_daily, 'st_flag', is_quarterly=False)
+
         daily_df = self.data_d
         self.data_d = data_d_orig
         return daily_df
