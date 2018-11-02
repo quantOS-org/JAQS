@@ -1088,7 +1088,7 @@ class BaseAnalyzer(object):
         df_alpha = pd.merge(left=df_alpha, right=self.dataview.data_inst[['name']], left_index=True, right_index=True, how='left')
         df_alpha = df_alpha[df_alpha['alpha'] != 0]
         df_alpha.sort_values('alpha', ascending=False, inplace=True)
-        df_alpha_weight = pd.concat([df_weight, df_alpha], axis=1, sort=True)
+        df_alpha_weight = pd.concat([df_weight, df_alpha], axis=1)
 
         # Alpha在个股中分布
         n_group = 5
@@ -1514,7 +1514,7 @@ class BaseAnalyzer(object):
         # 行业平均持仓及相对指数超配
         portfolio_weight_industry = pd.DataFrame(weight_industry.mean(axis=0).sort_values(ascending=False))
         portfolio_weight_industry.columns = ['portfolio']
-        weight_industry_compare = pd.concat([portfolio_weight_industry, index_weight_industry], axis=1, sort=True)
+        weight_industry_compare = pd.concat([portfolio_weight_industry, index_weight_industry], axis=1)
         weight_industry_compare['overweight'] = weight_industry_compare['portfolio'] - weight_industry_compare['index']
         self._average_industry_overweight = weight_industry_compare.sort_values('overweight', ascending=False)
 
