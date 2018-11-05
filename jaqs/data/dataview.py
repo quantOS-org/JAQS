@@ -2275,24 +2275,24 @@ class DataView(object):
 
 
     def to_dataframe(self):
-        data = []
+        df = self.data_d.copy()
+        df.columns = df.columns.swaplevel()
+        return df.stack().reset_index()
 
-        df = self.data_d
-        for symbol in df.columns.levels[0]:
-            tmp = df.loc[:, [symbol]].copy()  # .loc[[20161207]]
-            tmp.columns = tmp.columns.droplevel()
-            tmp.columns.name = ""
-            tmp['symbol'] = '600000.SH'
-            tmp['trade_date'] = tmp.index
+    @staticmethod
+    def from_dataframe(df):
+        df = df.sort_values(['trade_date','symbol'])
+        df = df.set_index(['trade_date','symbol']).unstack()
+        df.columns = df.columns.swaplevel()
+        df = df.sort_index(axis=1)
 
-            fields = list(tmp.columns)
-            fields.remove('symbol')
-            fields.remove('trade_date')
-            tmp = tmp[['trade_date', 'symbol'] + fields]
-            tmp = tmp.reset_index(drop=True)
-            data.append(tmp)
-
-        return pd.concat(data)
+        dv = DataView()
+        dv.data_d = df
+        for field in df.columns.levels[1]:
+            dv.fields.append(field)
+        dv.start_date = df.index.min()
+        dv.end_date = df.index.max()
+        return dv
 
 
 class EventDataView(object):
