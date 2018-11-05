@@ -35,6 +35,7 @@ from jaqs.data.py_expression_eval import Parser
 from jaqs.trade import common
 
 import jaqs.util as jutil
+from jaqs.util.profile import prof_sample_begin, prof_sample_end
 
 STATIC_FOLDER = jutil.join_relative_path("trade/analyze/static")
 TO_PCT = 100.0
@@ -521,7 +522,9 @@ class BaseAnalyzer(object):
         # pre-process
         cols_to_drop = ['task_id', 'entrust_no', 'fill_no']
         df = df.drop(cols_to_drop, axis=1)
-        
+
+        perf_tmp = prof_sample_begin("_process_trades")
+
         def _apply(gp_df,inst_map):
             # calculation of non-cumulative fields
             direction = gp_df['entrust_action'].apply(lambda s: 1 if common.ORDER_ACTION.is_positive(s) else -1)
@@ -547,7 +550,8 @@ class BaseAnalyzer(object):
             return gp_df
         gp = df.groupby(by='symbol')
         res = gp.apply(_apply,self.inst_map)
-        
+
+        prof_sample_end(perf_tmp)
         return res
     
     def process_trades(self):
@@ -692,38 +696,157 @@ class BaseAnalyzer(object):
         adj_close.index.names = ['symbol', 'trade_date']         
         merge = pd.concat([close, adj_close, trade], axis=1, join='outer')
         
-        def _apply(gp_df,inst_map):
-            symbol = gp_df.index.levels[0][0]
-            mult = self.inst_map.get(symbol).get("multiplier")
+        # def _apply(gp_df,inst_map):
+        #     symbol = gp_df.index.levels[0][0]
+        #     mult = self.inst_map.get(symbol).get("multiplier")
+        #     cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
+        #     cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
+        #     # merge: pd.DataFrame
+        #     gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(method='ffill')
+        #     gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(0)
+        #
+        #     gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
+        #
+        #     mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
+        #     gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
+        #
+        #     gp_df.loc[:, 'CumProfit']     = gp_df.loc[:, 'CumNetTurnOver'] + mult * gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
+        #     gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
+        #
+        #     daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
+        #     daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
+        #     gp_df['trading_pnl']      = (daily_net_turnover + mult * gp_df['close'] * daily_position_change - gp_df['commission'])
+        #     gp_df['holding_pnl']      = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
+        #     gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
+        #     gp_df['trade_shares']     = daily_position_change
+        #
+        #     return gp_df
+
+        # gp = merge.groupby(by='symbol')
+        # res = gp.apply(_apply,self.inst_map)a.columns
+        # self.daily = res
+
+
+        prof_tmp = prof_sample_begin("get_daily")
+
+        def get_ts(dv, field):
+            df = dv.loc[:, pd.IndexSlice[slice(None), field]]
+            df.columns = df.columns.droplevel(1)
+            return df
+
+        def set_ts(dv, field, df):
+            df.columns = pd.MultiIndex.from_product([[field], df.columns])
+            # df = df.sort_index(axis=1)
+
+            dv.columns = dv.columns.swaplevel()
+            #dv = dv.sort_index(axis=1)
+
+            if field not in dv.columns.levels[0]:
+                new_cols = dv.columns.append(df.columns)
+                dv = dv.reindex(columns=new_cols)
+            dv[field] = df[field]
+            dv.columns = dv.columns.swaplevel()
+            #the_data = the_data.sort_index(axis=1)
+
+            return dv
+
+        def build_daily(dv, inst_map):
+
+            if False:
+                mult = get_ts(dv, 'close')
+                for symbol in mult.columns:
+                    mult[symbol] = 1.0#inst_map.get(symbol).get("multiplier")
+            else:
+                mult = 1.0
+
             cols_nan_to_zero = ['BuyVolume', 'SellVolume', 'commission']
             cols_nan_fill = ['close', 'position', 'AvgPosPrice', 'CumNetTurnOver']
-            # merge: pd.DataFrame
-            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(method='ffill')
-            gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(0)
-    
-            gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
-    
-            mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
-            gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
-    
-            gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + mult * gp_df.loc[:, 'position'] * gp_df.loc[:, 'close']
-            gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
-    
-            daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
-            daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
-            gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change - gp_df['commission'])            
-            gp_df['holding_pnl'] = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
-            gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
-            gp_df['trade_shares'] = daily_position_change
-            
-            return gp_df
 
-        gp = merge.groupby(by='symbol')
-        res = gp.apply(_apply,self.inst_map)        
-        self.daily = res
+            for col in cols_nan_fill:
+                df = get_ts(dv, col)
+                df = df.fillna(method='ffill').fillna(0)
+                dv = set_ts(dv, col, df)
+
+            # # merge: pd.DataFrame
+            # gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(method='ffill')
+            # gp_df.loc[:, cols_nan_fill] = gp_df.loc[:, cols_nan_fill].fillna(0)
+
+            for col in cols_nan_to_zero:
+                df = get_ts(dv, col)
+                df = df.fillna(0)
+                dv = set_ts(dv, col, df)
+            #gp_df.loc[:, cols_nan_to_zero] = gp_df.loc[:, cols_nan_to_zero].fillna(0)
+
+            df = get_ts(dv, 'AvgPosPrice').copy()
+            mask = df < 1e-5
+            df_close = get_ts(dv, 'close')
+            df[mask] = df_close[mask]
+            dv = set_ts(dv, 'AvgPosPrice', df)
+
+            # mask = gp_df.loc[:, 'AvgPosPrice'] < 1e-5
+            # gp_df.loc[mask, 'AvgPosPrice'] = gp_df.loc[mask, 'close']
+
+            df_turnover    = get_ts(dv, 'CumNetTurnOver')
+            df_position    = get_ts(dv, 'position')
+            df_profit      = df_turnover + mult * df_position * df_close
+            df_commisson   = get_ts(dv, 'commission')
+            df_profit_comm = df_profit - df_commisson.cumsum()
+
+            dv = set_ts(dv, 'CumProfit', df_profit)
+            dv = set_ts(dv, 'CumProfitComm', df_profit_comm)
+
+            # gp_df.loc[:, 'CumProfit'] = gp_df.loc[:, 'CumNetTurnOver'] + mult * gp_df.loc[:, 'position'] * gp_df.loc[:,'close']
+            # gp_df.loc[:, 'CumProfitComm'] = gp_df['CumProfit'] - gp_df['commission'].cumsum()
+
+            daily_net_turnover    = df_turnover.diff(1)#.fillna(df_turnover.iat[0])
+            daily_net_turnover.iloc[0] = df_turnover.iloc[0]
+
+            daily_position_change = df_position.diff(1)#.fillna(gp_df['position'].iat[0])
+            daily_position_change.iloc[0] = df_position.iloc[0]
+
+            # daily_net_turnover = gp_df['CumNetTurnOver'].diff(1).fillna(gp_df['CumNetTurnOver'].iat[0])
+            # daily_position_change = gp_df['position'].diff(1).fillna(gp_df['position'].iat[0])
+
+            df_trading_pnl = (daily_net_turnover + mult * df_close * daily_position_change - df_commisson)
+            df_holding_pnl = (mult * df_close.diff(1) * df_position.shift(1)).fillna(0.0)
+            df_total_pnl = df_trading_pnl + df_holding_pnl
+
+            dv = set_ts(dv, 'trading_pnl',  df_trading_pnl)
+            dv = set_ts(dv, 'holding_pnl',  df_holding_pnl)
+            dv = set_ts(dv, 'total_pnl',    df_total_pnl)
+            dv = set_ts(dv, 'trade_shares', daily_position_change)
+
+
+            # gp_df['trading_pnl'] = (daily_net_turnover + mult * gp_df['close'] * daily_position_change - gp_df['commission'])
+            # gp_df['holding_pnl'] = (mult * gp_df['close'].diff(1) * gp_df['position'].shift(1)).fillna(0.0)
+            # gp_df.loc[:, 'total_pnl'] = gp_df['trading_pnl'] + gp_df['holding_pnl']
+            # gp_df['trade_shares'] = daily_position_change
+            #
+            # return gp_df
+
+            return dv
+
+        dv = merge.copy()
+        dv.index =dv.index.swaplevel()
+        dv = dv.unstack()
+        dv.columns = dv.columns.swaplevel()
+
+        dv = build_daily(dv, self.inst_map)
+
+        # Index(date) : Column(code/field) -> Index(code/date) : Column(field)
+        a = dv.copy()
+        a.columns = a.columns.swaplevel()
+        a = a.stack()
+        a.index = a.index.swaplevel()
+        print(a.columns)
+
+        self.daily = a
+
         if self._is_alpha_analyzer and self.dataview:
             self._build_holding_data()
             self._build_portfolio_data()
+
+        prof_tmp.end()
 
         self.save_data()
 
@@ -1639,9 +1762,14 @@ class BaseAnalyzer(object):
         print("process trades...")
         self.process_trades()
         print("get daily stats...")
+
         self.get_daily()
+
         print("calc strategy return...")
+
+        prof_tmp = prof_sample_begin("get_returns")
         self.get_returns(compound_return = compound_rtn, consider_commission=True)
+        prof_tmp.end()
 
         if len(selected_sec) > 0:
             print("Plot single securities PnL")
