@@ -1545,6 +1545,9 @@ class DataView(object):
         self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly, is_factor=True)
 
     def add_label(self, factor, name=None, is_quarterly=False):  # within_index=True):
+        if not name:
+            name = factor.split('(')[0]
+
         self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly, is_factor=False)
 
     def add_formula(self, field_name, formula, is_quarterly, overwrite=True,
@@ -1567,6 +1570,8 @@ class DataView(object):
         data_api : RemoteDataService, optional
         within_index : bool
             When do cross-section operatioins, whether just do within index components.
+        is_factor: bool
+            Whether new field is factor or label.
 
         Notes
         -----
