@@ -29,13 +29,14 @@ class FactorDef:
 
 
 class FactorFunc:
-    def __init__(self, dv, factor):
+    def __init__(self, dv, factor, allow_future_data):
         self._factor = factor
         self._dv = dv
+        self._allow_future_data = allow_future_data
 
     def __call__(self, *args, **kwargs):
 
-        parser = self._dv._create_parser()
+        parser = self._dv._create_parser(allow_future_data=self._allow_future_data)
 
         # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
         expr = parser.parse(self._factor.body)
@@ -49,9 +50,9 @@ class FactorFunc:
                 var_df_dic[var] = args[i]
             elif var in parser.functions:
                 if var in self._dv._import_factors and not self._dv._import_factors[var].args:
-                    var_df_dic[var] = self._dv._get_var(var)
+                    var_df_dic[var] = self._dv._get_var(var, self._allow_future_data)
             else:
-                var_df_dic[var] = self._dv._get_var(var)
+                var_df_dic[var] = self._dv._get_var(var, self._allow_future_data)
 
         # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
         df_ann = self._dv._get_ann_df()
@@ -66,12 +67,13 @@ class ResReturnFunc:
     """
     ResReturn(close, m, n)
     """
-    def __init__(self, dv):
+    def __init__(self, dv, allow_future_data):
         self._dv = dv
+        self._allow_future_data = allow_future_data
 
     def __call__(self, *args, **kwargs):
 
-        parser = self._dv._create_parser()
+        parser = self._dv._create_parser(allow_future_data=self._allow_future_data)
 
         # print("exec factor: " + self._factor.name + "(" + ','.join(self._factor.args) + ")=" + self._factor.body)
         field_name = args[0].columns.name
@@ -90,9 +92,9 @@ class ResReturnFunc:
             #     var_df_dic[var] = args[i]
             if var in parser.functions:
                 if var in self._dv._import_factors and not self._dv._import_factors[var].args:
-                    var_df_dic[var] = self._dv._get_var(var)
+                    var_df_dic[var] = self._dv._get_var(var, self._allow_future_data)
             else:
-                var_df_dic[var] = self._dv._get_var(var)
+                var_df_dic[var] = self._dv._get_var(var, self._allow_future_data)
 
         # TODO: send ann_date into expr.evaluate. We assume that ann_date of all fields of a symbol is the same
         df_ann = self._dv._get_ann_df()
@@ -102,12 +104,12 @@ class ResReturnFunc:
         return df_eval
 
 
-class LabelDef(FactorDef):
-    pass
-
-
-class LabelFunc(FactorFunc):
-    pass
+# class LabelDef(FactorDef):
+#     pass
+#
+#
+# class LabelFunc(FactorFunc):
+#     pass
 
 
 class DataView(object):
@@ -1501,18 +1503,23 @@ class DataView(object):
             self.append_df(df_expanded, field_name, is_quarterly=False)
         return True
 
-    def _create_parser(self, formula_func_name_style='camel'):
-        parser = Parser()
+    def _create_parser(self, formula_func_name_style='camel', allow_future_data=False):
+        parser = Parser(allow_future_data=allow_future_data)
         parser.set_capital(formula_func_name_style)
 
         for key in self._import_factors:
             factor = self._import_factors[key]
-            parser.register_function(factor.name, FactorFunc(self, factor))
+            parser.register_function(factor.name, FactorFunc(self, factor, allow_future_data))
 
-        parser.register_function("ResReturn", ResReturnFunc(self))
+        parser.register_function("ResReturn", ResReturnFunc(self, allow_future_data))
         return parser
 
-    def _get_var(self, var):
+    def _get_var(self, var, allow_future_data):
+
+        if not allow_future_data:
+            if var in self.labels:
+                raise ValueError("Variable {0} is label while calculating factor!".format(var))
+
         if var in self._import_factors:
             if self._is_quarter_field(var):
                 df_var = self.get_ts_quarter(var, start_date=self.extended_start_date_q)
@@ -1520,7 +1527,7 @@ class DataView(object):
                 df_var = self.get_ts(var, start_date=self.extended_start_date_d, end_date=self.end_date)
             else:
                 factor_def = self._import_factors[var]
-                df_var = FactorFunc(self, factor_def)()
+                df_var = FactorFunc(self, factor_def, allow_future_data)()
                 self.append_df(df_var, var, is_quarterly=factor_def.is_quarterly)
 
             return df_var
@@ -1535,14 +1542,14 @@ class DataView(object):
         if not name:
             name = factor.split('(')[0]
 
-        self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly)
+        self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly, is_factor=True)
 
     def add_label(self, factor, name=None, is_quarterly=False):  # within_index=True):
-        self.add_factor(factor, name, is_quarterly)
+        self.add_formula(field_name=name, formula=factor, is_quarterly=is_quarterly, is_factor=False)
 
     def add_formula(self, field_name, formula, is_quarterly, overwrite=True,
                     formula_func_name_style='camel', data_api=None,
-                    within_index=True):
+                    within_index=True, is_factor=True):
         """
         Add a new field, which is calculated using existing fields.
 
@@ -1579,7 +1586,7 @@ class DataView(object):
         elif self._is_predefined_field(field_name):
             raise ValueError("[{:s}] is alread a pre-defined field. Please use another name.".format(field_name))
 
-        parser = self._create_parser(formula_func_name_style)
+        parser = self._create_parser(formula_func_name_style, allow_future_data=not is_factor)
         expr = parser.parse(formula)
 
         var_df_dic = dict()
@@ -1601,6 +1608,13 @@ class DataView(object):
                     success = self.add_field(var)
                     if not success:
                         return
+        if is_factor:
+            for var in var_list:
+                if var in self.labels:
+                    raise ValueError("Variable {0} is label while calculating factor!".format(var))
+        else:
+            if field_name not in self.labels:
+                self.labels.append(field_name)
 
         for var in var_list:
             if self._is_quarter_field(var):
@@ -1963,7 +1977,7 @@ class DataView(object):
 
             factor_id = factor_expr.split('(')[0].strip()
             if factor_id not in self._import_factors:
-                print("Can't find factor definitions: " + factor_id)
+                #print("Can't find factor definitions: " + factor_id)
                 continue
             if self._import_factors[factor_id].is_quarterly:
                 t = self.get_ts_quarter(factor_name)
@@ -2934,7 +2948,7 @@ class EventDataView(object):
 
     def add_formula(self, field_name, formula, is_quarterly, overwrite=True,
                     formula_func_name_style='camel', data_api=None,
-                    within_index=True):
+                    within_index=True, is_factor=True):
         """
         Add a new field, which is calculated using existing fields.
 

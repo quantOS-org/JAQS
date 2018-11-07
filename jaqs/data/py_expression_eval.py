@@ -247,7 +247,7 @@ class Token(object):
 
 
 class Parser(object):
-    def __init__(self):
+    def __init__(self, allow_future_data =False):
         self.success = False
         self.errormsg = ''
         self.expression = ''
@@ -404,6 +404,8 @@ class Parser(object):
         
         self.ann_dts = None
         self.trade_dts = None
+
+        self.allow_future_data = allow_future_data
     
     # -----------------------------------------------------
     # functions
@@ -590,13 +592,21 @@ class Parser(object):
         return n - x.rolling(n).count()
     
     def delay(self, x, n):
+        if not self.allow_future_data and n < 0:
+            raise RuntimeError("Can't use future data")
+
         return x.shift(n)
     
     def delta(self, x, n):
+        if not self.allow_future_data and n < 0:
+            raise RuntimeError("Can't use future data")
+
         return x.diff(n)
     
-    @staticmethod
-    def calc_return(df, forward=1, log=False):
+    def calc_return(self, df, forward=1, log=False):
+        if not self.allow_future_data and forward < 0:
+            raise ValueError("Can't use future data")
+
         if log:
             res = np.log(df).diff(forward)
         else:
@@ -709,14 +719,19 @@ class Parser(object):
             df = df.fillna(method = fmethod)
             return df
 
-    @staticmethod
-    def calc_return_abs(df, forward=1):
+    def calc_return_abs(self, df, forward=1):
+        if not self.allow_future_data and forward < 0:
+            raise RuntimeError("Can't use future data")
+
+
         shift = df.shift(forward)
         res = (df - shift) / abs(shift)
         return res
 
-    @staticmethod
-    def calc_return_fwd(df, forward=1):
+    def calc_return_fwd(self, df, forward=1):
+        if not self.allow_future_data and forward > 0:
+            raise RuntimeError("Can't use future data")
+
         shift = df.shift(-forward)
         res = (shift - df) / df
         return res
