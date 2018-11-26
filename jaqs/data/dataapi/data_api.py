@@ -96,7 +96,7 @@ class DataApi(object):
         self._schema_map = {}
         self._sub_hash = ""
         self._subscribed_set = set()
-        self._timeout = 20
+        self._timeout = 60
     
     def login(self, username, password):
         
