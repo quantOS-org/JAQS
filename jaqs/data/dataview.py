@@ -1048,7 +1048,7 @@ class DataView(object):
         if 'st_flag' in fields:
             df, msg = self.data_api.query(view='wd.stockST')
             if df is None:
-                raise ValueError("query wd.secStockRatingConsus Error:" + msg)
+                raise ValueError("query wd.stockST Error:" + msg)
 
             st_symbols = df['symbol'].unique()
             st_daily = self.get_ts('high')
@@ -1065,7 +1065,7 @@ class DataView(object):
                     else:
                         remove_dt -= 1
                     stype = x['stype']
-                    st_daily.loc[pd.IndexSlice[entry_date: remove_dt], [symbol]] = stype
+                    st_daily.loc[pd.IndexSlice[entry_date: remove_dt], [symbol]] += stype
 
             self.append_df(st_daily, 'st_flag', is_quarterly=False)
 
@@ -1280,7 +1280,8 @@ class DataView(object):
             col_diff = sorted(set(df_final.columns.levels[0].values) - set(df.columns.levels[0].values))
             print("WARNING: some data is unavailable: "
                    # + "\n    At index " + ', '.join(idx_diff)
-                   + "\n    At fields " + ', '.join(col_diff))
+                   + "\n    At fields "
+                   + (', '.join(col_diff) if len(col_diff) < 20 else ', '.join(col_diff[:20]) + " ..."))
             return df_final
         else:
             return df
@@ -1385,8 +1386,9 @@ class DataView(object):
             df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
                                                     start_date=self.extended_start_date_q, end_date=self.end_date,
                                                     type_=type_, level=level)
-            self.append_df(df, field, is_quarterly=False)
-            self.industry_groups[field] = df
+            if df is not None:
+                self.append_df(df, field, is_quarterly=False)
+                self.industry_groups[field] = df
 
     def _prepare_benchmark(self):
         if self.benchmark == 'VW_UNIVERSE':
@@ -1693,6 +1695,9 @@ class DataView(object):
         else:
             the_data = self.data_d
 
+        if field_name in the_data.columns.levels[1]:
+            raise ValueError("The field already exists in DataView! " + field_name)
+
         # Copy exists symbols and set multi index
         df = df.loc[:, the_data.columns.levels[0]]
         multi_idx = pd.MultiIndex.from_product([[field_name], df.columns])
@@ -1996,8 +2001,16 @@ class DataView(object):
         t = self.get_ts('_daily_adjust_factor')
         if t is None or len(t.columns) == 0:
             a = self.get_ts('adjust_factor')
-            b = (a / a.shift(1)).fillna(1.0)
-            self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
+            if len(t.columns):
+                b = (a / a.shift(1)).fillna(1.0)
+                self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
+            else:
+                # add fake _daily_adjust_factor for futures
+                tmp = self.get_ts('close')
+                for c in tmp.columns:
+                    if c:
+                        tmp[c] = 1.0
+                self.append_df(tmp, '_daily_adjust_factor', is_quarterly=False)
 
         t = self.get_ts("_limit")
         if t is None or len(t.columns) == 0:
@@ -2871,7 +2884,8 @@ class EventDataView(object):
             df = self.data_api.query_industry_daily(symbol=','.join(self.symbol),
                                                     start_date=self.extended_start_date_q, end_date=self.end_date,
                                                     type_=type_, level=level)
-            self.append_df(df, field, is_quarterly=False)
+            if df is not None:
+                self.append_df(df, field, is_quarterly=False)
 
     def _prepare_benchmark(self):
         df_bench, msg = self.data_api.daily(self.benchmark,

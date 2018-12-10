@@ -802,7 +802,7 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
 
         """
         df_io, err_msg = self._get_index_comp(index, start_date, end_date)
-        return list(np.unique(df_io.loc[:, 'symbol']))
+        return filter(None, list(np.unique(df_io.loc[:, 'symbol'])))
     
     def query_index_member_daily(self, index, start_date, end_date):
         """
@@ -1039,7 +1039,11 @@ class RemoteDataService(with_metaclass(Singleton, DataService)):
         dic_sec = {sec: df.sort_values(by='in_date', axis=0).reset_index()
                    for sec, df in dic_sec.items()}
 
+        if not dic_sec:
+            return None
+
         df_ann_tmp = pd.concat({sec: df.loc[:, 'in_date'] for sec, df in dic_sec.items()}, axis=1)
+
         df_value_tmp = pd.concat({sec: df.loc[:, 'industry{:d}_code'.format(level)]
                                   for sec, df in dic_sec.items()},
                                  axis=1)

@@ -328,6 +328,8 @@ class BaseAnalyzer(object):
 
         self._sold_alpha_decay = None
         self._sold_alpha_decay_image = None
+        self._alpha_weight_contribution = None
+        self._alpha_weight_traded_stocks = None
 
     @property
     def trades(self):
@@ -1486,7 +1488,7 @@ class BaseAnalyzer(object):
         holding_shares = self.holding_data.get_ts('holding_shares').sum(axis=0)
 
         self._alpha_weight_traded_stocks = holding_shares[holding_shares>0].shape[0]
-        self._alpha_wegith_contribution = df_contrib
+        self._alpha_weight_contribution = df_contrib
 
     def analyze_sold_alpha_decay(self, result_dir):
         """
@@ -1725,7 +1727,7 @@ class BaseAnalyzer(object):
         dic['alpha_decomposition'] = self._alpha_decomposition
         dic['industry_agg'] = self._industry_agg
 
-        dic['alpha_weight_contribution']  = self._alpha_wegith_contribution
+        dic['alpha_weight_contribution']  = self._alpha_weight_contribution
         dic['alpha_weight_traded_stocks'] = self._alpha_weight_traded_stocks
 
         dic['sold_alpha_decay_image'] = self._sold_alpha_decay_image

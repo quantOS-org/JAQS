@@ -481,7 +481,7 @@ class AlphaBacktestInstance(BacktestInstance):
         print("Backtest done. {0:d} days, {1:.2e} trades in total. used time: {2}s".
               format(len(self.ctx.dataview.dates), len(self.ctx.pm.trades), used_time))
 
-        jutil.prof_print()
+        #jutil.prof_print()
     
     def on_after_market_close(self):
         self.ctx.trade_api.on_after_market_close()
