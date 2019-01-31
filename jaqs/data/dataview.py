@@ -1695,8 +1695,8 @@ class DataView(object):
         else:
             the_data = self.data_d
 
-        if field_name in the_data.columns.levels[1]:
-            raise ValueError("The field already exists in DataView! " + field_name)
+        # if field_name in the_data.columns.levels[1]:
+        #     raise ValueError("The field already exists in DataView! " + field_name)
 
         # Copy exists symbols and set multi index
         df = df.loc[:, the_data.columns.levels[0]]
@@ -1706,9 +1706,11 @@ class DataView(object):
 
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
-        
-        new_cols = the_data.columns.append(df.columns)
-        the_data = the_data.reindex(columns=new_cols)
+
+        if field_name not in self.fields or field_name not in the_data.columns.levels[0]:
+            new_cols = the_data.columns.append(df.columns)
+            the_data = the_data.reindex(columns=new_cols)
+
         the_data[field_name] = df[field_name]
         the_data.columns = the_data.columns.swaplevel()
         the_data = the_data.sort_index(axis=1)
@@ -2001,7 +2003,7 @@ class DataView(object):
         t = self.get_ts('_daily_adjust_factor')
         if t is None or len(t.columns) == 0:
             a = self.get_ts('adjust_factor')
-            if len(t.columns):
+            if len(a.columns):
                 b = (a / a.shift(1)).fillna(1.0)
                 self.append_df(b, '_daily_adjust_factor', is_quarterly=False)
             else:
@@ -2192,9 +2194,13 @@ class DataView(object):
             pass
 
         dv2 = DataView()
-        dv2.data_benchmark = self.data_benchmark.loc[pd.IndexSlice[extended_start_date_d: end_date]]
+
+        if self.data_benchmark is not None:
+            dv2.data_benchmark = self.data_benchmark.loc[pd.IndexSlice[extended_start_date_d: end_date]]
+
         if self.data_d is not None:
             dv2.data_d = self.data_d.loc[pd.IndexSlice[extended_start_date_d: end_date], pd.IndexSlice[symbols, fields]]
+
         if self.data_q is not None:
             dv2.data_q = self.data_q.loc[pd.IndexSlice[extended_start_date_d: end_date], pd.IndexSlice[symbols, slice(None)]]
 
