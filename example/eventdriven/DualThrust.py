@@ -15,6 +15,7 @@ import jaqs.trade.analyze as ana
 import jaqs.util as jutil
 
 from config_path import DATA_CONFIG_PATH, TRADE_CONFIG_PATH
+
 data_config = jutil.read_json(DATA_CONFIG_PATH)
 trade_config = jutil.read_json(TRADE_CONFIG_PATH)
 
@@ -28,6 +29,7 @@ class DualThrust(EventDrivenStrategy):
         self.quote = None
         self.bufferCount = 0
         self.bufferSize = 0
+        self.pre_td = 0
         self.high_list = []
         self.close_list = []
         self.low_list = []
@@ -38,7 +40,7 @@ class DualThrust(EventDrivenStrategy):
         self.Upper = 0.0
         self.Lower = 0.0
         self.output = False
-        
+
     def init_from_config(self, props):
         super(DualThrust, self).init_from_config(props)
         self.symbol = props.get('symbol')
@@ -55,32 +57,36 @@ class DualThrust(EventDrivenStrategy):
         self.tick_size = props.get('tick_size', 1.0)
 
     def initialize(self):
-        self.bufferCount += 1
-        td = self.ctx.trade_date
-        ds = self.ctx.data_api
-        df, msg = ds.daily(symbol=self.symbol, start_date=td, end_date=td)
+        if self.pre_td != 0:
+            self.bufferCount += 1
+            td = self.ctx.trade_date
+            ds = self.ctx.data_api
+            df, msg = ds.daily(symbol=self.symbol, start_date=self.pre_td, end_date=self.pre_td)
+            df_today, msg_today = ds.daily(symbol=self.symbol, fields='open', start_date=td,
+                                           end_date=td)
 
-        self.open_list[0:self.bufferSize - 1] = self.open_list[1:self.bufferSize]
-        self.open_list[-1] = df.open
-        self.high_list[0:self.bufferSize - 1] = self.high_list[1:self.bufferSize]
-        self.high_list[-1] = df.high
-        self.close_list[0:self.bufferSize - 1] = self.close_list[1:self.bufferSize]
-        self.close_list[-1] = df.close
-        self.low_list[0:self.bufferSize - 1] = self.low_list[1:self.bufferSize]
-        self.low_list[-1] = df.low
+            self.open_list[0:self.bufferSize - 1] = self.open_list[1:self.bufferSize]
+            self.open_list[-1] = df.open
+            self.high_list[0:self.bufferSize - 1] = self.high_list[1:self.bufferSize]
+            self.high_list[-1] = df.high
+            self.close_list[0:self.bufferSize - 1] = self.close_list[1:self.bufferSize]
+            self.close_list[-1] = df.close
+            self.low_list[0:self.bufferSize - 1] = self.low_list[1:self.bufferSize]
+            self.low_list[-1] = df.low
 
-        HH = max(self.high_list[:-1])
-        HC = max(self.close_list[:-1])
-        LC = min(self.close_list[:-1])
-        LL = min(self.low_list[:-1])
+            HH = max(self.high_list)
+            HC = max(self.close_list)
+            LC = min(self.close_list)
+            LL = min(self.low_list)
 
-        Range = max(HH - LC, HC - LL)
-        self.Upper = self.open_list[-1] + self.k1 * Range
-        self.Lower = self.open_list[-1] - self.k2 * Range
-        
+            Range = max(HH - LC, HC - LL)
+            self.Upper = df_today.loc[0, 'open'] + self.k1 * Range
+            self.Lower = df_today.loc[0, 'open'] - self.k2 * Range
+        self.pre_td = self.ctx.trade_date
+
     def on_cycle(self):
         pass
-    
+
     def on_tick(self, quote):
         pass
 
@@ -115,7 +121,7 @@ class DualThrust(EventDrivenStrategy):
             pass
             # self.cancel_all_orders()
             # self.liquidate(self.quote, 3, tick_size=self.tick_size, pos=self.pos)
-    
+
     def on_trade(self, ind):
         print("\nStrategy on trade: ")
         print(ind)
@@ -126,7 +132,7 @@ class DualThrust(EventDrivenStrategy):
         if self.output:
             print("\nStrategy on order status: ")
             print(ind)
-        
+
     def on_task_rsp(self, rsp):
         if self.output:
             print("\nStrategy on task rsp: ")
@@ -136,7 +142,7 @@ class DualThrust(EventDrivenStrategy):
         if self.output:
             print("\nStrategy on order rsp: ")
             print(rsp)
-    
+
     def on_task_status(self, ind):
         if self.output:
             print("\nStrategy on task ind: ")
@@ -147,7 +153,7 @@ props = {
     "symbol": "rb1710.SHF",
     "start_date": 20170510,
     "end_date": 20170830,
-    "buffersize": 7,
+    "buffersize": 6,
     "k1": 0.2,
     "k2": 0.2,
     "bar_type": "1M",
@@ -176,12 +182,12 @@ def run_strategy():
 
 def analyze():
     ta = ana.EventAnalyzer()
-    
+
     ds = RemoteDataService()
     ds.init_from_config(data_config)
-    
+
     ta.initialize(data_server_=ds, file_folder=result_dir_path)
-    
+
     ta.do_analyze(result_dir=result_dir_path, selected_sec=props['symbol'].split(','))
 
 
